@@ -2,9 +2,8 @@
   TGGG ACCOUNTING SYSTEM - SETUP GUIDE FOR COLLABORATORS
 ================================================================================
 
-WHAT CHANGED?
--------------
-This project has been converted from TypeScript to pure JavaScript:
+CHANGES:
+from TypeScript to pure JavaScript:
 
 ✓ All .tsx files → .jsx files
 ✓ Removed TypeScript dependencies (@types/*, typescript)
