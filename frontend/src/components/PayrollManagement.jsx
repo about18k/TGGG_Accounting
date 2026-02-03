@@ -234,7 +234,7 @@ export function PayrollManagement() {
                 <p className="text-sm text-muted-foreground">Total Payroll</p>
                 <p className="text-2xl font-medium">₱{(mockPayrollData.totalPayroll / 1000000).toFixed(1)}M</p>
               </div>
-              <DollarSign className="w-8 h-8 text-green-500" />
+              <DollarSign className="w-8 h-8 text-primary" />
             </div>
             <p className="text-xs text-muted-foreground mt-2">This month</p>
           </CardContent>
@@ -258,7 +258,7 @@ export function PayrollManagement() {
                 <p className="text-sm text-muted-foreground">Next Payroll</p>
                 <p className="text-2xl font-medium">Jan 31</p>
               </div>
-              <Calendar className="w-8 h-8 text-chart-1" />
+              <Calendar className="w-8 h-8 text-primary" />
             </div>
             <p className="text-xs text-muted-foreground mt-2">In 4 days</p>
           </CardContent>
@@ -304,7 +304,7 @@ export function PayrollManagement() {
         <CardContent>
           <div className="space-y-3">
             {mockEmployees.slice(0, 5).map((employee) => (
-              <div key={employee.id} className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors">
+              <div key={employee.id} className="flex items-center justify-between p-4 rounded-lg border border-border/50 transition-colors">
                 <div className="flex items-center gap-4">
                   <Avatar>
                     <AvatarImage src={employee.avatar} alt={employee.name} />
@@ -320,7 +320,7 @@ export function PayrollManagement() {
                     <p className="text-sm font-medium">₱{(Math.random() * 30000 + 20000).toFixed(2)}</p>
                     <p className="text-xs text-muted-foreground">January 2024</p>
                   </div>
-                  <Badge className="bg-green-100 text-green-800">Processed</Badge>
+                  <Badge className="bg-primary/10 text-primary border-primary">Processed</Badge>
                 </div>
               </div>
             ))}
@@ -343,12 +343,12 @@ export function PayrollManagement() {
             <div className="space-y-2">
               <Label htmlFor="employee">Select Employee</Label>
               <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
                   <SelectValue placeholder="Choose an employee" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="bg-[#002035] border-[#AEAAAA]/20">
                   {mockEmployees.map(emp => (
-                    <SelectItem key={emp.id} value={emp.id}>
+                    <SelectItem key={emp.id} value={emp.id} className="text-white hover:bg-[#021B2C]">
                       <div className="flex items-center gap-2">
                         <span>{emp.name}</span>
                         <span className="text-xs text-muted-foreground">({emp.id})</span>
@@ -364,12 +364,12 @@ export function PayrollManagement() {
               <div className="space-y-2">
                 <Label htmlFor="month">Month</Label>
                 <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
                     <SelectValue placeholder="Select month" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-[#002035] border-[#AEAAAA]/20">
                     {months.map(month => (
-                      <SelectItem key={month.value} value={month.value}>
+                      <SelectItem key={month.value} value={month.value} className="text-white hover:bg-[#021B2C]">
                         {month.label}
                       </SelectItem>
                     ))}
@@ -379,12 +379,12 @@ export function PayrollManagement() {
               <div className="space-y-2">
                 <Label htmlFor="year">Year</Label>
                 <Select value={selectedYear} onValueChange={setSelectedYear}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
                     <SelectValue placeholder="Select year" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-[#002035] border-[#AEAAAA]/20">
                     {years.map(year => (
-                      <SelectItem key={year} value={year.toString()}>
+                      <SelectItem key={year} value={year.toString()} className="text-white hover:bg-[#021B2C]">
                         {year}
                       </SelectItem>
                     ))}
@@ -395,7 +395,7 @@ export function PayrollManagement() {
 
             {/* Employee Info Card */}
             {selectedEmployeeData && (
-              <Card className="border-2 border-primary/20 bg-primary/5">
+              <Card className="border-2 border-[#F27229]/20 bg-[#002035]">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-3">
                     <Avatar className="w-12 h-12">
@@ -413,7 +413,7 @@ export function PayrollManagement() {
 
             {/* Attendance Summary */}
             {attendanceData ? (
-              <Card className="bg-accent/50">
+              <Card className="bg-[#002035] border-[#AEAAAA]/20">
                 <CardHeader>
                   <CardTitle className="text-base">Attendance Summary</CardTitle>
                 </CardHeader>
@@ -421,23 +421,23 @@ export function PayrollManagement() {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Total Days Worked</p>
-                      <p className="text-xl font-medium">{attendanceData.totalDays}</p>
+                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.totalDays}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Total Hours</p>
-                      <p className="text-xl font-medium">{attendanceData.totalHours}h</p>
+                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.totalHours}h</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Late Count</p>
-                      <p className="text-xl font-medium text-yellow-600">{attendanceData.lateCount}</p>
+                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.lateCount}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Leave Days</p>
-                      <p className="text-xl font-medium text-blue-600">{attendanceData.leaveCount}</p>
+                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.leaveCount}</p>
                     </div>
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">Absences</p>
-                      <p className="text-xl font-medium text-red-600">{attendanceData.absences}</p>
+                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.absences}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -463,7 +463,7 @@ export function PayrollManagement() {
                 value={dailySalary}
                 onChange={(e) => setDailySalary(e.target.value)}
                 min="0"
-                step="0.01"
+                className="bg-[#021B2C] border-[#AEAAAA]/20 text-white [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
               />
               <p className="text-xs text-muted-foreground">
                 Enter the employee's daily salary rate for calculation
@@ -472,7 +472,7 @@ export function PayrollManagement() {
 
             {/* Salary Calculation */}
             {calculations && (
-              <Card className="border-2 border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
+              <Card className="border-2 border-[#F27229]/20 bg-[#002035]">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <CheckCircle className="w-5 h-5 text-green-600" />
@@ -542,7 +542,7 @@ export function PayrollManagement() {
                   {/* Net Salary */}
                   <div className="flex justify-between items-center pt-3 border-t-2 border-green-300 dark:border-green-700">
                     <span className="text-lg font-semibold">Net Salary</span>
-                    <span className="text-2xl font-bold text-green-600 dark:text-green-400">
+                    <span className="text-2xl font-bold text-[#F27229]">
                       ₱{calculations.netSalary.toFixed(2)}
                     </span>
                   </div>

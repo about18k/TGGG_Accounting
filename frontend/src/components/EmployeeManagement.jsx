@@ -115,9 +115,9 @@ export function EmployeeManagement() {
 
   const getStatusBadge = (status) => {
     const variants = {
-      'Active': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
-      'On Leave': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
-      'Inactive': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
+      'Active': 'bg-primary/10 text-primary border-primary',
+      'On Leave': 'bg-yellow-100 text-yellow-800',
+      'Inactive': 'bg-red-100 text-red-800',
     };
     
     return (
@@ -184,9 +184,9 @@ export function EmployeeManagement() {
                     <SelectTrigger>
                       <SelectValue placeholder="Select department" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-modal border-theme">
                       {departments.slice(1).map(dept => (
-                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                        <SelectItem key={dept} value={dept} className="text-white hover-input-dark">{dept}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -233,7 +233,7 @@ export function EmployeeManagement() {
                 <p className="text-sm text-muted-foreground">Active</p>
                 <p className="text-2xl font-medium">{mockEmployees.filter(emp => emp.status === 'Active').length}</p>
               </div>
-              <UserCheck className="w-8 h-8 text-green-500" />
+              <UserCheck className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -244,7 +244,7 @@ export function EmployeeManagement() {
                 <p className="text-sm text-muted-foreground">On Leave</p>
                 <p className="text-2xl font-medium">{mockEmployees.filter(emp => emp.status === 'On Leave').length}</p>
               </div>
-              <UserX className="w-8 h-8 text-yellow-500" />
+              <UserX className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -255,7 +255,7 @@ export function EmployeeManagement() {
                 <p className="text-sm text-muted-foreground">Departments</p>
                 <p className="text-2xl font-medium">{departments.length - 1}</p>
               </div>
-              <Building className="w-8 h-8 text-chart-1" />
+              <Building className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
@@ -276,21 +276,25 @@ export function EmployeeManagement() {
             </div>
             <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
               <SelectTrigger className="w-full sm:w-48">
-                <SelectValue />
+                <SelectValue>
+                  {selectedDepartment === 'All' ? 'All Departments' : selectedDepartment}
+                </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-modal border-theme">
                 {departments.map(dept => (
-                  <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                  <SelectItem key={dept} value={dept} className="text-white hover-input-dark">{dept}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
               <SelectTrigger className="w-full sm:w-48">
-                <SelectValue />
+                <SelectValue>
+                  {selectedStatus === 'All' ? 'All Statuses' : selectedStatus}
+                </SelectValue>
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-modal border-theme">
                 {statuses.map(status => (
-                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                  <SelectItem key={status} value={status} className="text-white hover-input-dark">{status}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -321,7 +325,7 @@ export function EmployeeManagement() {
                 </TableHeader>
                 <TableBody>
                   {filteredEmployees.map((employee) => (
-                    <TableRow key={employee.id} className="hover:bg-accent/50">
+                    <TableRow key={employee.id} className="">
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar>

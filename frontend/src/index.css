@@ -3,47 +3,28 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: oklch(0.145 0 0);
-  --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
-  --primary: #030213;
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.95 0.0058 264.53);
-  --secondary-foreground: #030213;
-  --muted: #ececf0;
-  --muted-foreground: #717182;
-  --accent: #e9ebef;
-  --accent-foreground: #030213;
+  --background: #021B2C;
+  --foreground: #FFFFFF;
+  --card: #002035;
+  --card-foreground: #FFFFFF;
+  --primary: #F27229;
+  --primary-foreground: #FFFFFF;
+  --secondary: #47545E;
+  --secondary-foreground: #FFFFFF;
+  --muted: #47545E;
+  --muted-foreground: #AEAAAA;
+  --accent: #F27229;
+  --accent-foreground: #FFFFFF;
   --destructive: #d4183d;
-  --destructive-foreground: #ffffff;
-  --border: rgba(0, 0, 0, 0.1);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
+  --destructive-foreground: #FFFFFF;
+  --border: #47545E;
+  --ring: #F27229;
+  --chart-1: #F27229;
+  --chart-2: #47545E;
   --radius: 0.625rem;
 }
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --ring: oklch(0.439 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-}
+
 
 @theme inline {
   --color-background: var(--background);
@@ -76,4 +57,24 @@
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Hide scrollbars globally */
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  /* Theme-specific utility classes */
+  .bg-modal { @apply bg-[#002035]; }
+  .bg-input-dark { @apply bg-[#021B2C]; }
+  .border-theme { @apply border-[#AEAAAA]/20; }
+  .text-theme-orange { @apply text-[#F27229]; }
+  .text-theme-muted { @apply text-[#AEAAAA]; }
+  .border-theme-orange { @apply border-[#F27229]/20; }
+  .hover-input-dark { @apply hover:bg-[#021B2C]; }
 }

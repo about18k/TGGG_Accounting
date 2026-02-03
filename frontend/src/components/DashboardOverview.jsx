@@ -60,16 +60,16 @@ export function DashboardOverview() {
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-primary via-chart-1 to-chart-2 p-6 text-primary-foreground">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-card via-secondary to-muted p-6 text-primary-foreground" style={{boxShadow: '0 8px 32px #001F35'}}>
         <div className="relative z-10">
           <h1 className="text-2xl mb-2">Good morning, Alvi! 👋</h1>
           <p className="text-primary-foreground/80 mb-4">Here's what's happening with your team today.</p>
           <div className="flex flex-wrap gap-4">
-            <Badge variant="secondary" className="bg-white/20 text-primary-foreground border-0">
+            <Badge variant="secondary" className="bg-primary/20 text-primary border-primary">
               <Users className="w-4 h-4 mr-2" />
               {mockData.totalEmployees} Total Employees
             </Badge>
-            <Badge variant="secondary" className="bg-white/20 text-primary-foreground border-0">
+            <Badge variant="secondary" className="bg-primary/20 text-primary border-primary">
               <UserCheck className="w-4 h-4 mr-2" />
               {mockData.activeEmployees} Active Today
             </Badge>
@@ -87,51 +87,59 @@ export function DashboardOverview() {
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-medium">{mockData.totalEmployees}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <ArrowUpRight className="w-3 h-3 mr-1 text-green-500" />
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Employees</p>
+                <p className="text-2xl font-medium">{mockData.totalEmployees}</p>
+              </div>
+              <Users className="h-8 w-8 text-primary" />
+            </div>
+            <div className="flex items-center text-xs text-muted-foreground mt-2">
+              <ArrowUpRight className="w-3 h-3 mr-1 text-primary" />
               +{mockData.newHires} new this month
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Attendance Rate</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-medium">{mockData.attendanceRate}%</div>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Attendance Rate</p>
+                <p className="text-2xl font-medium">{mockData.attendanceRate}%</p>
+              </div>
+              <Clock className="h-8 w-8 text-primary" />
+            </div>
             <Progress value={mockData.attendanceRate} className="mt-2" />
           </CardContent>
         </Card>
 
         <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Payroll</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-medium">${(mockData.monthlyPayroll / 1000000).toFixed(1)}M</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              <ArrowUpRight className="w-3 h-3 mr-1 text-green-500" />
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Monthly Payroll</p>
+                <p className="text-2xl font-medium">${(mockData.monthlyPayroll / 1000000).toFixed(1)}M</p>
+              </div>
+              <DollarSign className="h-8 w-8 text-primary" />
+            </div>
+            <div className="flex items-center text-xs text-muted-foreground mt-2">
+              <ArrowUpRight className="w-3 h-3 mr-1 text-primary" />
               +3.2% from last month
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Engagement Score</CardTitle>
-            <Heart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-medium">{mockData.engagementScore}%</div>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Engagement Score</p>
+                <p className="text-2xl font-medium">{mockData.engagementScore}%</p>
+              </div>
+              <Heart className="h-8 w-8 text-primary" />
+            </div>
             <Progress value={mockData.engagementScore} className="mt-2" />
           </CardContent>
         </Card>
@@ -143,14 +151,14 @@ export function DashboardOverview() {
         <Card className="lg:col-span-2 border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
+              <MessageSquare className="w-5 h-5 text-primary" />
               Recent Activities
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {mockData.recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-accent/50 transition-colors">
+                <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg transition-colors">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                     {activity.type === 'leave' && <CalendarDays className="w-4 h-4 text-primary" />}
                     {activity.type === 'performance' && <TrendingUp className="w-4 h-4 text-primary" />}
@@ -172,7 +180,7 @@ export function DashboardOverview() {
         <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Award className="w-5 h-5" />
+              <Award className="w-5 h-5 text-primary" />
               Top Performers
             </CardTitle>
           </CardHeader>
@@ -193,7 +201,7 @@ export function DashboardOverview() {
                     <p className="text-sm font-medium">{performer.name}</p>
                     <p className="text-xs text-muted-foreground">{performer.role}</p>
                   </div>
-                  <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                  <Badge variant="secondary" className="bg-primary/10 text-primary border-primary">
                     {performer.score}%
                   </Badge>
                 </div>
@@ -210,7 +218,7 @@ export function DashboardOverview() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5" />
+                <AlertCircle className="w-5 h-5 text-primary" />
                 Pending Approvals
               </div>
               <Badge variant="secondary">{mockData.pendingApprovals.length}</Badge>
@@ -242,7 +250,7 @@ export function DashboardOverview() {
         <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <CalendarDays className="w-5 h-5" />
+              <CalendarDays className="w-5 h-5 text-primary" />
               Upcoming Events
             </CardTitle>
           </CardHeader>
@@ -258,9 +266,9 @@ export function DashboardOverview() {
                   <Badge 
                     variant="outline" 
                     className={
-                      event.type === 'deadline' ? 'border-destructive text-destructive' :
-                      event.type === 'workshop' ? 'border-chart-1 text-chart-1' :
-                      'border-chart-2 text-chart-2'
+                      event.type === 'deadline' ? 'border-primary text-primary' :
+                      event.type === 'workshop' ? 'border-primary text-primary' :
+                      'border-primary text-primary'
                     }
                   >
                     {event.type}

@@ -1,26 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { DashboardLayout } from './components/DashboardLayout';
 import { DashboardOverview } from './components/DashboardOverview';
 import { EmployeeManagement } from './components/EmployeeManagement';
 import { AttendanceLeave } from './components/AttendanceLeave';
 import { PayrollManagement } from './components/PayrollManagement';
+import { Settings } from './components/Settings';
 import { AIAssistant } from './components/AIAssistant';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
-  const toggleDarkMode = () => {
-    setIsDarkMode(!isDarkMode);
-  };
 
   const renderContent = () => {
     switch (activeTab) {
@@ -32,6 +20,8 @@ export default function App() {
         return <AttendanceLeave />;
       case 'payroll':
         return <PayrollManagement />;
+      case 'settings':
+        return <Settings />;
       case 'ai-assistant':
         return <AIAssistant />;
       default:
@@ -43,8 +33,6 @@ export default function App() {
     <DashboardLayout
       activeTab={activeTab}
       setActiveTab={setActiveTab}
-      isDarkMode={isDarkMode}
-      toggleDarkMode={toggleDarkMode}
     >
       {renderContent()}
     </DashboardLayout>

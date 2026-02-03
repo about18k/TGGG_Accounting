@@ -28,6 +28,7 @@ import {
   Home,
   Plane,
   Heart,
+  Stethoscope,
   Calendar as CalendarIcon
 } from 'lucide-react';
 
@@ -78,7 +79,7 @@ const mockLeaveRequests = [
 
 const leaveTypes = [
   { value: 'vacation', label: 'Vacation', icon: Plane, color: 'bg-blue-100 text-blue-800' },
-  { value: 'sick', label: 'Sick Leave', icon: Heart, color: 'bg-red-100 text-red-800' },
+  { value: 'sick', label: 'Sick Leave', icon: Stethoscope, color: 'bg-red-100 text-red-800' },
   { value: 'personal', label: 'Personal', icon: Coffee, color: 'bg-purple-100 text-purple-800' },
   { value: 'maternity', label: 'Maternity', icon: Heart, color: 'bg-pink-100 text-pink-800' },
   { value: 'bereavement', label: 'Bereavement', icon: Heart, color: 'bg-gray-100 text-gray-800' },
@@ -98,14 +99,14 @@ export function AttendanceLeave() {
 
   const getStatusBadge = (status) => {
     const variants = {
-      'Present': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
-      'Absent': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
-      'Late': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
-      'Sick Leave': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100',
-      'Vacation': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100',
-      'Pending': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100',
-      'Approved': 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100',
-      'Rejected': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
+      'Present': 'bg-primary/10 text-primary border-primary',
+      'Absent': 'bg-red-100 text-red-800',
+      'Late': 'bg-yellow-100 text-yellow-800',
+      'Sick Leave': 'bg-purple-100 text-purple-800',
+      'Vacation': 'bg-blue-100 text-blue-800',
+      'Pending': 'bg-yellow-100 text-yellow-800',
+      'Approved': 'bg-primary/10 text-primary border-primary',
+      'Rejected': 'bg-red-100 text-red-800',
     };
     
     return (
@@ -204,7 +205,7 @@ export function AttendanceLeave() {
                 <p className="text-sm text-muted-foreground">Attendance Rate</p>
                 <p className="text-2xl font-medium">{attendanceRate}%</p>
               </div>
-              <TrendingUp className="w-8 h-8 text-green-500" />
+              <TrendingUp className="w-8 h-8 text-primary" />
             </div>
             <Progress value={attendanceRate} className="mt-3" />
           </CardContent>
@@ -228,7 +229,7 @@ export function AttendanceLeave() {
                 <p className="text-sm text-muted-foreground">Avg Hours/Day</p>
                 <p className="text-2xl font-medium">{averageHoursPerDay}h</p>
               </div>
-              <CalendarDays className="w-8 h-8 text-chart-1" />
+              <CalendarDays className="w-8 h-8 text-primary" />
             </div>
             <p className="text-xs text-muted-foreground mt-2">Last 30 days</p>
           </CardContent>
@@ -240,7 +241,7 @@ export function AttendanceLeave() {
                 <p className="text-sm text-muted-foreground">Leave Requests</p>
                 <p className="text-2xl font-medium">{mockLeaveRequests.filter(req => req.status === 'Pending').length}</p>
               </div>
-              <AlertCircle className="w-8 h-8 text-yellow-500" />
+              <AlertCircle className="w-8 h-8 text-primary" />
             </div>
             <p className="text-xs text-muted-foreground mt-2">Pending approval</p>
           </CardContent>
@@ -259,14 +260,14 @@ export function AttendanceLeave() {
           <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5" />
+                <Clock className="w-5 h-5 text-primary" />
                 Recent Attendance
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {mockAttendanceData.map((record, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors">
+                  <div key={index} className="flex items-center justify-between p-4 rounded-lg border border-border/50 transition-colors">
                     <div className="flex items-center gap-4">
                       <div className="text-center">
                         <p className="text-sm font-medium">{new Date(record.date).getDate()}</p>
@@ -305,17 +306,17 @@ export function AttendanceLeave() {
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Button className="h-20 flex-col gap-2" variant="outline">
-                  <CheckCircle className="w-6 h-6 text-green-500" />
+                  <CheckCircle className="w-6 h-6 text-primary" />
                   Clock In
                   <span className="text-xs text-muted-foreground">09:00 AM</span>
                 </Button>
                 <Button className="h-20 flex-col gap-2" variant="outline">
-                  <XCircle className="w-6 h-6 text-red-500" />
+                  <XCircle className="w-6 h-6 text-primary" />
                   Clock Out
                   <span className="text-xs text-muted-foreground">05:30 PM</span>
                 </Button>
                 <Button className="h-20 flex-col gap-2" variant="outline">
-                  <Coffee className="w-6 h-6 text-yellow-500" />
+                  <Coffee className="w-6 h-6 text-primary" />
                   Break
                   <span className="text-xs text-muted-foreground">15 min</span>
                 </Button>
@@ -364,14 +365,14 @@ export function AttendanceLeave() {
           <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <CalendarDays className="w-5 h-5" />
+                <CalendarDays className="w-5 h-5 text-primary" />
                 Leave Requests
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {mockLeaveRequests.map((request) => (
-                  <div key={request.id} className="flex items-center justify-between p-4 rounded-lg border border-border/50 hover:bg-accent/50 transition-colors">
+                  <div key={request.id} className="flex items-center justify-between p-4 rounded-lg border border-border/50 transition-colors">
                     <div className="flex items-center gap-4">
                       <Avatar>
                         <AvatarImage src={request.avatar} alt={request.employee} />
@@ -463,11 +464,11 @@ export function AttendanceLeave() {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Check In</span>
-                      <Badge className="bg-green-100 text-green-800">09:00 AM</Badge>
+                      <Badge className="bg-primary/10 text-primary border-primary">09:00 AM</Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Current Status</span>
-                      <Badge className="bg-blue-100 text-blue-800">Working</Badge>
+                      <Badge className="bg-primary/10 text-primary border-primary">Working</Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Hours Today</span>
