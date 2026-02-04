@@ -1,80 +1,37 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
-@custom-variant dark (&:is(.dark *));
+@theme {
+  --color-background: #021B2C;
+  --color-foreground: #FFFFFF;
+  --color-card: #002035;
+  --color-primary: #F27229;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #47545E;
+  --color-secondary-foreground: #FFFFFF;
+  --color-muted: #47545E;
+  --color-muted-foreground: #9CA3AF;
+  --color-accent: #002035;
+  --color-accent-foreground: #FFFFFF;
+  --color-destructive: #d4183d;
+  --color-border: #47545E;
+  --color-input: #47545E;
+  --color-input-background: #1a2332;
+  --color-ring: #F27229;
+}
 
-:root {
-  --background: #021B2C;
-  --foreground: #FFFFFF;
-  --card: #002035;
-  --card-foreground: #FFFFFF;
-  --primary: #F27229;
-  --primary-foreground: #FFFFFF;
-  --secondary: #47545E;
-  --secondary-foreground: #FFFFFF;
-  --muted: #47545E;
-  --muted-foreground: #AEAAAA;
-  --accent: #F27229;
-  --accent-foreground: #FFFFFF;
-  --destructive: #d4183d;
-  --destructive-foreground: #FFFFFF;
-  --border: #47545E;
-  --ring: #F27229;
-  --chart-1: #F27229;
-  --chart-2: #47545E;
-  --radius: 0.625rem;
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+}
+
+/* Hide scrollbars globally */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  display: none;
 }
 
 
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  
-  /* Hide scrollbars globally */
-  * {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  *::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-@layer utilities {
-  /* Theme-specific utility classes */
-  .bg-modal { @apply bg-[#002035]; }
-  .bg-input-dark { @apply bg-[#021B2C]; }
-  .border-theme { @apply border-[#AEAAAA]/20; }
-  .text-theme-orange { @apply text-[#F27229]; }
-  .text-theme-muted { @apply text-[#AEAAAA]; }
-  .border-theme-orange { @apply border-[#F27229]/20; }
-  .hover-input-dark { @apply hover:bg-[#021B2C]; }
-}
