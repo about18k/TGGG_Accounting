@@ -49,7 +49,7 @@ const menuItems = [
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
 
-export function DashboardLayout({ activeTab, setActiveTab, children }) {
+export function DashboardLayout({ activeTab, setActiveTab, children, onLogout }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [notificationFilter, setNotificationFilter] = useState('all');
@@ -290,11 +290,35 @@ export function DashboardLayout({ activeTab, setActiveTab, children }) {
                   </PopoverContent>
                 </Popover>
 
-                {/* User Avatar */}
-                <Avatar className="cursor-pointer ring-2 ring-primary/20">
-                  <AvatarImage src={alviProfile} />
-                  <AvatarFallback>AL</AvatarFallback>
-                </Avatar>
+                {/* User Avatar with Logout */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Avatar className="cursor-pointer ring-2 ring-primary/20 hover:ring-primary/40 transition-all">
+                      <AvatarImage src={alviProfile} />
+                      <AvatarFallback>User</AvatarFallback>
+                    </Avatar>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-48 p-0" align="end">
+                    <div className="p-4 border-b">
+                      <p className="font-semibold text-sm">Account Settings</p>
+                      <p className="text-xs text-muted-foreground">Manage your account</p>
+                    </div>
+                    <div className="p-2">
+                      <button
+                        onClick={() => setActiveTab('settings')}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-secondary rounded transition-colors"
+                      >
+                        ⚙️ Settings
+                      </button>
+                      <button
+                        onClick={onLogout}
+                        className="w-full text-left px-3 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded transition-colors mt-1"
+                      >
+                        🚪 Logout
+                      </button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </header>
