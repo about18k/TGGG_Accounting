@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import StatusModal from './components/StatusModal';
 
 const API_URL = 'http://localhost:8000/api/accounts';
 
@@ -147,6 +148,18 @@ function Login({ onLoginSuccess }) {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [registerError, setRegisterError] = useState('');
   const [registerSuccess, setRegisterSuccess] = useState('');
+  
+  // Modal states
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
+
+  const closeModal = () => {
+    setModalState({ ...modalState, isOpen: false });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -175,6 +188,15 @@ function Login({ onLoginSuccess }) {
     e.preventDefault();
     setRegisterError('');
     setRegisterSuccess('');
+    
+    // Show loading modal
+    setModalState({
+      isOpen: true,
+      type: 'loading',
+      title: 'Creating Your Account',
+      message: 'Please wait while we process your registration...'
+    });
+    
     setIsLoading(true);
 
     try {
@@ -186,11 +208,33 @@ function Login({ onLoginSuccess }) {
       });
 
       if (response.data.success) {
-        setRegisterSuccess('Account created. You can now log in.');
-        setIsRegister(false);
+        // Show success modal
+        setModalState({
+          isOpen: true,
+          type: 'success',
+          title: 'Registration Successful!',
+          message: response.data.message || 'Your account has been created successfully. Please wait for admin approval to access your account. You will receive an email notification once approved.'
+        });
+        
+        // Reset form
+        setEmail('');
         setPassword('');
+        setFirstName('');
+        setLastName('');
+        
+        // Switch back to login after 4 seconds
+        setTimeout(() => {
+          setIsRegister(false);
+        }, 4000);
       }
     } catch (err) {
+      // Show error modal
+      setModalState({
+        isOpen: true,
+        type: 'error',
+        title: 'Registration Failed',
+        message: err.response?.data?.error || 'An error occurred during registration. Please try again.'
+      });
       setRegisterError(err.response?.data?.error || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
@@ -198,12 +242,21 @@ function Login({ onLoginSuccess }) {
   };
 
   return (
-    <div style={{ 
-      minHeight: '100vh', 
-      backgroundColor: '#021B2C',
-      display: 'flex', 
-      alignItems: 'center', 
-      justifyContent: 'center',
+    <>
+      <StatusModal
+        isOpen={modalState.isOpen}
+        onClose={closeModal}
+        type={modalState.type}
+        title={modalState.title}
+        message={modalState.message}
+      />
+      
+      <div style={{ 
+        minHeight: '100vh', 
+        backgroundColor: '#021B2C',
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
       padding: '32px'
     }}>
       <div style={{
@@ -685,6 +738,7 @@ function Login({ onLoginSuccess }) {
         }
       `}</style>
     </div>
+    </>
   );
 }
 

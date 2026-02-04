@@ -209,6 +209,15 @@ CORS_ALLOW_CREDENTIALS = True
 # Custom User Model
 AUTH_USER_MODEL = 'accounts.CustomUser'
 
-# Email (dev default: console)
+# Email Configuration
 EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default='True') == 'True'
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', default='False') == 'True'
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=30, cast=int)
+EMAIL_SSL_CERTFILE = config('EMAIL_SSL_CERTFILE', default=None)
+EMAIL_SSL_KEYFILE = config('EMAIL_SSL_KEYFILE', default=None)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='no-reply@tggg.local')
