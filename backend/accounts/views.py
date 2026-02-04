@@ -183,16 +183,35 @@ def approve_user(request):
 
     email_sent = False
     try:
+        email_message = f"""
+Hello {user.first_name} {user.last_name},
+
+Your account has been successfully verified and approved!
+
+Account Details:
+- Email: {user.email}
+- Department: {department.name}
+- Role: {user.get_role_display()}
+
+You can now log in to the TGGG Accounting System using your email and password.
+
+If you have any questions, please contact your administrator.
+
+Best regards,
+TGGG Accounting System
+        """.strip()
+        
         send_mail(
-            subject='Your account is verified',
-            message='Your account has been verified. You can now log in.',
+            subject='Your Account Has Been Verified - TGGG Accounting System',
+            message=email_message,
             from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
             recipient_list=[user.email],
             fail_silently=False,
         )
         email_sent = True
-    except Exception:
+    except Exception as e:
         email_sent = False
+        print(f"Email sending failed: {str(e)}")
 
     return Response({
         'success': True,
