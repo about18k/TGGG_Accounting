@@ -11,4 +11,5 @@ urlpatterns = [
     path('approve/', views.approve_user, name='approve_user'),
     path('departments/', views.get_departments, name='departments'),
     path('overview/', views.accounts_overview, name='overview'),
+    path('users/', views.list_users, name='users'),
 ]

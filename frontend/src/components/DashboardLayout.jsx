@@ -1,14 +1,39 @@
 import React, { useState } from 'react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Progress } from './ui/progress';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
-import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarProvider, SidebarTrigger } from './ui/sidebar';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Progress,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarProvider,
+  SidebarTrigger,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from './ui/accounting-ui';
 import alviProfile from '@/assets/4db478d5344f83406043f453643082ef14ec3b86.png';
 import tripleGLogo from '@/assets/18705286721879dd5e9e4c3fe85f4aede934da35.png';
 import { 
