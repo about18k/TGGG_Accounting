@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
+
 import { 
   Search, 
   Filter, 
@@ -302,103 +302,52 @@ export function EmployeeManagement() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="table" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
-          <TabsTrigger value="table">Table View</TabsTrigger>
-          <TabsTrigger value="cards">Card View</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="table">
-          {/* Employee Table */}
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Position</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Join Date</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEmployees.map((employee) => (
-                    <TableRow key={employee.id} className="">
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={employee.avatar} alt={employee.name} />
-                            <AvatarFallback>{employee.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <p className="font-medium">{employee.name}</p>
-                            <p className="text-sm text-muted-foreground">{employee.email}</p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{employee.department}</TableCell>
-                      <TableCell>{employee.position}</TableCell>
-                      <TableCell>{getStatusBadge(employee.status)}</TableCell>
-                      <TableCell>{new Date(employee.joinDate).toLocaleDateString()}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => setSelectedEmployee(employee)}>
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon">
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+      {/* Employee Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {filteredEmployees.map((employee) => (
+          <Card key={employee.id} className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm hover:shadow-xl transition-shadow cursor-pointer" onClick={() => setSelectedEmployee(employee)}>
+            <CardContent className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Avatar className="w-12 h-12">
+                    <AvatarImage src={employee.avatar} alt={employee.name} />
+                    <AvatarFallback>{employee.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-medium">{employee.name}</h3>
+                    <p className="text-sm text-muted-foreground">{employee.position}</p>
+                  </div>
+                </div>
+                {getStatusBadge(employee.status)}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 mb-3">
+                <div className="bg-background rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Total Days</p>
+                  <p className="text-2xl font-bold text-primary">22</p>
+                </div>
+                <div className="bg-background rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Total Hours</p>
+                  <p className="text-2xl font-bold text-primary">176</p>
+                </div>
+                <div className="bg-background rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">On-Time</p>
+                  <p className="text-2xl font-bold text-primary">20</p>
+                </div>
+                <div className="bg-background rounded-lg p-3">
+                  <p className="text-xs text-muted-foreground mb-1">Late</p>
+                  <p className="text-2xl font-bold text-primary">2</p>
+                </div>
+              </div>
+              
+              <div className="bg-background rounded-lg p-3">
+                <p className="text-xs text-muted-foreground mb-1">Total Late</p>
+                <p className="text-2xl font-bold text-primary">97m (1h)</p>
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
-
-        <TabsContent value="cards">
-          {/* Employee Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredEmployees.map((employee) => (
-              <Card key={employee.id} className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm hover:shadow-xl transition-shadow cursor-pointer" onClick={() => setSelectedEmployee(employee)}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-12 h-12">
-                        <AvatarImage src={employee.avatar} alt={employee.name} />
-                        <AvatarFallback>{employee.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <h3 className="font-medium">{employee.name}</h3>
-                        <p className="text-sm text-muted-foreground">{employee.position}</p>
-                      </div>
-                    </div>
-                    {getStatusBadge(employee.status)}
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Building className="w-4 h-4" />
-                      {employee.department}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="w-4 h-4" />
-                      {employee.email}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="w-4 h-4" />
-                      {employee.location}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+        ))}
+      </div>
 
       {/* Employee Detail Dialog */}
       <Dialog open={!!selectedEmployee} onOpenChange={() => setSelectedEmployee(null)}>

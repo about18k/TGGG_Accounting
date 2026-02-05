@@ -17,7 +17,9 @@ import {
   Download,
   Calculator,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 // Mock employee data
@@ -85,10 +87,21 @@ const mockAttendanceData = {
 
 export function PayrollManagement() {
   const [isProcessPayrollOpen, setIsProcessPayrollOpen] = useState(false);
+  const [isExportReportOpen, setIsExportReportOpen] = useState(false);
+  const [isTaxDeductionsOpen, setIsTaxDeductionsOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('01');
   const [selectedYear, setSelectedYear] = useState('2024');
   const [dailySalary, setDailySalary] = useState('');
+  const [payrollPeriod, setPayrollPeriod] = useState('1-15');
+  const [deductions, setDeductions] = useState([
+    { id: 1, name: 'SSS Contribution', rate: 4.5, type: 'percentage' },
+    { id: 2, name: 'PhilHealth', rate: 2, type: 'percentage' },
+    { id: 3, name: 'Pag-IBIG', rate: 100, type: 'fixed' },
+  ]);
+  const [newDeductionName, setNewDeductionName] = useState('');
+  const [newDeductionRate, setNewDeductionRate] = useState('');
+  const [newDeductionType, setNewDeductionType] = useState('percentage');
   
   // Attendance data for selected employee and month
   const [attendanceData, setAttendanceData] = useState(null);
@@ -209,6 +222,13 @@ export function PayrollManagement() {
     handleCloseModal();
   };
 
+  const handleExportReport = () => {
+    const monthName = months.find(m => m.value === selectedMonth)?.label || '';
+    const periodText = payrollPeriod === '1-15' ? '1st to 15th' : '16th to 30th';
+    alert(`Exporting payroll report for all employees\nPeriod: ${monthName} ${periodText}, ${selectedYear}`);
+    setIsExportReportOpen(false);
+  };
+
   const selectedEmployeeData = mockEmployees.find(e => e.id === selectedEmployee);
 
   return (
@@ -219,10 +239,16 @@ export function PayrollManagement() {
           <h1 className="text-2xl font-medium">Payroll Management</h1>
           <p className="text-muted-foreground">Manage employee compensation and benefits</p>
         </div>
-        <Button className="gap-2">
-          <Download className="w-4 h-4" />
-          Export Reports
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-2">
+            <BarChart3 className="w-4 h-4" />
+            Analytics
+          </Button>
+          <Button className="gap-2" onClick={() => setIsExportReportOpen(true)}>
+            <Download className="w-4 h-4" />
+            Export Reports
+          </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -271,7 +297,7 @@ export function PayrollManagement() {
           <CardTitle>Payroll Actions</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button 
               variant="outline" 
               className="h-20 flex-col gap-2"
@@ -280,17 +306,17 @@ export function PayrollManagement() {
               <DollarSign className="w-6 h-6" />
               Process Payroll
             </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2">
-              <FileText className="w-6 h-6" />
-              Generate Reports
-            </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2">
+            <Button 
+              variant="outline" 
+              className="h-20 flex-col gap-2"
+              onClick={() => setIsTaxDeductionsOpen(true)}
+            >
               <Settings className="w-6 h-6" />
-              Tax Settings
+              Manage Tax/Deductions
             </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2">
-              <BarChart3 className="w-6 h-6" />
-              Analytics
+            <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => setIsExportReportOpen(true)}>
+              <Download className="w-6 h-6" />
+              Export Reports
             </Button>
           </div>
         </CardContent>
@@ -327,6 +353,192 @@ export function PayrollManagement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Manage Tax/Deductions Modal */}
+      <Dialog open={isTaxDeductionsOpen} onOpenChange={setIsTaxDeductionsOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Manage Tax/Deductions
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Add New Deduction */}
+            <div className="p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10">
+              <h3 className="text-sm font-semibold text-white mb-4">Add New Deduction</h3>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-[#AEAAAA]">Deduction Name</Label>
+                  <Input
+                    placeholder="e.g., Health Insurance"
+                    value={newDeductionName}
+                    onChange={(e) => setNewDeductionName(e.target.value)}
+                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-[#AEAAAA]">Type</Label>
+                    <Select value={newDeductionType} onValueChange={setNewDeductionType}>
+                      <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#002035] border-[#AEAAAA]/20">
+                        <SelectItem value="percentage" className="text-white hover:bg-[#021B2C]">Percentage (%)</SelectItem>
+                        <SelectItem value="fixed" className="text-white hover:bg-[#021B2C]">Fixed Amount (₱)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-[#AEAAAA]">Rate/Amount</Label>
+                    <Input
+                      type="number"
+                      placeholder={newDeductionType === 'percentage' ? '0.00' : '0'}
+                      value={newDeductionRate}
+                      onChange={(e) => setNewDeductionRate(e.target.value)}
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9"
+                    />
+                  </div>
+                </div>
+                <Button 
+                  className="w-full gap-2 h-9"
+                  onClick={() => {
+                    if (newDeductionName && newDeductionRate) {
+                      setDeductions([...deductions, {
+                        id: Date.now(),
+                        name: newDeductionName,
+                        rate: parseFloat(newDeductionRate),
+                        type: newDeductionType
+                      }]);
+                      setNewDeductionName('');
+                      setNewDeductionRate('');
+                    }
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Deduction
+                </Button>
+              </div>
+            </div>
+
+            {/* Existing Deductions */}
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold text-white px-1">Current Deductions</h3>
+              <div className="space-y-2">
+                {deductions.map((deduction) => (
+                  <div key={deduction.id} className="p-3 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10 hover:bg-[#021B2C]/50 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white">{deduction.name}</p>
+                        <p className="text-xs text-[#AEAAAA] mt-1">
+                          {deduction.type === 'percentage' ? `${deduction.rate}%` : `₱${deduction.rate}`}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeductions(deductions.filter(d => d.id !== deduction.id))}
+                        className="text-red-500 hover:text-red-600 hover:bg-red-500/10 h-8 w-8 p-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button onClick={() => setIsTaxDeductionsOpen(false)}>
+              Done
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Export Report Modal */}
+      <Dialog open={isExportReportOpen} onOpenChange={setIsExportReportOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Download className="w-5 h-5" />
+              Export Payroll Report
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="export-month">Month</Label>
+              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#002035] border-[#AEAAAA]/20">
+                  {months.map(month => (
+                    <SelectItem key={month.value} value={month.value} className="text-white hover:bg-[#021B2C]">
+                      {month.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="export-year">Year</Label>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                  <SelectValue placeholder="Select year" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#002035] border-[#AEAAAA]/20">
+                  {years.map(year => (
+                    <SelectItem key={year} value={year.toString()} className="text-white hover:bg-[#021B2C]">
+                      {year}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="payroll-period">Payroll Period</Label>
+              <Select value={payrollPeriod} onValueChange={setPayrollPeriod}>
+                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                  <SelectValue placeholder="Select period" />
+                </SelectTrigger>
+                <SelectContent className="bg-[#002035] border-[#AEAAAA]/20">
+                  <SelectItem value="1-15" className="text-white hover:bg-[#021B2C]">
+                    1st to 15th of the month
+                  </SelectItem>
+                  <SelectItem value="16-30" className="text-white hover:bg-[#021B2C]">
+                    16th to 30th of the month
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Card className="bg-[#002035] border-[#AEAAAA]/20">
+              <CardContent className="p-4">
+                <p className="text-sm text-muted-foreground">
+                  This will export payroll reports for all employees for the selected period.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setIsExportReportOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleExportReport} className="gap-2">
+              <Download className="w-4 h-4" />
+              Export
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Process Payroll Modal */}
       <Dialog open={isProcessPayrollOpen} onOpenChange={setIsProcessPayrollOpen}>
