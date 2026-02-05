@@ -193,16 +193,16 @@ Account Details:
 - Department: {department.name}
 - Role: {user.get_role_display()}
 
-You can now log in to the TGGG Accounting System using your email and password.
+You can now log in to the Triple G using your email and password.
 
 If you have any questions, please contact your administrator.
 
 Best regards,
-TGGG Accounting System
+Triple G Admin
         """.strip()
         
         send_mail(
-            subject='Your Account Has Been Verified - TGGG Accounting System',
+            subject='Your Account Has Been Verified - Triple G',
             message=email_message,
             from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
             recipient_list=[user.email],
@@ -233,3 +233,13 @@ def accounts_overview(request):
         'message': 'Accounts module',
         'features': ['Chart of Accounts', 'Journal Entries', 'General Ledger', 'Financial Reports']
     })
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def list_users(request):
+    if not _is_admin_user(request.user):
+        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+    users = CustomUser.objects.all().order_by('last_name', 'first_name', 'email')
+    return Response(CustomUserSerializer(users, many=True).data)
