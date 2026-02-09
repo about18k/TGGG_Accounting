@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import StatusModal from './components/StatusModal';
-import AccountingDashboard from './pages/dashboards/AccountingDashboard';
+// import AccountingDashboard from './pages/dashboards/AccountingDashboard';
 import EmployeeDashboard from './pages/dashboards/EmployeeDashboard';
 import InternDashboard from './pages/dashboards/InternDashboard';
+import AttendanceDashboard from './pages/dashboards/Public_Dashboard/AttendanceDashboard';
 import { DashboardLayout } from './pages/dashboards/Accounting_Department/DashboardLayout';
 import { DashboardOverview } from './pages/dashboards/Accounting_Department/DashboardOverview';
 import { EmployeeManagement } from './pages/dashboards/Accounting_Department/EmployeeManagement';
@@ -1005,24 +1006,6 @@ export default function App() {
     );
   }
 
-  switch (departmentKey) {
-    case 'design department':
-      return <DesignDashboard user={user} onLogout={handleLogout} />;
-    case 'engineering department':
-      return <EngineeringDashboard user={user} onLogout={handleLogout} />;
-    case 'planning department':
-      return <PlanningDashboard user={user} onLogout={handleLogout} />;
-    case 'it department':
-      return <ITDashboard user={user} onLogout={handleLogout} />;
-    default:
-      return (
-        <div style={{ backgroundColor: '#021B2C', color: 'white', minHeight: '100vh', padding: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <h1>No Department Assigned</h1>
-          <p>Please contact your administrator to assign you to a department.</p>
-          <button onClick={handleLogout} style={{ padding: '10px 20px', backgroundColor: '#FF7120', border: 'none', borderRadius: '8px', color: 'white', cursor: 'pointer', fontWeight: 'bold', marginTop: '20px' }}>
-            Logout
-          </button>
-        </div>
-      );
-  }
+  // All non-accounting departments redirect to AttendanceDashboard
+  return <AttendanceDashboard user={user} onLogout={handleLogout} />;
 }
