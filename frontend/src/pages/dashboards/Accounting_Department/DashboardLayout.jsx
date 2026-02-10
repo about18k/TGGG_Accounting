@@ -232,7 +232,7 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout })
                 </div>
 
                 {/* Notifications */}
-                <Popover open={isNotificationOpen} onOpenChange={setIsNotificationOpen}>
+                <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="ghost" className="relative hover:bg-transparent p-2">
                       <BellRing className="w-10 h-10 text-primary" />
@@ -243,7 +243,7 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout })
                       )}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0 bg-[#002035] border-[#AEAAAA]/20 shadow-lg shadow-black/20" align="end" sideOffset={8}>
+                  <PopoverContent className="w-80 p-0 bg-[#002035] border-[#AEAAAA]/20 shadow-lg shadow-black/20 z-50" align="end" sideOffset={8}>
                     <div className="p-4">
                       <h3 className="font-semibold text-white mb-4">Notifications</h3>
                       

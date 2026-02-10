@@ -33,5 +33,376 @@ body {
   display: none;
 }
 
+/* Dashboard Cards */
+.dashboard {
+  background: #00273C;
+  min-height: 100vh;
+  padding: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
 
+@media (min-width: 640px) {
+  .dashboard {
+    padding: 2rem;
+  }
+}
 
+.welcome {
+  background: #001f35;
+  padding: 1.75rem 2rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.checkin-form {
+  background: #001f35;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.attendance-table {
+  background: #001f35;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+.overtime-card {
+  background: #001f35;
+  padding: 1rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+@media (min-width: 640px) {
+  .overtime-card {
+    padding: 2rem;
+    margin-bottom: 2rem;
+  }
+}
+
+/* Alert Styles */
+.alert-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.alert-box {
+  background: #001f35;
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+  text-align: center;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Skeleton Loader */
+.skeleton {
+  background: linear-gradient(90deg, #001a2b 25%, #002133 50%, #001a2b 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 6px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.skeleton-card {
+  background: #001f35;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* Overtime Specific Styles */
+.overtime-heading {
+  margin-bottom: 2rem;
+}
+
+.overtime-heading h2 {
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+
+.overtime-heading p {
+  color: #a0a4a8;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.overtime-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.overtime-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .overtime-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  }
+}
+
+.overtime-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.overtime-field label {
+  color: #a0a4a8;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.overtime-field input,
+.overtime-field select,
+.overtime-field textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background: #00273C;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #e8eaed;
+  font-size: 0.9rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+.overtime-field input:focus,
+.overtime-field select:focus,
+.overtime-field textarea:focus {
+  outline: none;
+  border-color: rgba(255, 113, 32, 0.3);
+}
+
+.overtime-section {
+  background: #00273C;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.overtime-section h4 {
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.signature-pad {
+  background: #001a2b;
+  border: 2px dashed rgba(255, 113, 32, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.signature-pad canvas {
+  width: 100%;
+  height: 140px;
+  background: white;
+  border-radius: 4px;
+  cursor: crosshair;
+}
+
+.signature-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+.signature-hint {
+  color: #a0a4a8;
+  font-size: 0.8rem;
+}
+
+.overtime-instructions {
+  background: rgba(255, 113, 32, 0.1);
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 113, 32, 0.2);
+}
+
+.overtime-instructions h4 {
+  color: #FF7120;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.overtime-instructions ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  color: #e8eaed;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.overtime-instructions li {
+  margin-bottom: 0.5rem;
+}
+
+.overtime-submit {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.overtime-submit button {
+  padding: 0.75rem 1.75rem;
+  background: #FF7120;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.overtime-submit button:hover:not(:disabled) {
+  background: #e66310;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 113, 32, 0.25);
+}
+
+.overtime-submit button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+.table-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-wrapper th {
+  background: #001a2b;
+  color: #a0a4a8;
+  padding: 1rem 1.5rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.table-wrapper td {
+  padding: 1.25rem 1.5rem;
+  color: #e8eaed;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.table-wrapper tbody tr {
+  background: transparent;
+}
+
+.table-wrapper tbody tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.table-wrapper tbody tr:hover {
+  background: rgba(255, 113, 32, 0.05) !important;
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 113, 32, 0.3);
+  color: #FF7120;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+button.ghost:hover {
+  background: rgba(255, 113, 32, 0.1);
+  border-color: #FF7120;
+}
+
+.span-3 {
+  grid-column: span 1;
+}
+
+@media (min-width: 640px) {
+  .span-3 {
+    grid-column: span 3;
+  }
+}
+
+.hours-explanation {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 640px) {
+  .hours-explanation {
+    grid-template-columns: 1fr 2fr;
+  }
+}
+
+.stretch {
+  grid-column: span 1;
+}
+
+@media (min-width: 640px) {
+  .stretch {
+    grid-column: span 2;
+  }
+}

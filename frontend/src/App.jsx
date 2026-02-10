@@ -2,9 +2,15 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import StatusModal from './components/StatusModal';
 // import AccountingDashboard from './pages/dashboards/AccountingDashboard';
-import EmployeeDashboard from './pages/dashboards/EmployeeDashboard';
-import InternDashboard from './pages/dashboards/InternDashboard';
-import AttendanceDashboard from './pages/dashboards/Public_Dashboard/AttendanceDashboard';
+
+import InternAttendanceDashboard from './pages/dashboards/Intern_Dashboard/AttendanceDashboard';
+import InternOvertimePage from './pages/dashboards/Intern_Dashboard/OvertimePage';
+import InternTodoPage from './pages/dashboards/Intern_Dashboard/TodoPage';
+import InternProfilePage from './pages/dashboards/Intern_Dashboard/ProfilePage';
+import EmployeeAttendanceDashboard from './pages/dashboards/Employee_Dashboard/AttendanceDashboard';
+import EmployeeOvertimePage from './pages/dashboards/Employee_Dashboard/OvertimePage';
+import EmployeeTodoPage from './pages/dashboards/Employee_Dashboard/TodoPage';
+import EmployeeProfilePage from './pages/dashboards/Employee_Dashboard/ProfilePage';
 import { DashboardLayout } from './pages/dashboards/Accounting_Department/DashboardLayout';
 import { DashboardOverview } from './pages/dashboards/Accounting_Department/DashboardOverview';
 import { EmployeeManagement } from './pages/dashboards/Accounting_Department/EmployeeManagement';
@@ -934,9 +940,9 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [currentPage, setCurrentPage] = useState('attendance');
 
   useEffect(() => {
-    // Check if user is already logged in
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       setUser(JSON.parse(savedUser));
@@ -952,6 +958,11 @@ export default function App() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    setCurrentPage('attendance');
+  };
+
+  const handleNavigate = (page) => {
+    setCurrentPage(page);
   };
 
   if (loading) {
@@ -968,13 +979,34 @@ export default function App() {
   }
 
   const departmentName = user.department_name || 'Unassigned Department';
+  const token = localStorage.getItem('token');
 
-  if (user.role === 'employee') {
-    return <EmployeeDashboard user={user} departmentName={departmentName} onLogout={handleLogout} />;
+  // Intern Dashboard Routing
+  if (user.role === 'intern') {
+    if (currentPage === 'overtime') {
+      return <InternOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+    if (currentPage === 'todo') {
+      return <InternTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+    }
+    if (currentPage === 'profile') {
+      return <InternProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+    return <InternAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
   }
 
-  if (user.role === 'intern') {
-    return <InternDashboard user={user} departmentName={departmentName} onLogout={handleLogout} />;
+  // Employee Dashboard Routing
+  if (user.role === 'employee') {
+    if (currentPage === 'overtime') {
+      return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+    if (currentPage === 'todo') {
+      return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+    }
+    if (currentPage === 'profile') {
+      return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+    return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
   }
 
   // Route to department dashboard based on department_name (fallback)
@@ -1006,6 +1038,16 @@ export default function App() {
     );
   }
 
-  // All non-accounting departments redirect to AttendanceDashboard
-  return <AttendanceDashboard user={user} onLogout={handleLogout} />;
+  // Fallback to Employee Dashboard for other roles
+  if (currentPage === 'overtime') {
+    return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+  }
+  if (currentPage === 'todo') {
+    return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+  }
+  if (currentPage === 'profile') {
+    return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+  }
+  
+  return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
 }

@@ -1,0 +1,141 @@
+.alert-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.alert-box {
+  background: #001f35;
+  border-radius: 16px;
+  padding: 2.5rem;
+  width: 90%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+  text-align: center;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.alert-icon {
+  width: 70px;
+  height: 70px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  font-size: 2.5rem;
+  font-weight: bold;
+  animation: iconPop 0.4s ease 0.2s both;
+}
+
+@keyframes iconPop {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.alert-icon-success {
+  background: rgba(255, 113, 32, 0.15);
+  color: #FF7120;
+}
+
+.alert-icon-error {
+  background: rgba(255, 113, 32, 0.25);
+  color: #ff9d5c;
+}
+
+.alert-icon-warning {
+  background: rgba(255, 113, 32, 0.2);
+  color: #FF7120;
+}
+
+.alert-icon-info {
+  background: rgba(255, 113, 32, 0.15);
+  color: #FF7120;
+}
+
+.alert-title {
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.02em;
+}
+
+.alert-message {
+  color: #a0a4a8;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.alert-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.alert-btn {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: all 0.2s;
+  min-width: 100px;
+}
+
+.alert-btn-confirm {
+  background: #FF7120;
+  color: #ffffff;
+}
+
+.alert-btn-confirm:hover {
+  background: #e66310;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 113, 32, 0.3);
+}
+
+.alert-btn-cancel {
+  background: transparent;
+  color: #a0a4a8;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.alert-btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.3);
+}

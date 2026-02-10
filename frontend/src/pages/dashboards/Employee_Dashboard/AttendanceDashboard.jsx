@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import { Camera, Upload, Bell, User, ChevronDown, Calendar, Clock, FileText } from 'lucide-react';
+import { Camera, Upload, ChevronDown, Calendar, FileText, User } from 'lucide-react';
+import PublicNavigation from './PublicNavigation';
 
-const AttendanceDashboard = ({ user, onLogout }) => {
+const AttendanceDashboard = ({ user, onLogout, onNavigate }) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [workDoc, setWorkDoc] = useState('');
   const [photoFile, setPhotoFile] = useState(null);
@@ -40,88 +41,22 @@ const AttendanceDashboard = ({ user, onLogout }) => {
 
   return (
     <div className="min-h-screen" style={{ background: '#00273C' }}>
-      {/* Top Navigation */}
-      <nav className="fixed top-0 w-full z-50 px-6 py-4" style={{ background: '#001f35' }}>
-        <div className="flex items-center justify-between w-full mx-auto px-4">
-          <div className="flex items-center gap-4">
-            <img src="/logotripleg.png" alt="Triple G AOC" className="h-8" />
-            <span className="text-xl font-semibold">Triple G AOC</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Button variant="default" size="sm">Dashboard</Button>
-            <button
-              style={{
-                background: 'transparent',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                color: 'white',
-                padding: '0.5rem 1rem',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.borderColor = '#FF7120';
-                e.target.style.color = '#FF7120';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                e.target.style.color = 'white';
-              }}
-            >
-              OT <ChevronDown className="ml-1 h-3 w-3" />
-            </button>
-            <button
-              style={{
-                background: 'transparent',
-                border: '1px solid rgba(255, 255, 255, 0.3)',
-                color: 'white',
-                padding: '0.5rem 1rem',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.875rem',
-                fontWeight: '500',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.borderColor = '#FF7120';
-                e.target.style.color = '#FF7120';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.borderColor = 'rgba(255, 255, 255, 0.3)';
-                e.target.style.color = 'white';
-              }}
-            >
-              Todo
-            </button>
-            <Button variant="ghost" size="icon">
-              <Bell className="h-4 w-4" />
-            </Button>
-            <Button variant="ghost" size="icon" className="rounded-full" onClick={onLogout}>
-              <User className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </nav>
+      <PublicNavigation onNavigate={onNavigate} currentPage="attendance" />
 
-      <div className="pt-20 px-6 pb-6 w-full">
-        <div className="max-w-1400px mx-auto px-10 space-y-8">
+      <div className="pt-40 sm:pt-28 px-3 sm:px-6 pb-6 w-full">
+        <div className="max-w-1400px mx-auto px-2 sm:px-10 space-y-4 sm:space-y-8">
         {/* Welcome Section */}
-        <div className="welcome" style={{ background: '#001f35', padding: '1.75rem 2rem', borderRadius: '12px', marginBottom: '2rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <h2 style={{ color: '#ffffff', fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.25rem', letterSpacing: '-0.02em' }}>Welcome, {user?.first_name || 'Villamora'} {user?.last_name || 'Archie'}</h2>
-              <p style={{ color: '#a0a4a8', fontSize: '0.95rem', fontWeight: '500' }}>Role: {user?.role || 'Intern'}</p>
+        <div className="welcome" style={{ background: '#001f35', padding: '1rem 1rem', borderRadius: '12px', marginBottom: '1rem', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h2 style={{ color: '#ffffff', fontSize: 'clamp(1rem, 4vw, 1.5rem)', fontWeight: '600', marginBottom: '0.25rem', letterSpacing: '-0.02em', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Welcome, this is employee dashboard {user?.first_name || 'Villamora'} {user?.last_name || 'Archie'}</h2>
+              <p style={{ color: '#a0a4a8', fontSize: 'clamp(0.8rem, 3vw, 0.95rem)', fontWeight: '500' }}>Role: {user?.role || 'Intern'}</p>
             </div>
             <div style={{
-              width: '50px',
-              height: '50px',
-              minWidth: '50px',
-              minHeight: '50px',
+              width: 'clamp(40px, 10vw, 50px)',
+              height: 'clamp(40px, 10vw, 50px)',
+              minWidth: '40px',
+              minHeight: '40px',
               borderRadius: '50%',
               border: '3px solid #FF7120',
               display: 'flex',
@@ -131,18 +66,27 @@ const AttendanceDashboard = ({ user, onLogout }) => {
               background: '#00273C',
               flexShrink: 0
             }}>
-              <User className="h-8 w-8" style={{ color: '#FF7120', strokeWidth: 2 }} />
+              <User className="h-6 w-6 sm:h-8 sm:w-8" style={{ color: '#FF7120', strokeWidth: 2 }} />
             </div>
           </div>
         </div>
 
         {/* Attendance & Work Documentation */}
-        <div className="intern-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', marginBottom: '2rem' }}>
+        <div className="intern-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <style>{`
+            @media (min-width: 768px) {
+              .intern-grid {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 2rem !important;
+                margin-bottom: 2rem !important;
+              }
+            }
+          `}</style>
           {/* Attendance Card */}
-          <div className="checkin-form" style={{ background: '#001f35', padding: '2rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)' }}>
-            <h3 style={{ color: '#ffffff', fontSize: '1.1rem', fontWeight: '600', marginBottom: '1.5rem', letterSpacing: '-0.01em' }}>Attendance</h3>
+          <div className="checkin-form" style={{ background: '#001f35', padding: '1rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)' }}>
+            <h3 style={{ color: '#ffffff', fontSize: 'clamp(0.95rem, 3vw, 1.1rem)', fontWeight: '600', marginBottom: '1rem', letterSpacing: '-0.01em' }}>Attendance</h3>
             <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: '0.9rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)' }}>
                 Upload Photo (Required)
               </label>
               <div style={{ position: 'relative' }}>
@@ -182,7 +126,7 @@ const AttendanceDashboard = ({ user, onLogout }) => {
                     textAlign: 'center',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    fontSize: '0.9rem',
+                    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
                     fontWeight: '500'
                   }}
                 >
@@ -191,21 +135,22 @@ const AttendanceDashboard = ({ user, onLogout }) => {
                 </label>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
               <button
                 disabled={buttonLoading}
                 style={{
-                  padding: '0.75rem 1.75rem',
+                  padding: '0.65rem 1.25rem',
                   background: '#FF7120',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '8px',
                   cursor: 'pointer',
                   fontWeight: '600',
-                  fontSize: '0.95rem',
+                  fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
                   transition: 'all 0.2s',
-                  marginRight: '0.75rem',
-                  opacity: buttonLoading ? 0.7 : 1
+                  opacity: buttonLoading ? 0.7 : 1,
+                  width: '100%',
+                  maxWidth: '200px'
                 }}
                 onMouseEnter={(e) => {
                   if (!buttonLoading) {
@@ -225,15 +170,15 @@ const AttendanceDashboard = ({ user, onLogout }) => {
                 {buttonLoading ? 'Processing...' : 'Time In'}
               </button>
             </div>
-            <div style={{ color: '#a0a4a8', fontSize: '0.9rem', marginTop: '1rem' }}>
+            <div style={{ color: '#a0a4a8', fontSize: 'clamp(0.75rem, 2vw, 0.9rem)', marginTop: '1rem', lineHeight: '1.4' }}>
               Time In available 5AM-12PM (counted 8AM-12PM), 12:40PM-5PM, and 6:50PM-10PM for overtime.
             </div>
           </div>
 
           {/* Work Documentation Card */}
-          <div className="checkin-form" style={{ background: '#001f35', padding: '2rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)' }}>
-            <h3 style={{ color: '#ffffff', fontSize: '1.1rem', fontWeight: '600', marginBottom: '1.5rem', letterSpacing: '-0.01em' }}>Work Documentation</h3>
-            <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: '0.9rem' }}>
+          <div className="checkin-form" style={{ background: '#001f35', padding: '1rem', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0, 0, 0, 0.12)' }}>
+            <h3 style={{ color: '#ffffff', fontSize: 'clamp(0.95rem, 3vw, 1.1rem)', fontWeight: '600', marginBottom: '1rem', letterSpacing: '-0.01em' }}>Work Documentation</h3>
+            <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)' }}>
               What did you accomplish today? (Optional for morning)
             </label>
             <div style={{
@@ -242,9 +187,9 @@ const AttendanceDashboard = ({ user, onLogout }) => {
               borderRadius: '8px',
               padding: '0.75rem',
               marginBottom: '1.25rem',
-              minHeight: '120px'
+              minHeight: '100px'
             }}>
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+              <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 <button
                   type="button"
                   style={{
