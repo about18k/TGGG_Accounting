@@ -13,6 +13,7 @@ import EmployeeTodoPage from './pages/dashboards/Public_Dashboard/TodoPage';
 import EmployeeProfilePage from './pages/dashboards/Public_Dashboard/ProfilePage';
 import SiteEngineerHub from './pages/dashboards/SiteEngineer_Dashboard/SiteEngineerHub';
 import SiteCoordinatorHub from './pages/dashboards/SiteCoordinator_Dashboard/SiteCoordinatorHub';
+import JuniorDesignerHub from './pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerHub';
 import { DashboardLayout } from './pages/dashboards/Accounting_Department/DashboardLayout';
 import { DashboardOverview } from './pages/dashboards/Accounting_Department/DashboardOverview';
 import { EmployeeManagement } from './pages/dashboards/Accounting_Department/EmployeeManagement';
@@ -853,6 +854,23 @@ export default function App() {
   if (user.role === 'site_coordinator') {
     if (currentPage === 'coordinator-hub') {
       return <SiteCoordinatorHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+    if (currentPage === 'overtime') {
+      return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+    if (currentPage === 'todo') {
+      return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+    }
+    if (currentPage === 'profile') {
+      return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+    return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+  }
+
+  // Junior Designer Dashboard Routing
+  if (user.role === 'junior_architect') {
+    if (currentPage === 'designer-hub') {
+      return <JuniorDesignerHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
     }
     if (currentPage === 'overtime') {
       return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
