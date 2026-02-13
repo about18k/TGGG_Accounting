@@ -30,7 +30,7 @@ def login_view(request):
                 return Response({'error': 'Account not yet approved by Studio Head/Admin.'}, status=status.HTTP_403_FORBIDDEN)
             # Only allow login for users with the allowed roles
             allowed_roles = [
-                'accounting', 'bim_specialist', 'intern', 'junior_architect',
+                'accounting', 'employee', 'bim_specialist', 'intern', 'junior_architect',
                 'president', 'site_engineer', 'site_coordinator', 'studio_head', 'admin'
             ]
             if user.role not in allowed_roles:
@@ -156,7 +156,7 @@ def approve_user(request):
     department_id = request.data.get('department_id')  # Optional
 
     allowed_roles = [
-        'accounting', 'bim_specialist', 'intern', 'junior_architect',
+        'accounting', 'employee', 'bim_specialist', 'intern', 'junior_architect',
         'president', 'site_engineer', 'site_coordinator', 'studio_head', 'admin'
     ]
     if not user_id or not role or role not in allowed_roles:

@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import StatusModal from './components/StatusModal';
 import StudioHeadDashboard from './pages/dashboards/StudioHead/StudioHeadDashboard';
 
-import InternAttendanceDashboard from './pages/dashboards/Intern_Dashboard/AttendanceDashboard';
+import InternAttendanceDashboard from './pages/dashboards/Intern_Dashboard/InternAttendance';
 import InternOvertimePage from './pages/dashboards/Intern_Dashboard/OvertimePage';
 import InternTodoPage from './pages/dashboards/Intern_Dashboard/TodoPage';
 import InternProfilePage from './pages/dashboards/Intern_Dashboard/ProfilePage';
 import EmployeeAttendanceDashboard from './pages/dashboards/Public_Dashboard/AttendanceDashboard';
+import BimSpecialistAttendanceDashboard from './pages/dashboards/BimSpecialist/BimAttendance';
+import SiteEngineerAttendanceDashboard from './pages/dashboards/SiteEngineer_Dashboard/SiteEngineerAttendance';
+import SiteCoordinatorAttendanceDashboard from './pages/dashboards/SiteCoordinator_Dashboard/SiteCoordinatorAttendance';
+import JuniorDesignerAttendanceDashboard from './pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerAttendance';
+import CeoAttendanceDashboard from './pages/dashboards/ceo/ceoAttendance';
 import EmployeeOvertimePage from './pages/dashboards/Public_Dashboard/OvertimePage';
 import EmployeeTodoPage from './pages/dashboards/Public_Dashboard/TodoPage';
 import EmployeeProfilePage from './pages/dashboards/Public_Dashboard/ProfilePage';
@@ -21,7 +27,17 @@ import { AttendanceLeave } from './pages/dashboards/Accounting_Department/Attend
 import { PayrollManagement } from './pages/dashboards/Accounting_Department/PayrollManagement';
 import { Settings } from './pages/dashboards/Accounting_Department/Settings';
 
-const API_URL = 'http://localhost:8000/api/accounts';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_URL = `${API_BASE_URL}/accounts`;
+
+const getPageFromPath = (pathname) => {
+  if (!pathname.startsWith('/dashboard')) {
+    return 'attendance';
+  }
+
+  const parts = pathname.split('/').filter(Boolean);
+  return parts[1] || 'attendance';
+};
 
 // Setup axios interceptor to add token to all requests
 axios.interceptors.request.use((config) => {
@@ -737,6 +753,8 @@ function Login({ onLoginSuccess }) {
 // AdminDashboard removed. Use StudioHeadDashboard instead.
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -750,8 +768,19 @@ export default function App() {
     setLoading(false);
   }, []);
 
+  useEffect(() => {
+    if (!location.pathname.startsWith('/dashboard')) {
+      return;
+    }
+
+    const pageFromPath = getPageFromPath(location.pathname);
+    setCurrentPage((prev) => (prev === pageFromPath ? prev : pageFromPath));
+  }, [location.pathname]);
+
   const handleLoginSuccess = (userData) => {
     setUser(userData);
+    setCurrentPage('attendance');
+    navigate('/dashboard/attendance', { replace: true });
   };
 
   const handleLogout = () => {
@@ -759,198 +788,215 @@ export default function App() {
     localStorage.removeItem('user');
     setUser(null);
     setCurrentPage('attendance');
+    navigate('/login', { replace: true });
   };
 
   const handleNavigate = (page) => {
-    setCurrentPage(page);
+    const nextPage = String(page || 'attendance').trim().replace(/^\//, '') || 'attendance';
+    setCurrentPage(nextPage);
+    navigate(`/dashboard/${nextPage}`);
+  };
+
+  const renderAccountingDashboard = () => {
+    const renderContent = () => {
+      switch (activeTab) {
+        case 'dashboard':
+          return <DashboardOverview />;
+        case 'employees':
+          return <EmployeeManagement />;
+        case 'attendance':
+          return <AttendanceLeave />;
+        case 'payroll':
+          return <PayrollManagement />;
+        case 'settings':
+          return <Settings />;
+        default:
+          return <DashboardOverview />;
+      }
+    };
+
+    return (
+      <DashboardLayout activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout}>
+        {renderContent()}
+      </DashboardLayout>
+    );
+  };
+
+  const renderDashboard = () => {
+    if (!user) {
+      return null;
+    }
+
+    // Route to studio head or admin dashboard
+    if (user.role === 'studio_head' || user.role === 'admin') {
+      return <StudioHeadDashboard user={user} onLogout={handleLogout} />;
+    }
+
+    // Accounting role - redirect to Accounting Dashboard
+    if (user.role === 'accounting') {
+      return renderAccountingDashboard();
+    }
+
+    const token = localStorage.getItem('token');
+
+    // Employee in Accounting Department - redirect to Accounting Dashboard
+    if (user.role === 'employee' && (user.department_name?.toLowerCase() === 'accounting department' || user.department_name?.toLowerCase() === 'accounting')) {
+      return renderAccountingDashboard();
+    }
+
+    // Site Engineer Dashboard Routing
+    if (user.role === 'site_engineer') {
+      if (currentPage === 'site-hub') {
+        return <SiteEngineerHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      if (currentPage === 'overtime') {
+        return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      if (currentPage === 'todo') {
+        return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+      }
+      if (currentPage === 'profile') {
+        return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      return <SiteEngineerAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+
+    // Site Coordinator Dashboard Routing
+    if (user.role === 'site_coordinator') {
+      if (currentPage === 'coordinator-hub') {
+        return <SiteCoordinatorHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      if (currentPage === 'overtime') {
+        return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      if (currentPage === 'todo') {
+        return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+      }
+      if (currentPage === 'profile') {
+        return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      return <SiteCoordinatorAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+
+    // Junior Designer Dashboard Routing
+    if (user.role === 'junior_architect') {
+      if (currentPage === 'designer-hub') {
+        return <JuniorDesignerHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      if (currentPage === 'overtime') {
+        return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      if (currentPage === 'todo') {
+        return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+      }
+      if (currentPage === 'profile') {
+        return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      return <JuniorDesignerAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+
+    // Intern Dashboard Routing
+    if (user.role === 'intern') {
+      if (currentPage === 'overtime') {
+        return <InternOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      if (currentPage === 'todo') {
+        return <InternTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+      }
+      if (currentPage === 'profile') {
+        return <InternProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      return <InternAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+
+    // Employee Dashboard Routing
+    if (user.role === 'employee') {
+      if (currentPage === 'overtime') {
+        return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      if (currentPage === 'todo') {
+        return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+      }
+      if (currentPage === 'profile') {
+        return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+
+    // BIM Specialist Dashboard Routing
+    if (user.role === 'bim_specialist') {
+      if (currentPage === 'overtime') {
+        return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      if (currentPage === 'todo') {
+        return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+      }
+      if (currentPage === 'profile') {
+        return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      return <BimSpecialistAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+
+    // CEO/President Dashboard Routing
+    if (user.role === 'president') {
+      if (currentPage === 'overtime') {
+        return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      if (currentPage === 'todo') {
+        return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+      }
+      if (currentPage === 'profile') {
+        return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+      }
+      return <CeoAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+
+    // Route to department dashboard based on department_name (fallback)
+    const departmentKey = (user.department_name || '').toLowerCase();
+
+    // Accounting Department gets the full dashboard (for non-employee roles)
+    if (departmentKey === 'accounting department' || departmentKey === 'accounting') {
+      return renderAccountingDashboard();
+    }
+
+    // Fallback to Employee Dashboard for other roles
+    if (currentPage === 'overtime') {
+      return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+    if (currentPage === 'todo') {
+      return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
+    }
+    if (currentPage === 'profile') {
+      return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    }
+
+    return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
   };
 
   if (loading) {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#021B2C', color: 'white' }}>Loading...</div>;
   }
 
-  if (!user) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
+  const defaultDashboardPath = `/dashboard/${currentPage || 'attendance'}`;
 
-  // Route to studio head or admin dashboard
-  if (user.role === 'studio_head' || user.role === 'admin') {
-    return <StudioHeadDashboard user={user} onLogout={handleLogout} />;
-  }
-
-  // Accounting role - redirect to Accounting Dashboard
-  if (user.role === 'accounting') {
-    const renderContent = () => {
-      switch (activeTab) {
-        case 'dashboard':
-          return <DashboardOverview />;
-        case 'employees':
-          return <EmployeeManagement />;
-        case 'attendance':
-          return <AttendanceLeave />;
-        case 'payroll':
-          return <PayrollManagement />;
-        case 'settings':
-          return <Settings />;
-        default:
-          return <DashboardOverview />;
-      }
-    };
-
-    return (
-      <DashboardLayout activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout}>
-        {renderContent()}
-      </DashboardLayout>
-    );
-  }
-
-  const departmentName = user.department_name || 'Unassigned Department';
-  const token = localStorage.getItem('token');
-
-  // Employee in Accounting Department - redirect to Accounting Dashboard
-  if (user.role === 'employee' && (user.department_name?.toLowerCase() === 'accounting department' || user.department_name?.toLowerCase() === 'accounting')) {
-    const renderContent = () => {
-      switch (activeTab) {
-        case 'dashboard':
-          return <DashboardOverview />;
-        case 'employees':
-          return <EmployeeManagement />;
-        case 'attendance':
-          return <AttendanceLeave />;
-        case 'payroll':
-          return <PayrollManagement />;
-        case 'settings':
-          return <Settings />;
-        default:
-          return <DashboardOverview />;
-      }
-    };
-
-    return (
-      <DashboardLayout activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout}>
-        {renderContent()}
-      </DashboardLayout>
-    );
-  }
-
-  // Site Engineer Dashboard Routing
-  if (user.role === 'site_engineer') {
-    if (currentPage === 'site-hub') {
-      return <SiteEngineerHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    if (currentPage === 'overtime') {
-      return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    if (currentPage === 'todo') {
-      return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
-    }
-    if (currentPage === 'profile') {
-      return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-  }
-
-  // Site Coordinator Dashboard Routing
-  if (user.role === 'site_coordinator') {
-    if (currentPage === 'coordinator-hub') {
-      return <SiteCoordinatorHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    if (currentPage === 'overtime') {
-      return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    if (currentPage === 'todo') {
-      return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
-    }
-    if (currentPage === 'profile') {
-      return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-  }
-
-  // Junior Designer Dashboard Routing
-  if (user.role === 'junior_architect') {
-    if (currentPage === 'designer-hub') {
-      return <JuniorDesignerHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    if (currentPage === 'overtime') {
-      return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    if (currentPage === 'todo') {
-      return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
-    }
-    if (currentPage === 'profile') {
-      return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-  }
-
-  // Intern Dashboard Routing
-  if (user.role === 'intern') {
-    if (currentPage === 'overtime') {
-      return <InternOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    if (currentPage === 'todo') {
-      return <InternTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
-    }
-    if (currentPage === 'profile') {
-      return <InternProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    return <InternAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-  }
-
-  // Employee Dashboard Routing
-  if (user.role === 'employee') {
-    if (currentPage === 'overtime') {
-      return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    if (currentPage === 'todo') {
-      return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
-    }
-    if (currentPage === 'profile') {
-      return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-    return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-  }
-
-  // Route to department dashboard based on department_name (fallback)
-  const departmentKey = (user.department_name || '').toLowerCase();
-
-  // Accounting Department gets the full dashboard (for non-employee roles)
-  if (departmentKey === 'accounting department' || departmentKey === 'accounting') {
-    const renderContent = () => {
-      switch (activeTab) {
-        case 'dashboard':
-          return <DashboardOverview />;
-        case 'employees':
-          return <EmployeeManagement />;
-        case 'attendance':
-          return <AttendanceLeave />;
-        case 'payroll':
-          return <PayrollManagement />;
-        case 'settings':
-          return <Settings />;
-        default:
-          return <DashboardOverview />;
-      }
-    };
-
-    return (
-      <DashboardLayout activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout}>
-        {renderContent()}
-      </DashboardLayout>
-    );
-  }
-
-  // Fallback to Employee Dashboard for other roles
-  if (currentPage === 'overtime') {
-    return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-  }
-  if (currentPage === 'todo') {
-    return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={() => {}} />;
-  }
-  if (currentPage === 'profile') {
-    return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-  }
-  
-  return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={user ? <Navigate to={defaultDashboardPath} replace /> : <Login onLoginSuccess={handleLoginSuccess} />}
+      />
+      <Route
+        path="/dashboard"
+        element={user ? <Navigate to="/dashboard/attendance" replace /> : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="/dashboard/:page"
+        element={user ? renderDashboard() : <Navigate to="/login" replace />}
+      />
+      <Route
+        path="*"
+        element={<Navigate to={user ? defaultDashboardPath : '/login'} replace />}
+      />
+    </Routes>
+  );
 }
