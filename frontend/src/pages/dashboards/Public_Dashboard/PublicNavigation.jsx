@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Bell, User, Home, Clock, CheckSquare, ArrowUpDown, Check } from 'lucide-react';
+import { Bell, User, Home, Clock, CheckSquare, HardHat, Users, Palette, ArrowUpDown, Check } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/accounting-ui';
 
-const PublicNavigation = ({ onNavigate, currentPage = 'attendance' }) => {
+const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
   const [notificationFilter, setNotificationFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
   const [notifications, setNotifications] = useState([
@@ -71,6 +71,126 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance' }) => {
             <Home className="h-3 w-3 sm:h-4 sm:w-4" />
             <span>Dashboard</span>
           </button>
+          {user?.role === 'site_engineer' && (
+            <button
+              onClick={() => onNavigate('site-hub')}
+              style={{
+                background: currentPage === 'site-hub' ? '#FF7120' : 'transparent',
+                border: '1px solid #FF7120',
+                color: currentPage === 'site-hub' ? 'white' : '#FF7120',
+                padding: '0.4rem 0.6rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (currentPage !== 'site-hub') {
+                  e.currentTarget.style.background = '#FF7120';
+                  e.currentTarget.style.borderColor = '#FF7120';
+                  e.currentTarget.style.color = 'white';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentPage !== 'site-hub') {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.borderColor = '#FF7120';
+                  e.currentTarget.style.color = '#FF7120';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
+            >
+              <HardHat className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span>Site Hub</span>
+            </button>
+          )}
+          {user?.role === 'site_coordinator' && (
+            <button
+              onClick={() => onNavigate('coordinator-hub')}
+              style={{
+                background: currentPage === 'coordinator-hub' ? '#FF7120' : 'transparent',
+                border: '1px solid #FF7120',
+                color: currentPage === 'coordinator-hub' ? 'white' : '#FF7120',
+                padding: '0.4rem 0.6rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (currentPage !== 'coordinator-hub') {
+                  e.currentTarget.style.background = '#FF7120';
+                  e.currentTarget.style.borderColor = '#FF7120';
+                  e.currentTarget.style.color = 'white';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentPage !== 'coordinator-hub') {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.borderColor = '#FF7120';
+                  e.currentTarget.style.color = '#FF7120';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
+            >
+              <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span>Coordinator Hub</span>
+            </button>
+          )}
+          {user?.role === 'junior_architect' && (
+            <button
+              onClick={() => onNavigate('designer-hub')}
+              style={{
+                background: currentPage === 'designer-hub' ? '#FF7120' : 'transparent',
+                border: '1px solid #FF7120',
+                color: currentPage === 'designer-hub' ? 'white' : '#FF7120',
+                padding: '0.4rem 0.6rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => {
+                if (currentPage !== 'designer-hub') {
+                  e.currentTarget.style.background = '#FF7120';
+                  e.currentTarget.style.borderColor = '#FF7120';
+                  e.currentTarget.style.color = 'white';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (currentPage !== 'designer-hub') {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.borderColor = '#FF7120';
+                  e.currentTarget.style.color = '#FF7120';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'none';
+                }
+              }}
+            >
+              <Palette className="h-3 w-3 sm:h-4 sm:w-4" />
+              <span>Designer Hub</span>
+            </button>
+          )}
           <button
             onClick={() => onNavigate('overtime')}
             style={{
