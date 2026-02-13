@@ -89,51 +89,43 @@ const AttendanceDashboard = ({ user, onLogout, onNavigate }) => {
               <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)' }}>
                 Upload Photo (Required)
               </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file && file.size > 5 * 1024 * 1024) {
-                      alert('Image must be less than 5MB.');
-                      e.target.value = '';
-                      return;
-                    }
-                    setPhotoFile(file);
-                  }}
-                  style={{
-                    position: 'absolute',
-                    opacity: 0,
-                    width: '100%',
-                    height: '100%',
-                    cursor: 'pointer'
-                  }}
-                  id="photo-upload"
-                />
-                <label
-                  htmlFor="photo-upload"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '0.75rem 1rem',
-                    background: photoFile ? 'rgba(255, 113, 32, 0.1)' : '#00273C',
-                    border: `2px dashed ${photoFile ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
-                    borderRadius: '8px',
-                    color: photoFile ? '#FF7120' : '#a0a4a8',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
-                    fontWeight: '500'
-                  }}
-                >
-                  <Camera className="h-4 w-4" />
-                  {photoFile ? `Selected: ${photoFile.name}` : 'Choose Photo File'}
-                </label>
-              </div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (file && file.size > 5 * 1024 * 1024) {
+                    alert('Image must be less than 5MB.');
+                    e.target.value = '';
+                    return;
+                  }
+                  setPhotoFile(file);
+                }}
+                style={{ display: 'none' }}
+                id="photo-upload"
+              />
+              <label
+                htmlFor="photo-upload"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '0.75rem 1rem',
+                  background: photoFile ? 'rgba(255, 113, 32, 0.1)' : '#00273C',
+                  border: `2px dashed ${photoFile ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
+                  borderRadius: '8px',
+                  color: photoFile ? '#FF7120' : '#a0a4a8',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
+                  fontWeight: '500'
+                }}
+              >
+                <Camera className="h-4 w-4" />
+                {photoFile ? `Selected: ${photoFile.name}` : 'Choose Photo File'}
+              </label>
             </div>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
               <button
@@ -325,44 +317,36 @@ const AttendanceDashboard = ({ user, onLogout, onNavigate }) => {
               <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: '0.9rem' }}>
                 Attachments (Optional)
               </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
-                  multiple
-                  onChange={(e) => setAttachments(Array.from(e.target.files))}
-                  style={{
-                    position: 'absolute',
-                    opacity: 0,
-                    width: '100%',
-                    height: '100%',
-                    cursor: 'pointer'
-                  }}
-                  id="attachment-upload"
-                />
-                <label
-                  htmlFor="attachment-upload"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '0.75rem 1rem',
-                    background: attachments.length > 0 ? 'rgba(255, 113, 32, 0.1)' : '#00273C',
-                    border: `2px dashed ${attachments.length > 0 ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
-                    borderRadius: '8px',
-                    color: attachments.length > 0 ? '#FF7120' : '#a0a4a8',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    fontSize: '0.9rem',
-                    fontWeight: '500'
-                  }}
-                >
-                  <Upload className="h-4 w-4" />
-                  {attachments.length > 0 ? `${attachments.length} file(s) selected` : 'Attach files (PDF, Word, Excel, Images)'}
-                </label>
-              </div>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
+                multiple
+                onChange={(e) => setAttachments(Array.from(e.target.files))}
+                style={{ display: 'none' }}
+                id="attachment-upload"
+              />
+              <label
+                htmlFor="attachment-upload"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '0.75rem 1rem',
+                  background: attachments.length > 0 ? 'rgba(255, 113, 32, 0.1)' : '#00273C',
+                  border: `2px dashed ${attachments.length > 0 ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
+                  borderRadius: '8px',
+                  color: attachments.length > 0 ? '#FF7120' : '#a0a4a8',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontSize: '0.9rem',
+                  fontWeight: '500'
+                }}
+              >
+                <Upload className="h-4 w-4" />
+                {attachments.length > 0 ? `${attachments.length} file(s) selected` : 'Attach files (PDF, Word, Excel, Images)'}
+              </label>
               {attachments.length > 0 && (
                 <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
                   {attachments.map((file, idx) => (
