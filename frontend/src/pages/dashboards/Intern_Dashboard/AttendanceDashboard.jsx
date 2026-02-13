@@ -2,15 +2,57 @@ import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import { Camera, Upload, ChevronDown, Calendar, FileText, User } from 'lucide-react';
+import { MapPin, ChevronDown, Calendar, FileText, User, CheckCircle, XCircle } from 'lucide-react';
 import PublicNavigation from './PublicNavigation';
 
 const AttendanceDashboard = ({ user, onLogout, onNavigate }) => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [workDoc, setWorkDoc] = useState('');
-  const [photoFile, setPhotoFile] = useState(null);
-  const [attachments, setAttachments] = useState([]);
+  const [location, setLocation] = useState(null);
+  const [locationError, setLocationError] = useState('');
+  const [locationOut, setLocationOut] = useState(null);
+  const [locationOutError, setLocationOutError] = useState('');
   const [buttonLoading, setButtonLoading] = useState(false);
+
+  const getLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocation is not supported by your browser');
+      return;
+    }
+    setLocationError('');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocation({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        });
+      },
+      (error) => {
+        setLocationError('Unable to retrieve location. Please enable location access.');
+      }
+    );
+  };
+
+  const getLocationOut = () => {
+    if (!navigator.geolocation) {
+      setLocationOutError('Geolocation is not supported by your browser');
+      return;
+    }
+    setLocationOutError('');
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLocationOut({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy
+        });
+      },
+      (error) => {
+        setLocationOutError('Unable to retrieve location. Please enable location access.');
+      }
+    );
+  };
 
   const attendanceData = [
     {
@@ -87,80 +129,71 @@ const AttendanceDashboard = ({ user, onLogout, onNavigate }) => {
             <h3 style={{ color: '#ffffff', fontSize: 'clamp(0.95rem, 3vw, 1.1rem)', fontWeight: '600', marginBottom: '1rem', letterSpacing: '-0.01em' }}>Attendance</h3>
             <div style={{ marginBottom: '1rem' }}>
               <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)' }}>
-                Upload Photo (Required)
+                Location (Required)
               </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    const file = e.target.files[0];
-                    if (file && file.size > 5 * 1024 * 1024) {
-                      alert('Image must be less than 5MB.');
-                      e.target.value = '';
-                      return;
-                    }
-                    setPhotoFile(file);
-                  }}
-                  style={{
-                    position: 'absolute',
-                    opacity: 0,
-                    width: '100%',
-                    height: '100%',
-                    cursor: 'pointer'
-                  }}
-                  id="photo-upload"
-                />
-                <label
-                  htmlFor="photo-upload"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '0.75rem 1rem',
-                    background: photoFile ? 'rgba(255, 113, 32, 0.1)' : '#00273C',
-                    border: `2px dashed ${photoFile ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
-                    borderRadius: '8px',
-                    color: photoFile ? '#FF7120' : '#a0a4a8',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
-                    fontWeight: '500'
-                  }}
-                >
-                  <Camera className="h-4 w-4" />
-                  {photoFile ? `Selected: ${photoFile.name}` : 'Choose Photo File'}
-                </label>
-              </div>
+              {location && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.5rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10B981', borderRadius: '6px', marginBottom: '0.5rem' }}>
+                  <CheckCircle className="h-4 w-4" style={{ color: '#10B981' }} />
+                  <span style={{ color: '#10B981', fontSize: '0.85rem', fontWeight: '500' }}>Location captured successfully</span>
+                </div>
+              )}
+              {locationError && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', borderRadius: '6px', marginBottom: '0.5rem' }}>
+                  <XCircle className="h-4 w-4" style={{ color: '#EF4444' }} />
+                  <span style={{ color: '#EF4444', fontSize: '0.85rem', fontWeight: '500' }}>{locationError}</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={getLocation}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '0.75rem 1rem',
+                  background: location ? 'rgba(255, 113, 32, 0.1)' : '#00273C',
+                  border: `2px dashed ${location ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
+                  borderRadius: '8px',
+                  color: location ? '#FF7120' : '#a0a4a8',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
+                  fontWeight: '500'
+                }}
+              >
+                <MapPin className="h-4 w-4" />
+                {location ? `Location Captured (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})` : 'Scan location now'}
+              </button>
             </div>
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
               <button
-                disabled={buttonLoading}
+                disabled={!location || buttonLoading}
                 style={{
                   padding: '0.65rem 1.25rem',
-                  background: '#FF7120',
+                  background: location && !buttonLoading ? '#FF7120' : '#6b7280',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '8px',
-                  cursor: 'pointer',
+                  cursor: location && !buttonLoading ? 'pointer' : 'not-allowed',
                   fontWeight: '600',
                   fontSize: 'clamp(0.8rem, 2.5vw, 0.95rem)',
                   transition: 'all 0.2s',
-                  opacity: buttonLoading ? 0.7 : 1,
+                  opacity: location && !buttonLoading ? 1 : 0.6,
                   width: '100%',
                   maxWidth: '200px'
                 }}
                 onMouseEnter={(e) => {
-                  if (!buttonLoading) {
+                  if (location && !buttonLoading) {
                     e.target.style.background = '#e66310';
                     e.target.style.transform = 'translateY(-1px)';
                     e.target.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!buttonLoading) {
+                  if (location && !buttonLoading) {
                     e.target.style.background = '#FF7120';
                     e.target.style.transform = 'translateY(0)';
                     e.target.style.boxShadow = 'none';
@@ -321,86 +354,75 @@ const AttendanceDashboard = ({ user, onLogout, onNavigate }) => {
               />
             </div>
             
-            <div style={{ marginTop: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: '0.9rem' }}>
-                Attachments (Optional)
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ display: 'block', marginBottom: '0.5rem', color: '#a0a4a8', fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)' }}>
+                Location (Required)
               </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type="file"
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg"
-                  multiple
-                  onChange={(e) => setAttachments(Array.from(e.target.files))}
-                  style={{
-                    position: 'absolute',
-                    opacity: 0,
-                    width: '100%',
-                    height: '100%',
-                    cursor: 'pointer'
-                  }}
-                  id="attachment-upload"
-                />
-                <label
-                  htmlFor="attachment-upload"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '0.75rem 1rem',
-                    background: attachments.length > 0 ? 'rgba(255, 113, 32, 0.1)' : '#00273C',
-                    border: `2px dashed ${attachments.length > 0 ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
-                    borderRadius: '8px',
-                    color: attachments.length > 0 ? '#FF7120' : '#a0a4a8',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    fontSize: '0.9rem',
-                    fontWeight: '500'
-                  }}
-                >
-                  <Upload className="h-4 w-4" />
-                  {attachments.length > 0 ? `${attachments.length} file(s) selected` : 'Attach files (PDF, Word, Excel, Images)'}
-                </label>
-              </div>
-              {attachments.length > 0 && (
-                <div style={{ marginTop: '0.5rem', fontSize: '0.8rem', color: '#6b7280' }}>
-                  {attachments.map((file, idx) => (
-                    <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>📎 {file.name}</span>
-                    </div>
-                  ))}
+              {locationOut && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.5rem', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10B981', borderRadius: '6px', marginBottom: '0.5rem' }}>
+                  <CheckCircle className="h-4 w-4" style={{ color: '#10B981' }} />
+                  <span style={{ color: '#10B981', fontSize: '0.85rem', fontWeight: '500' }}>Location captured successfully</span>
                 </div>
               )}
+              {locationOutError && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.5rem', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #EF4444', borderRadius: '6px', marginBottom: '0.5rem' }}>
+                  <XCircle className="h-4 w-4" style={{ color: '#EF4444' }} />
+                  <span style={{ color: '#EF4444', fontSize: '0.85rem', fontWeight: '500' }}>{locationOutError}</span>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={getLocationOut}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '0.75rem 1rem',
+                  background: locationOut ? 'rgba(255, 113, 32, 0.1)' : '#00273C',
+                  border: `2px dashed ${locationOut ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
+                  borderRadius: '8px',
+                  color: locationOut ? '#FF7120' : '#a0a4a8',
+                  textAlign: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  fontSize: 'clamp(0.8rem, 2.5vw, 0.9rem)',
+                  fontWeight: '500'
+                }}
+              >
+                <MapPin className="h-4 w-4" />
+                {locationOut ? `Location Captured (${locationOut.latitude.toFixed(4)}, ${locationOut.longitude.toFixed(4)})` : 'Scan location now'}
+              </button>
             </div>
             
-            <p style={{ color: '#6b7280', fontSize: '0.8rem', marginTop: '0.5rem' }}>
+            <p style={{ color: '#6b7280', fontSize: '0.8rem', marginBottom: '0.5rem' }}>
               You can check out anytime
             </p>
-            <div style={{ display: 'flex', gap: '20px', marginTop: '1rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
               <button
-                disabled={buttonLoading}
+                disabled={!locationOut || buttonLoading}
                 style={{
                   padding: '0.75rem 1.75rem',
-                  background: '#FF7120',
+                  background: locationOut && !buttonLoading ? '#FF7120' : '#6b7280',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '8px',
-                  cursor: 'pointer',
+                  cursor: locationOut && !buttonLoading ? 'pointer' : 'not-allowed',
                   fontWeight: '600',
                   fontSize: '0.95rem',
                   transition: 'all 0.2s',
-                  opacity: buttonLoading ? 0.7 : 1
+                  opacity: locationOut && !buttonLoading ? 1 : 0.6
                 }}
                 onMouseEnter={(e) => {
-                  if (!buttonLoading) {
+                  if (locationOut && !buttonLoading) {
                     e.target.style.background = '#e66310';
                     e.target.style.transform = 'translateY(-1px)';
                     e.target.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!buttonLoading) {
+                  if (locationOut && !buttonLoading) {
                     e.target.style.background = '#FF7120';
                     e.target.style.transform = 'translateY(0)';
                     e.target.style.boxShadow = 'none';
