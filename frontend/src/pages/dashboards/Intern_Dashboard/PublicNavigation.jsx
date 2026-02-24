@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Bell, User, Home, Clock, CheckSquare, ArrowUpDown, Check } from 'lucide-react';
+import { Bell, User, ArrowUpDown, Check } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/accounting-ui';
 
@@ -98,120 +98,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance' }) => {
           <span className="text-base font-semibold sm:hidden">TG AOC</span>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          <button
-            onClick={() => onNavigate('attendance')}
-            style={{
-              background: currentPage === 'attendance' ? '#FF7120' : 'transparent',
-              border: '1px solid #FF7120',
-              color: currentPage === 'attendance' ? 'white' : '#FF7120',
-              padding: '0.4rem 0.6rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.75rem',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.3rem',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              if (currentPage !== 'attendance') {
-                e.currentTarget.style.background = '#FF7120';
-                e.currentTarget.style.borderColor = '#FF7120';
-                e.currentTarget.style.color = 'white';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (currentPage !== 'attendance') {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.borderColor = '#FF7120';
-                e.currentTarget.style.color = '#FF7120';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }
-            }}
-          >
-            <Home className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span>Dashboard</span>
-          </button>
-          <button
-            onClick={() => onNavigate('overtime')}
-            style={{
-              background: currentPage === 'overtime' ? '#FF7120' : 'transparent',
-              border: '1px solid #FF7120',
-              color: currentPage === 'overtime' ? 'white' : '#FF7120',
-              padding: '0.4rem 0.6rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.75rem',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.3rem',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              if (currentPage !== 'overtime') {
-                e.currentTarget.style.background = '#FF7120';
-                e.currentTarget.style.borderColor = '#FF7120';
-                e.currentTarget.style.color = 'white';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (currentPage !== 'overtime') {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.borderColor = '#FF7120';
-                e.currentTarget.style.color = '#FF7120';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }
-            }}
-          >
-            <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span>OT</span>
-          </button>
-          <button
-            onClick={() => onNavigate('todo')}
-            style={{
-              background: currentPage === 'todo' ? '#FF7120' : 'transparent',
-              border: '1px solid #FF7120',
-              color: currentPage === 'todo' ? 'white' : '#FF7120',
-              padding: '0.4rem 0.6rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.75rem',
-              fontWeight: '500',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.3rem',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              if (currentPage !== 'todo') {
-                e.currentTarget.style.background = '#FF7120';
-                e.currentTarget.style.borderColor = '#FF7120';
-                e.currentTarget.style.color = 'white';
-                e.currentTarget.style.transform = 'translateY(-1px)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (currentPage !== 'todo') {
-                e.currentTarget.style.background = 'transparent';
-                e.currentTarget.style.borderColor = '#FF7120';
-                e.currentTarget.style.color = '#FF7120';
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = 'none';
-              }
-            }}
-          >
-            <CheckSquare className="h-3 w-3 sm:h-4 sm:w-4" />
-            <span>Todo</span>
-          </button>
           <div className="hidden sm:flex items-center gap-2 sm:gap-4">
             <Popover>
               <PopoverTrigger asChild>

@@ -14,14 +14,22 @@ import EmployeeAttendanceDashboard from './pages/dashboards/Public_Dashboard/Att
 import BimSpecialistAttendanceDashboard from './pages/dashboards/BimSpecialist/BimAttendance';
 import SiteEngineerAttendanceDashboard from './pages/dashboards/SiteEngineer_Dashboard/SiteEngineerAttendance';
 import EngineerHub from './pages/dashboards/SiteEngineer_Dashboard/EngineerHub';
+import SiteEngineerOvertimePage from './pages/dashboards/SiteEngineer_Dashboard/SiteEngineerOvertimePage';
+import SiteEngineerTodoPage from './pages/dashboards/SiteEngineer_Dashboard/SiteEngineerTodoPage';
+import SiteEngineerProfilePage from './pages/dashboards/SiteEngineer_Dashboard/SiteEngineerProfilePage';
 import SiteCoordinatorAttendanceDashboard from './pages/dashboards/SiteCoordinator_Dashboard/SiteCoordinatorAttendance';
 import CoordinatorHub from './pages/dashboards/SiteCoordinator_Dashboard/CoordinatorHub';
+import SiteCoordinatorOvertimePage from './pages/dashboards/SiteCoordinator_Dashboard/SiteCoordinatorOvertimePage';
+import SiteCoordinatorTodoPage from './pages/dashboards/SiteCoordinator_Dashboard/SiteCoordinatorTodoPage';
+import SiteCoordinatorProfilePage from './pages/dashboards/SiteCoordinator_Dashboard/SiteCoordinatorProfilePage';
 import JuniorDesignerAttendanceDashboard from './pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerAttendance';
+import JuniorDesignerOvertimePage from './pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerOvertimePage';
+import JuniorDesignerTodoPage from './pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerTodoPage';
+import JuniorDesignerProfilePage from './pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerProfilePage';
 import CeoAttendanceDashboard from './pages/dashboards/ceo/ceoAttendance';
 import EmployeeOvertimePage from './pages/dashboards/Public_Dashboard/OvertimePage';
 import EmployeeTodoPage from './pages/dashboards/Public_Dashboard/TodoPage';
 import EmployeeProfilePage from './pages/dashboards/Public_Dashboard/ProfilePage';
-import JuniorDesignerHub from './pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerHub';
 import { DashboardLayout } from './pages/dashboards/Accounting_Department/DashboardLayout';
 import { DashboardOverview } from './pages/dashboards/Accounting_Department/DashboardOverview';
 import { EmployeeManagement } from './pages/dashboards/Accounting_Department/EmployeeManagement';
@@ -948,13 +956,13 @@ export default function App() {
         return <EngineerHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
       }
       if (currentPage === 'overtime') {
-        return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        return <SiteEngineerOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
       }
       if (currentPage === 'todo') {
-        return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
+        return <SiteEngineerTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
       }
       if (currentPage === 'profile') {
-        return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        return <SiteEngineerProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
       }
       return <SiteEngineerAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
     }
@@ -965,13 +973,13 @@ export default function App() {
         return <CoordinatorHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
       }
       if (currentPage === 'overtime') {
-        return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        return <SiteCoordinatorOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
       }
       if (currentPage === 'todo') {
-        return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
+        return <SiteCoordinatorTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
       }
       if (currentPage === 'profile') {
-        return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        return <SiteCoordinatorProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
       }
       return <SiteCoordinatorAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
     }
@@ -979,16 +987,16 @@ export default function App() {
     // Junior Designer Dashboard Routing
     if (user.role === 'junior_architect') {
       if (currentPage === 'designer-hub') {
-        return <JuniorDesignerHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        return <JuniorDesignerAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
       }
       if (currentPage === 'overtime') {
-        return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        return <JuniorDesignerOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
       }
       if (currentPage === 'todo') {
-        return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
+        return <JuniorDesignerTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
       }
       if (currentPage === 'profile') {
-        return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        return <JuniorDesignerProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
       }
       return <JuniorDesignerAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
     }

@@ -1,3 +1,3 @@
-import AttendanceDashboard from '../Public_Dashboard/AttendanceDashboard';
+import BimSpecialistDashboard from './BimSpecialistDashboard';
 
-export default AttendanceDashboard;
+export default BimSpecialistDashboard;

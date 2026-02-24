@@ -1,3 +1,3 @@
-import AttendanceDashboard from '../Public_Dashboard/AttendanceDashboard';
+import SiteCoordinatorDashboard from './SiteCoordinatorDashboard';
 
-export default AttendanceDashboard;
+export default SiteCoordinatorDashboard;

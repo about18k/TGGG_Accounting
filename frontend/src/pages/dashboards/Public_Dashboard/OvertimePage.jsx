@@ -5,9 +5,12 @@ import LeaveForm from './LeaveForm.jsx';
 import LeaveStatus from './LeaveStatus.jsx';
 import PublicNavigation from './PublicNavigation';
 import StudioHeadSidebar from '../StudioHead/components/StudioHeadSidebar';
+import BimSpecialistSidebar from '../BimSpecialist/components/BimSpecialistSidebar';
 
 const OvertimePage = ({ user, token, onLogout, onNavigate }) => {
   const isStudioHeadMode = user?.role === 'studio_head' || user?.role === 'admin';
+  const isBimSpecialistMode = user?.role === 'bim_specialist';
+  const useSidebarLayout = isStudioHeadMode || isBimSpecialistMode;
   const [activeTab, setActiveTab] = useState('ot-form');
 
   const tabStyle = (isActive) => ({
@@ -54,14 +57,19 @@ const OvertimePage = ({ user, token, onLogout, onNavigate }) => {
       <PublicNavigation onNavigate={onNavigate} currentPage="overtime" user={user} />
 
       <div className="pt-40 sm:pt-28 px-3 sm:px-6 pb-6 w-full">
-        <div className={isStudioHeadMode ? "max-w-[1600px] mx-auto flex gap-6" : "max-w-[1400px] mx-auto px-2 sm:px-10 space-y-4 sm:space-y-8"}>
+        <div className={useSidebarLayout ? "max-w-[1600px] mx-auto flex gap-6" : "max-w-[1400px] mx-auto px-2 sm:px-10 space-y-4 sm:space-y-8"}>
           {isStudioHeadMode && (
             <aside className="w-64 shrink-0">
               <StudioHeadSidebar currentPage="overtime" onNavigate={onNavigate} />
             </aside>
           )}
+          {isBimSpecialistMode && (
+            <aside className="w-64 shrink-0 hidden lg:block">
+              <BimSpecialistSidebar currentPage="overtime" onNavigate={onNavigate} />
+            </aside>
+          )}
 
-          <div className={isStudioHeadMode ? "flex-1 min-w-0 space-y-4 sm:space-y-8" : ""}>
+          <div className={useSidebarLayout ? "flex-1 min-w-0 space-y-4 sm:space-y-8" : ""}>
           {/* Tab Navigation */}
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
             {renderTabButton('ot-form', 'Request Overtime')}

@@ -1,3 +1,3 @@
-import AttendanceDashboard from '../Public_Dashboard/AttendanceDashboard';
+import InternDashboard from './InternDashboard';
 
-export default AttendanceDashboard;
+export default InternDashboard;
