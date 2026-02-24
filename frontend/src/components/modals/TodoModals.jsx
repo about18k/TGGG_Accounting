@@ -89,9 +89,200 @@ export const ManageLeadersModal = ({ show, onClose, interns, onToggleLeader, Ico
   );
 };
 
+export const DeleteConfirmModal = ({ show, onClose, onConfirm, message = 'Are you sure you want to delete this?', title = 'Confirm Delete' }) => {
+  if (!show) return null;
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          animation: 'fadeIn 0.2s ease-out'
+        }}
+      >
+        {/* Modal */}
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            backgroundColor: '#002035',
+            borderRadius: '20px',
+            padding: '40px',
+            maxWidth: '480px',
+            width: '90%',
+            border: '2px solid #FF7120',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+            position: 'relative',
+            animation: 'slideUp 0.3s ease-out'
+          }}
+        >
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              color: 'white',
+              fontSize: '18px',
+              lineHeight: 1
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.2)';
+              e.currentTarget.style.transform = 'scale(1.1)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+              e.currentTarget.style.transform = 'scale(1)';
+            }}
+          >
+            ✕
+          </button>
+
+          {/* Icon */}
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            marginBottom: '24px'
+          }}>
+            <div style={{
+              backgroundColor: 'rgba(255, 113, 32, 0.1)',
+              borderRadius: '50%',
+              padding: '20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              animation: 'bounce 0.5s ease-out'
+            }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#FF7120" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Title */}
+          <h3 style={{
+            color: '#FF7120',
+            fontSize: '24px',
+            fontWeight: '600',
+            textAlign: 'center',
+            marginBottom: '12px',
+            letterSpacing: '-0.5px'
+          }}>
+            {title}
+          </h3>
+
+          {/* Message */}
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.8)',
+            fontSize: '16px',
+            textAlign: 'center',
+            lineHeight: '1.6',
+            marginBottom: '32px'
+          }}>
+            {message}
+          </p>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button
+              onClick={onConfirm}
+              style={{
+                flex: 1,
+                padding: '14px 24px',
+                backgroundColor: '#FF7120',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 4px 12px rgba(255, 113, 32, 0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 8px 20px rgba(255, 113, 32, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.3)';
+              }}
+            >
+              Delete
+            </button>
+            <button
+              onClick={onClose}
+              style={{
+                flex: 1,
+                padding: '14px 24px',
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                color: 'white',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                borderRadius: '12px',
+                fontSize: '16px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes bounce {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.1); }
+        }
+      `}</style>
+    </>
+  );
+};
+
 export const ConfirmTaskModal = ({ show, onClose, onConfirm, todo, task, setTask, description, setDescription, startDate, setStartDate, deadline, setDeadline, assignee, setAssignee, members, Icon }) => {
   if (!show || !todo) return null;
-  
+
   const handleConfirm = () => {
     if (deadline && startDate && deadline < startDate) {
       alert('Deadline cannot be earlier than start date.');
@@ -99,7 +290,7 @@ export const ConfirmTaskModal = ({ show, onClose, onConfirm, todo, task, setTask
     }
     onConfirm();
   };
-  
+
   return (
     <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
       <div style={{ background: '#001824', borderRadius: '16px', padding: '2rem', maxWidth: '500px', width: '100%', border: '1px solid rgba(255, 113, 32, 0.3)', maxHeight: '90vh', overflowY: 'auto' }}>

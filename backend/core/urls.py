@@ -32,4 +32,7 @@ urlpatterns = [
     path('api/accounts/', include('accounts.urls')),
     path('api/attendance/', include('attendance.urls')),
     path('api/payroll/', include('payroll.urls')),
+    # Todos app routes mounted at /api/ root to match frontend expectations
+    # (frontend VITE_API_URL is http://localhost:8000/api)
+    path('api/', include('todos.urls')),
 ]

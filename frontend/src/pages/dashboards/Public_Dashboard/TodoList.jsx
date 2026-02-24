@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { CardSkeleton } from '../../../components/SkeletonLoader.jsx';
-import { CreateGroupModal, ManageGroupsModal, ManageLeadersModal, ConfirmTaskModal } from '../../../components/modals/TodoModals.jsx';
+import { CreateGroupModal, ManageGroupsModal, ManageLeadersModal, ConfirmTaskModal, DeleteConfirmModal } from '../../../components/modals/TodoModals.jsx';
 import { TabNavigation, ManagementButtons, Calendar, GroupInfo, TaskForm, TeamFilter } from '../../../components/TodoUI.jsx';
 import { TaskCard, MemberStats } from '../../../components/TodoCards.jsx';
 import Icon from '../../../components/Icon.jsx';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/todos';
 
 function TodoList({ token, user, onNotificationUpdate }) {
   const [todos, setTodos] = useState([]);
@@ -46,6 +46,9 @@ function TodoList({ token, user, onNotificationUpdate }) {
   const [confirmAssignee, setConfirmAssignee] = useState('');
   const [confirmTask, setConfirmTask] = useState('');
   const [confirmDescription, setConfirmDescription] = useState('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteMessage, setDeleteMessage] = useState('');
 
 
   const fetchUserProfile = useCallback(async () => {
@@ -101,7 +104,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
   }, [token]);
 
   const fetchInterns = useCallback(async () => {
-    if (user?.role !== 'coordinator') return;
+    if (user?.role !== 'site_coordinator') return;
     try {
       const { data } = await axios.get(`${API}/users/interns`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -131,13 +134,13 @@ function TodoList({ token, user, onNotificationUpdate }) {
       fetchTodos(activeTab);
     }
     fetchGroups();
-    if (user?.role === 'coordinator' || userProfile?.is_leader) {
+    if (user?.role === 'site_coordinator' || userProfile?.is_leader) {
       fetchAvailableUsers();
     }
-    if (user?.role === 'coordinator') {
+    if (user?.role === 'site_coordinator') {
       fetchInterns();
     }
-    
+
     // Check for tab navigation from notification
     const savedTab = localStorage.getItem('todoActiveTab');
     if (savedTab) {
@@ -162,7 +165,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
 
 
 
-  const isCoordinator = user?.role === 'coordinator';
+  const isCoordinator = user?.role === 'site_coordinator';
   const isLeader = userProfile?.is_leader;
   const leaderHasGroup = groups.some(g => g.leader_id === userProfile?.id);
 
@@ -477,12 +480,17 @@ function TodoList({ token, user, onNotificationUpdate }) {
     }
   };
 
-  const deleteDepartmentTask = async (taskId) => {
-    if (!window.confirm('Delete this task?')) return;
-    if (actionInProgress) return;
+  const openDeleteModal = (taskId, message = 'Are you sure you want to delete this task?') => {
+    setDeleteTarget(taskId);
+    setDeleteMessage(message);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteDepartmentTask = async () => {
+    if (!deleteTarget || actionInProgress) return;
     setActionInProgress(true);
     try {
-      await axios.delete(`${API}/department-tasks/${taskId}`, {
+      await axios.delete(`${API}/department-tasks/${deleteTarget}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchDepartmentTasks();
@@ -490,6 +498,8 @@ function TodoList({ token, user, onNotificationUpdate }) {
       alert(error.response?.data?.error || 'Failed to delete task.');
     } finally {
       setActionInProgress(false);
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -973,7 +983,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
                             </button>
                             {(task.suggested_by === userProfile?.id || isCoordinator) && (
                               <button
-                                onClick={() => deleteDepartmentTask(task.id)}
+                                onClick={() => openDeleteModal(task.id, 'Are you sure you want to delete this suggested task?')}
                                 disabled={actionInProgress}
                                 style={{ padding: '0.5rem', background: actionInProgress ? '#6b7280' : 'rgba(239, 68, 68, 0.2)', color: actionInProgress ? 'white' : '#ef4444', border: `1px solid ${actionInProgress ? '#6b7280' : 'rgba(239, 68, 68, 0.3)'}`, borderRadius: '6px', cursor: actionInProgress ? 'not-allowed' : 'pointer', fontSize: '0.85rem', opacity: actionInProgress ? 0.6 : 1 }}
                               >
@@ -1120,11 +1130,11 @@ function TodoList({ token, user, onNotificationUpdate }) {
                             {ongoingTodos.length}
                           </span>
                         </h3>
-                      {ongoingTodos.length === 0 ? (
-                        <p style={{ textAlign: 'center', color: '#6b7280', padding: '1rem', background: 'rgba(0, 39, 60, 0.5)', borderRadius: '8px' }}>No ongoing tasks for this date.</p>
-                      ) : (
-                        ongoingTodos.map(todo => <TaskCard key={todo.id} todo={todo} isCompleted={false} activeTab={activeTab === 'team' && teamSubTab === 'manage' ? 'group' : activeTab} userProfile={userProfile} groups={groups} isCoordinator={isCoordinator} onToggle={toggleTodo} onDelete={deleteTodo} onConfirm={openConfirmModal} onReject={deleteTodo} onConfirmCompletion={confirmCompletion} onRejectCompletion={rejectCompletion} disabled={actionInProgress} />)
-                      )}
+                        {ongoingTodos.length === 0 ? (
+                          <p style={{ textAlign: 'center', color: '#6b7280', padding: '1rem', background: 'rgba(0, 39, 60, 0.5)', borderRadius: '8px' }}>No ongoing tasks for this date.</p>
+                        ) : (
+                          ongoingTodos.map(todo => <TaskCard key={todo.id} todo={todo} isCompleted={false} activeTab={activeTab === 'team' && teamSubTab === 'manage' ? 'group' : activeTab} userProfile={userProfile} groups={groups} isCoordinator={isCoordinator} onToggle={toggleTodo} onDelete={deleteTodo} onConfirm={openConfirmModal} onReject={deleteTodo} onConfirmCompletion={confirmCompletion} onRejectCompletion={rejectCompletion} disabled={actionInProgress} />)
+                        )}
                       </div>
 
                       <div>
@@ -1195,6 +1205,8 @@ function TodoList({ token, user, onNotificationUpdate }) {
       <ManageLeadersModal show={showLeaderModal && isCoordinator} onClose={() => setShowLeaderModal(false)} interns={interns} onToggleLeader={toggleLeader} Icon={Icon} />
 
       <ConfirmTaskModal show={showConfirmModal} onClose={() => { setShowConfirmModal(false); setConfirmingTodo(null); }} onConfirm={submitConfirmTodo} todo={confirmingTodo} task={confirmTask} setTask={setConfirmTask} description={confirmDescription} setDescription={setConfirmDescription} startDate={confirmStartDate} setStartDate={setConfirmStartDate} deadline={confirmDeadline} setDeadline={setConfirmDeadline} assignee={confirmAssignee} setAssignee={setConfirmAssignee} members={getGroupMembersForAssign()} Icon={Icon} />
+
+      <DeleteConfirmModal show={showDeleteModal} onClose={() => { setShowDeleteModal(false); setDeleteTarget(null); }} onConfirm={confirmDeleteDepartmentTask} message={deleteMessage} />
     </div>
 
   );

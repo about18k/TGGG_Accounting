@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'accounts',
     'attendance',
     'payroll',
+    'todos',
 ]
 
 MIDDLEWARE = [
@@ -88,6 +89,8 @@ WSGI_APPLICATION = 'core.wsgi.application'
 
 # Check if using Supabase or SQLite
 USE_SUPABASE = config('USE_SUPABASE', default='False') == 'True'
+SUPABASE_URL = config('SUPABASE_URL', default='')
+SUPABASE_KEY = config('SUPABASE_KEY', default='')
 
 if USE_SUPABASE:
     DATABASES = {

@@ -5,9 +5,12 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
+from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
 from .models import CustomUser, Department
 from .serializers import CustomUserSerializer, PendingUserSerializer
+import uuid
+from supabase import create_client, Client
 
 # Create your views here.
 
@@ -51,7 +54,8 @@ def login_view(request):
                     'department_name': user.department.name if user.department else None,
                     'role': user.role if user.role else None,
                     'role_name': user.get_role_display() if user.role else None,
-                    'permissions': user.permissions or []
+                    'permissions': user.permissions or [],
+                    'profile_picture': user.profile_picture or None
                 }
             }, status=status.HTTP_200_OK)
         else:
@@ -112,8 +116,66 @@ def user_profile(request):
         'department_name': user.department.name if user.department else None,
         'role': user.role if user.role else None,
         'role_name': user.get_role_display() if user.role else None,
+        'profile_picture': user.profile_picture,
         'permissions': user.permissions or []
     })
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_profile_picture(request):
+    """Upload user profile picture to Supabase Storage."""
+    user = request.user
+    profile_pic = request.FILES.get('profile_pic')
+
+    if not profile_pic:
+        return Response({'error': 'No image provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Initialize Supabase client
+    supabase_url = getattr(settings, 'SUPABASE_URL', None)
+    supabase_key = getattr(settings, 'SUPABASE_KEY', None)
+
+    if not supabase_url or not supabase_key:
+        return Response({'error': 'Supabase configuration is missing in the backend.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    try:
+        supabase: Client = create_client(supabase_url, supabase_key)
+        
+        # Generate unique filename
+        file_extension = profile_pic.name.split('.')[-1]
+        file_path = f"{user.id}/avatar_{uuid.uuid4().hex}.{file_extension}"
+
+        # Upload to Supabase Storage bucket 'profile_picture'
+        # read the file content
+        file_content = profile_pic.read()
+        res = supabase.storage.from_('profile_picture').upload(
+            file=file_content,
+            path=file_path,
+            file_options={'content-type': profile_pic.content_type, 'upsert': 'true'}
+        )
+
+        # Get the public URL
+        public_url = supabase.storage.from_('profile_picture').get_public_url(file_path)
+
+        # Remove the previous picture from storage if it exists to save space
+        if user.profile_picture and "supabase.co/storage/v1/object/public/profile_picture/" in user.profile_picture:
+            try:
+                old_path = user.profile_picture.split("profile_picture/")[-1]
+                supabase.storage.from_('profile_picture').remove([old_path])
+            except Exception as e:
+                print(f"Failed to delete old profile picture: {e}")
+
+        # Update user profile
+        user.profile_picture = public_url
+        user.save()
+
+        return Response({
+            'success': True,
+            'message': 'Profile picture updated successfully.',
+            'profile_picture': public_url
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['GET'])

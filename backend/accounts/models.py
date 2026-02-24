@@ -62,12 +62,14 @@ class Department(models.Model):
 
 class CustomUser(AbstractUser):
     email = models.EmailField(unique=True)
+    profile_picture = models.URLField(max_length=500, blank=True, null=True)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, blank=True, null=True)
     permissions = models.JSONField(default=list, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     employee_id = models.CharField(max_length=50, unique=True, blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    is_leader = models.BooleanField(default=False)
     date_hired = models.DateField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
