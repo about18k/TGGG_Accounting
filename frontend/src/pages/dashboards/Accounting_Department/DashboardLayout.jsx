@@ -18,28 +18,47 @@ import {
   Bell,
   Check,
   Clock,
+  Calendar,
   DollarSign,
   Home,
   LogOut,
   Menu,
   Search,
-  Settings,
   User,
   Users,
+  CheckSquare,
+  FolderKanban,
 } from 'lucide-react';
 
 const menuItems = [
+  { id: 'personal_attendance', label: 'Attendance', icon: Calendar },
+  { id: 'personal_overtime', label: 'Overtime & Leave', icon: Clock },
+  { id: 'personal_todo', label: 'Todo', icon: CheckSquare },
+  { id: 'divider', label: 'divider' },
   { id: 'dashboard', label: 'Dashboard', icon: Home },
   { id: 'employees', label: 'Employees', icon: Users },
-  { id: 'attendance', label: 'Attendance Management', icon: Clock },
-  { id: 'overtime', label: 'Overtime & Leave Management', icon: DollarSign },
+  { id: 'attendance', label: 'Attendance Management', icon: Calendar },
+  { id: 'overtime', label: 'Overtime & Leave Management', icon: Clock },
   { id: 'payroll', label: 'Payroll', icon: DollarSign },
+  { id: 'documentation', label: 'Documentation', icon: FolderKanban },
 ];
 
 const tabMeta = {
   dashboard: {
     title: 'Accounting Dashboard',
     description: 'Monitor finance, staff records, and operational updates.',
+  },
+  personal_attendance: {
+    title: 'Attendance',
+    description: 'View your own attendance logs and status.',
+  },
+  personal_overtime: {
+    title: 'Overtime & Leave',
+    description: 'Submit or review your overtime and leave.',
+  },
+  personal_todo: {
+    title: 'Todo',
+    description: 'Track your personal tasks.',
   },
   employees: {
     title: 'Employee Management',
@@ -135,9 +154,12 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout })
                 </div>
                 <div className="p-4">
                   <nav className="space-y-2">
-                    {menuItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeTab === item.id;
+                  {menuItems.map((item) => {
+                    if (item.id === 'divider') {
+                      return <div key="divider" className="border-t border-white/10 my-3" />;
+                    }
+                    const Icon = item.icon;
+                    const isActive = activeTab === item.id;
                       return (
                         <button
                           key={item.id}
@@ -285,10 +307,10 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout })
                 </div>
                 <div className="p-2">
                   <button
-                    onClick={() => setActiveTab('settings')}
+                    onClick={() => onNavigate?.('profile')}
                     className="w-full rounded-lg px-3 py-2 text-left text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white"
                   >
-                    Settings
+                    Profile
                   </button>
                   <button
                     onClick={onLogout}
@@ -310,6 +332,9 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout })
               <div className={`${cardClass} p-4 sticky top-24`}>
                 <nav className="space-y-2">
                   {menuItems.map((item) => {
+                    if (item.id === 'divider') {
+                      return <div key="divider" className="border-t border-white/10 my-3" />;
+                    }
                     const Icon = item.icon;
                     const isActive = activeTab === item.id;
                     return (

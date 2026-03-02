@@ -36,6 +36,9 @@ import { EmployeeManagement } from './pages/dashboards/Accounting_Department/Emp
 import { AttendanceLeave } from './pages/dashboards/Accounting_Department/AttendanceLeave';
 import { PayrollManagement } from './pages/dashboards/Accounting_Department/PayrollManagement';
 import { Settings } from './pages/dashboards/Accounting_Department/Settings';
+import AttendanceDashboard from './pages/dashboards/Public_Dashboard/AttendanceDashboard';
+import EmployeeOvertimePage from './pages/dashboards/Public_Dashboard/OvertimePage';
+import EmployeeTodoPage from './pages/dashboards/Public_Dashboard/TodoPage';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const API_URL = `${API_BASE_URL}/accounts`;
@@ -925,21 +928,25 @@ export default function App() {
           return <DashboardOverview user={user} />;
         case 'employees':
           return <EmployeeManagement />;
+        case 'personal_attendance':
+          return <AttendanceDashboard user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        case 'personal_overtime':
+          return <EmployeeOvertimePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        case 'personal_todo':
+          return <EmployeeTodoPage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
         case 'attendance':
           return <AttendanceLeave />;
         case 'overtime':
           return <AttendanceLeave />;
         case 'payroll':
           return <PayrollManagement />;
-        case 'settings':
-          return <Settings />;
         default:
           return <DashboardOverview user={user} />;
       }
     };
 
     return (
-      <DashboardLayout activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout}>
+      <DashboardLayout activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout} onNavigate={handleNavigate}>
         {renderContent()}
       </DashboardLayout>
     );
