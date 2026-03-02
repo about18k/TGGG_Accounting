@@ -35,10 +35,7 @@ import { DashboardOverview } from './pages/dashboards/Accounting_Department/Dash
 import { EmployeeManagement } from './pages/dashboards/Accounting_Department/EmployeeManagement';
 import { AttendanceLeave } from './pages/dashboards/Accounting_Department/AttendanceLeave';
 import { PayrollManagement } from './pages/dashboards/Accounting_Department/PayrollManagement';
-import { Settings } from './pages/dashboards/Accounting_Department/Settings';
-import AttendanceDashboard from './pages/dashboards/Public_Dashboard/AttendanceDashboard';
-import EmployeeOvertimePage from './pages/dashboards/Public_Dashboard/OvertimePage';
-import EmployeeTodoPage from './pages/dashboards/Public_Dashboard/TodoPage';
+// (imports consolidated above)
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const API_URL = `${API_BASE_URL}/accounts`;
