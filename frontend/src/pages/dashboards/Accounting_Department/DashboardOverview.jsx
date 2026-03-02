@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 import {
   Avatar,
   AvatarFallback,
@@ -64,11 +65,95 @@ const mockData = {
 };
 
 export function DashboardOverview({ user }) {
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
+  const [metrics, setMetrics] = useState({
+    totalEmployees: mockData.totalEmployees,
+    activeEmployees: mockData.activeEmployees,
+    onLeave: mockData.onLeave,
+    newHires: mockData.newHires,
+    monthlyPayroll: mockData.monthlyPayroll,
+    attendanceRate: mockData.attendanceRate,
+    engagementScore: mockData.engagementScore,
+    performanceRating: mockData.performanceRating,
+  });
+  const [loading, setLoading] = useState(false);
+
   const userName =
     user?.full_name ||
     [user?.first_name, user?.last_name].filter(Boolean).join(' ') ||
     user?.username ||
     'there';
+
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchOverview = async () => {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      try {
+        const [employeesRes, attendanceRes, payrollRes] = await Promise.all([
+          axios.get(`${API_URL}/accounts/accounting/employees/`, {
+            headers,
+            params: { active_only: false },
+          }),
+          axios.get(`${API_URL}/attendance/all/`, { headers }),
+          axios.get(`${API_URL}/payroll/recent/`, { headers }),
+        ]);
+
+        const employees = employeesRes.data || [];
+        const attendance = attendanceRes.data || [];
+        const payroll = payrollRes.data || [];
+
+        const totalEmployees = employees.length;
+        const activeEmployees = employees.filter(
+          (e) => (e.status || '').toLowerCase() === 'active' || e.is_active
+        ).length;
+        const onLeave = employees.filter(
+          (e) => (e.status || '').toLowerCase() === 'on leave'
+        ).length;
+
+        const newHires = employees.filter((e) => {
+          const joinDate = e.joinDate || e.startDate || e.date_hired;
+          if (!joinDate) return false;
+          const joined = new Date(joinDate);
+          if (Number.isNaN(joined.getTime())) return false;
+          const diffDays = (Date.now() - joined.getTime()) / (1000 * 60 * 60 * 24);
+          return diffDays <= 30;
+        }).length;
+
+        const presentOrLate = attendance.filter((r) =>
+          ['present', 'late'].includes((r.status || '').toLowerCase())
+        ).length;
+        const attendanceRate = attendance.length
+          ? Math.round((presentOrLate / attendance.length) * 1000) / 10
+          : 0;
+
+        const monthlyPayroll = payroll.reduce((sum, row) => {
+          const val = parseFloat(row.net_salary || row.netSalary || 0);
+          return Number.isFinite(val) ? sum + val : sum;
+        }, 0);
+
+        setMetrics((prev) => ({
+          ...prev,
+          totalEmployees: totalEmployees || prev.totalEmployees,
+          activeEmployees: activeEmployees || prev.activeEmployees,
+          onLeave,
+          newHires: newHires || prev.newHires,
+          attendanceRate: attendanceRate || prev.attendanceRate,
+          monthlyPayroll: monthlyPayroll || prev.monthlyPayroll,
+        }));
+      } catch (error) {
+        console.error('Failed to load dashboard overview metrics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchOverview();
+  }, [API_URL, user]);
 
   return (
     <div className="space-y-6">
@@ -80,12 +165,15 @@ export function DashboardOverview({ user }) {
           <div className="flex flex-wrap gap-4">
             <Badge variant="secondary" className="bg-primary/20 text-primary border-primary">
               <Users className="w-4 h-4 mr-2" />
-              {mockData.totalEmployees} Total Employees
+              {metrics.totalEmployees} Total Employees
             </Badge>
             <Badge variant="secondary" className="bg-primary/20 text-primary border-primary">
               <UserCheck className="w-4 h-4 mr-2" />
-              {mockData.activeEmployees} Active Today
+              {metrics.activeEmployees} Active Today
             </Badge>
+          </div>
+          <div className="mt-3 text-xs text-primary-foreground/70">
+            {loading ? 'Refreshing data…' : 'Live from database'}
           </div>
         </div>
         <div className="absolute top-0 right-0 w-64 h-32 opacity-20">
@@ -104,13 +192,13 @@ export function DashboardOverview({ user }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Employees</p>
-                <p className="text-2xl font-medium">{mockData.totalEmployees}</p>
+                <p className="text-2xl font-medium">{metrics.totalEmployees}</p>
               </div>
               <Users className="h-8 w-8 text-primary" />
             </div>
             <div className="flex items-center text-xs text-muted-foreground mt-2">
               <ArrowUpRight className="w-3 h-3 mr-1 text-primary" />
-              +{mockData.newHires} new this month
+              +{metrics.newHires} new this month
             </div>
           </CardContent>
         </Card>
@@ -120,11 +208,11 @@ export function DashboardOverview({ user }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Attendance Rate</p>
-                <p className="text-2xl font-medium">{mockData.attendanceRate}%</p>
+                <p className="text-2xl font-medium">{metrics.attendanceRate}%</p>
               </div>
               <Clock className="h-8 w-8 text-primary" />
             </div>
-            <Progress value={mockData.attendanceRate} className="mt-2" />
+            <Progress value={metrics.attendanceRate} className="mt-2" />
           </CardContent>
         </Card>
 
@@ -133,7 +221,11 @@ export function DashboardOverview({ user }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Monthly Payroll</p>
-                <p className="text-2xl font-medium">${(mockData.monthlyPayroll / 1000000).toFixed(1)}M</p>
+                <p className="text-2xl font-medium">
+                  {metrics.monthlyPayroll >= 1_000_000
+                    ? `$${(metrics.monthlyPayroll / 1_000_000).toFixed(1)}M`
+                    : `$${metrics.monthlyPayroll.toLocaleString()}`}
+                </p>
               </div>
               <DollarSign className="h-8 w-8 text-primary" />
             </div>
@@ -149,11 +241,11 @@ export function DashboardOverview({ user }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Engagement Score</p>
-                <p className="text-2xl font-medium">{mockData.engagementScore}%</p>
+                <p className="text-2xl font-medium">{metrics.engagementScore}%</p>
               </div>
               <Heart className="h-8 w-8 text-primary" />
             </div>
-            <Progress value={mockData.engagementScore} className="mt-2" />
+            <Progress value={metrics.engagementScore} className="mt-2" />
           </CardContent>
         </Card>
       </div>
