@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
-import { FileText, Paperclip, PenLine, X } from 'lucide-react';
+import { FileText, Paperclip, PenLine, Plus, X } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import './WorkDocEditor.css';
@@ -43,6 +43,7 @@ export default function WorkDocCard({
     placeholder = 'Example: Completed database design, attended team meeting, fixed bug #123...',
 }) {
     const [attachments, setAttachments] = useState([]);
+    const [isEditing, setIsEditing] = useState(false);
     const fileInputRef = useRef(null);
     const toolbarId = useMemo(() => `toolbar-${Math.random().toString(36).substr(2, 9)}`, []);
 
@@ -101,92 +102,116 @@ export default function WorkDocCard({
                 <div className="flex items-center gap-3">
                     <div>
                         <h3 className="text-white font-semibold tracking-tight text-[clamp(0.95rem,2.4vw,1.1rem)]">
-                            Work Documentation
+                            Time Out
                         </h3>
-                        <p className="mt-0.5 text-white/50 text-sm">
-                            Optional in the morning, recommended before Time Out.
-                        </p>
+                        {isEditing && (
+                            <p className="mt-0.5 text-white/50 text-sm">
+                                Document your work before clocking out.
+                            </p>
+                        )}
                     </div>
                 </div>
-                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-white/5 text-white/70 border-white/10">
-                    <FileText className="h-3.5 w-3.5 mr-1 inline" />
-                    Daily Log
-                </span>
-            </div>
-
-            <div className="mt-5 space-y-4 flex-1 flex flex-col">
-                <label className="block text-white/60 text-sm font-semibold">
-                    What did you accomplish today?{' '}
-                    <span className="font-normal text-white/40">(Optional for morning)</span>
-                </label>
-
-                {/* Rich Text Editor */}
-                <div className="work-doc-editor rounded-xl border border-white/10 bg-[#00273C]/60 overflow-hidden flex-1 flex flex-col relative"
-                    onDrop={handleFileDrop}
-                    onDragOver={(e) => e.preventDefault()}
+                <button
+                    type="button"
+                    onClick={() => setIsEditing(!isEditing)}
+                    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.65rem] font-semibold border transition ${isEditing
+                        ? 'bg-white/10 text-white/70 border-white/20 hover:bg-white/15'
+                        : 'bg-blue-500/10 text-blue-300 border-blue-500/20 hover:bg-blue-500/20'
+                        }`}
                 >
-                    <CustomToolbar id={toolbarId} onAttach={handleAttachClick} />
-
-                    {/* Inline Attachments Preview Map */}
-                    {attachments.length > 0 && (
-                        <div className="px-4 py-3 border-b border-white/10 bg-black/10 flex flex-wrap gap-3">
-                            {attachments.map((file, i) => {
-                                const isImage = file.type.startsWith('image/');
-                                const previewUrl = isImage ? URL.createObjectURL(file) : null;
-                                return (
-                                    <div
-                                        key={i}
-                                        className="relative group rounded-lg overflow-hidden border border-white/10 bg-[#001f35] flex items-center justify-center h-14 w-20 sm:w-24 shrink-0 transition hover:border-[#FF7120]/50"
-                                        title={file.name}
-                                    >
-                                        {isImage ? (
-                                            <img src={previewUrl} alt={file.name} className="h-full w-full object-cover" />
-                                        ) : (
-                                            <div className="flex flex-col items-center justify-center p-2 text-white/50">
-                                                <FileText className="h-5 w-5 mb-1" />
-                                                <span className="text-[0.6rem] font-semibold truncate w-full text-center">{file.name}</span>
-                                            </div>
-                                        )}
-
-                                        {/* Remove Hover Button */}
-                                        <button
-                                            type="button"
-                                            onClick={() => removeAttachment(i)}
-                                            className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 p-1 rounded-full bg-red-500/80 text-white hover:bg-red-500 transition-all shadow-sm"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                    {isEditing ? (
+                        <>
+                            <X className="h-3 w-3" />
+                            <span className="hidden sm:inline">Close</span>
+                        </>
+                    ) : (
+                        <>
+                            <Plus className="h-3 w-3" />
+                            Add Work Documentation
+                        </>
                     )}
-
-                    <ReactQuill
-                        theme="snow"
-                        value={value}
-                        onChange={onChange}
-                        modules={quillModules}
-                        formats={quillFormats}
-                        placeholder={placeholder}
-                    />
-
-                    {/* Hidden input accessible via paperclip toolbar button */}
-                    <input
-                        ref={fileInputRef}
-                        type="file"
-                        multiple
-                        className="hidden"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp"
-                        onChange={handleFileDrop}
-                    />
-                </div>
-
-                {/* Map Portal Target */}
-                <div id="map-preview-portal"></div>
-
-                <p className="text-white/35 text-xs">You can check out anytime</p>
+                </button>
             </div>
+
+            {/* Expanding Body */}
+            {isEditing && (
+                <div className="mt-5 space-y-4 flex-1 flex flex-col animate-[fadeIn_0.2s_ease-out]">
+                    <label className="block text-white/60 text-sm font-semibold">
+                        What did you accomplish today?{' '}
+                        <span className="font-normal text-white/40">(Optional for morning)</span>
+                    </label>
+
+                    {/* Rich Text Editor */}
+                    <div className="work-doc-editor rounded-xl border border-white/10 bg-[#00273C]/60 overflow-hidden flex-1 flex flex-col relative"
+                        onDrop={handleFileDrop}
+                        onDragOver={(e) => e.preventDefault()}
+                    >
+                        <CustomToolbar id={toolbarId} onAttach={handleAttachClick} />
+
+                        {/* Inline Attachments Preview Map */}
+                        {attachments.length > 0 && (
+                            <div className="px-4 py-3 border-b border-white/10 bg-black/10 flex flex-wrap gap-3">
+                                {attachments.map((file, i) => {
+                                    const isImage = file.type.startsWith('image/');
+                                    const previewUrl = isImage ? URL.createObjectURL(file) : null;
+                                    return (
+                                        <div
+                                            key={i}
+                                            className="relative group rounded-lg overflow-hidden border border-white/10 bg-[#001f35] flex items-center justify-center h-14 w-20 sm:w-24 shrink-0 transition hover:border-[#FF7120]/50"
+                                            title={file.name}
+                                        >
+                                            {isImage ? (
+                                                <img
+                                                    src={previewUrl}
+                                                    alt="Preview"
+                                                    className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition"
+                                                />
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center text-white/50 p-1">
+                                                    <FileText className="h-5 w-5 mb-1" />
+                                                    <span className="text-[0.6rem] w-full text-center truncate px-1">
+                                                        {file.name}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {/* Remove overlay */}
+                                            <button
+                                                type="button"
+                                                onClick={() => removeAttachment(i)}
+                                                className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition"
+                                            >
+                                                <X className="h-5 w-5 text-red-400 hover:text-red-300 transition-colors drop-shadow-md" />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        <ReactQuill
+                            theme="snow"
+                            value={value}
+                            onChange={onChange}
+                            placeholder="Type your work documentation here... (Drag & drop files to attach)"
+                            modules={quillModules}
+                            formats={quillFormats}
+                        />
+
+                        {/* Hidden file input controlled by custom toolbar button */}
+                        <input
+                            type="file"
+                            multiple
+                            ref={fileInputRef}
+                            style={{ display: 'none' }}
+                            onChange={handleFileDrop}
+                            accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Map Portal Target */}
+            <div id="map-preview-portal"></div>
         </div>
     );
 }
