@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { CalendarDays, Plus, AlertCircle } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Textarea, Switch } from '../../../components/ui/accounting-ui';
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Textarea, Switch } from '../../../../components/ui/accounting-ui';
 
 export default function EventsPanel() {
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
