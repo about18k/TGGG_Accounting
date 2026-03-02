@@ -138,7 +138,7 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout, o
               <SheetTrigger asChild>
                 <button
                   type="button"
-                  className="lg:hidden border border-[#FF7120] text-[#FF7120] rounded-full w-9 h-9 flex items-center justify-center hover:bg-[#FF7120] hover:text-white transition-all"
+                  className="md:hidden border border-[#FF7120] text-[#FF7120] rounded-full w-9 h-9 flex items-center justify-center hover:bg-[#FF7120] hover:text-white transition-all"
                 >
                   <Menu className="h-4 w-4" />
                 </button>
