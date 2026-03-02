@@ -127,16 +127,6 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout, o
 
   return (
     <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
-      {/* Mobile persistent menu toggle */}
-      <button
-        type="button"
-        onClick={() => setIsMobileMenuOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-50 h-11 w-11 rounded-xl border border-[#FF7120]/60 bg-[#001f35]/90 text-[#FF7120] shadow-lg shadow-black/40 flex items-center justify-center hover:bg-[#FF7120] hover:text-white transition-all"
-        aria-label="Open menu"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
-
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
@@ -386,16 +376,6 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout, o
           </div>
         </div>
       </div>
-
-      {/* Mobile quick menu toggle */}
-      <button
-        type="button"
-        onClick={() => setIsMobileMenuOpen(true)}
-        className="md:hidden fixed bottom-5 right-4 z-50 h-12 w-12 rounded-full bg-[#FF7120] text-white shadow-lg shadow-black/30 flex items-center justify-center border border-white/20"
-        aria-label="Open menu"
-      >
-        <Menu className="h-5 w-5" />
-      </button>
     </div>
   );
 }
