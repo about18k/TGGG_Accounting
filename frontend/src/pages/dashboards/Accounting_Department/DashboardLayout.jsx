@@ -326,7 +326,7 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout, o
         </div>
       </header>
 
-      <div className="relative pt-28 px-6 pb-10">
+      <div className="relative pt-28 px-4 pb-14 sm:px-6">
         <div className="max-w-[1600px] mx-auto">
           <div className="flex gap-6">
             <aside className="w-64 min-w-[14rem] shrink-0 hidden md:block">
@@ -360,6 +360,13 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout, o
 
             <main className="flex-1 min-w-0">
               <div className="flex flex-col gap-5">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.2em] text-[#8fb4d9]">Accounting Department</p>
+                    <h1 className="text-2xl font-semibold text-white mt-1">{currentTab.title}</h1>
+                    <p className="text-white/60 text-sm mt-1">{currentTab.description}</p>
+                  </div>
+                </div>
 
                 <div className="mt-1">
                   {children}
@@ -369,6 +376,16 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout, o
           </div>
         </div>
       </div>
+
+      {/* Mobile quick menu toggle */}
+      <button
+        type="button"
+        onClick={() => setIsMobileMenuOpen(true)}
+        className="md:hidden fixed bottom-5 right-4 z-50 h-12 w-12 rounded-full bg-[#FF7120] text-white shadow-lg shadow-black/30 flex items-center justify-center border border-white/20"
+        aria-label="Open menu"
+      >
+        <Menu className="h-5 w-5" />
+      </button>
     </div>
   );
 }
