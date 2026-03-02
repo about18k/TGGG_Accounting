@@ -923,10 +923,16 @@ export default function App() {
       switch (activeTab) {
         case 'dashboard':
           return <DashboardOverview user={user} />;
-        case 'employees':
-          return <EmployeeManagement />;
         case 'attendance':
           return <AttendanceLeave />;
+        case 'overtime':
+          return <AttendanceLeave />;
+        case 'todo':
+          return <DashboardOverview user={user} />;
+        case 'documentation':
+          return <DashboardOverview user={user} />;
+        case 'employees':
+          return <EmployeeManagement />;
         case 'payroll':
           return <PayrollManagement />;
         case 'settings':
