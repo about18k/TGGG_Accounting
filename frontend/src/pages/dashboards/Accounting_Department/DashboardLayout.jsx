@@ -327,7 +327,7 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout, o
       <div className="relative pt-28 px-6 pb-10">
         <div className="max-w-[1600px] mx-auto">
           <div className="flex gap-6">
-            <aside className="w-64 shrink-0 hidden lg:block">
+            <aside className="w-64 min-w-[14rem] shrink-0 hidden md:block">
               <div className={`${cardClass} p-4 sticky top-24`}>
                 <nav className="space-y-2">
                   {menuItems.map((item) => {
@@ -358,23 +358,6 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout, o
 
             <main className="flex-1 min-w-0">
               <div className="flex flex-col gap-5">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-[0.2em] text-[#8fb4d9]">Accounting Department</p>
-                    <h1 className="text-2xl font-semibold text-white mt-1">{currentTab.title}</h1>
-                    <p className="text-white/60 text-sm mt-1">{currentTab.description}</p>
-                  </div>
-                  <div className="relative w-full md:w-96">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/45" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search..."
-                      className="h-11 w-full rounded-full border border-white/10 bg-white/5 pl-10 pr-4 text-sm text-white placeholder:text-white/45 outline-none focus:border-[#FF7120]/70 focus:ring-2 focus:ring-[#FF7120]/25"
-                    />
-                  </div>
-                </div>
 
                 <div className="mt-1">
                   {children}
