@@ -115,6 +115,17 @@ export function DashboardOverview({ user }) {
         const eventsData = eventsRes.data || [];
         const overtime = overtimeRes.data || [];
 
+        const employeeIndex = new Map();
+        employees.forEach((emp) => {
+          const key = emp.id || emp.user_id || emp.email;
+          if (!key) return;
+          employeeIndex.set(key, {
+            name: emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.email || 'Unknown',
+            avatar: emp.avatar,
+            role: emp.position || emp.role,
+          });
+        });
+
         const totalEmployees = employees.length;
         const activeEmployees = employees.filter(
           (e) => (e.status || '').toLowerCase() === 'active' || e.is_active
@@ -186,11 +197,16 @@ export function DashboardOverview({ user }) {
 
         // Top performers by attendance presence count
         const counts = {};
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 30);
         attendance.forEach((rec) => {
+          const recDate = rec.date ? new Date(rec.date) : null;
+          if (recDate && recDate < cutoff) return;
           if (['present', 'late'].includes((rec.status || '').toLowerCase())) {
-            const key = rec.employee_id || rec.employee_name || rec.employee_email;
+            const key = rec.employee_id || rec.employee_email || rec.employee_name;
             if (!key) return;
-            if (!counts[key]) counts[key] = { name: rec.employee_name || rec.employee_email || 'Unknown', count: 0 };
+            const info = employeeIndex.get(key) || {};
+            if (!counts[key]) counts[key] = { name: info.name || rec.employee_name || 'Unknown', avatar: info.avatar, role: info.role, count: 0 };
             counts[key].count += 1;
           }
         });
@@ -200,7 +216,12 @@ export function DashboardOverview({ user }) {
           .map((p) => ({ ...p, score: p.count }));
         setTopPerformers(performers.length ? performers : mockData.topPerformers);
 
-        setEvents(eventsData.length ? eventsData : mockData.upcomingEvents);
+        const today = new Date().toISOString().slice(0, 10);
+        const upcomingEvents = (eventsData || [])
+          .filter((ev) => ev.date >= today)
+          .sort((a, b) => new Date(a.date) - new Date(b.date))
+          .slice(0, 6);
+        setEvents(upcomingEvents.length ? upcomingEvents : mockData.upcomingEvents);
       } catch (error) {
         console.error('Failed to load dashboard overview metrics:', error);
       } finally {
