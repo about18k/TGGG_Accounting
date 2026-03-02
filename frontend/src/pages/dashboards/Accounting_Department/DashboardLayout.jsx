@@ -17,23 +17,11 @@ import {
   ArrowUpDown,
   Bell,
   Check,
-  Clock,
-  DollarSign,
-  Home,
-  LogOut,
   Menu,
   Search,
-  Settings,
   User,
-  Users,
 } from 'lucide-react';
-
-const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: Home },
-  { id: 'employees', label: 'Employees', icon: Users },
-  { id: 'attendance', label: 'Attendance', icon: Clock },
-  { id: 'payroll', label: 'Payroll', icon: DollarSign },
-];
+import AccountingSidebar from './AccountingSidebar';
 
 const tabMeta = {
   dashboard: {
@@ -58,7 +46,27 @@ const tabMeta = {
   },
 };
 
-export function DashboardLayout({ activeTab, setActiveTab, children, onLogout }) {
+const sectionMeta = {
+  'personal-attendance': {
+    title: 'Attendance',
+    description: 'Review personal attendance logs and leave activity.',
+  },
+  overtime: {
+    title: 'Overtime & Leave Requests',
+    description: 'Submit and track overtime and leave requests.',
+  },
+};
+
+export function DashboardLayout({
+  activeTab,
+  setActiveTab,
+  activeSection = 'main',
+  setActiveSection,
+  children,
+  onLogout,
+  onNavigate,
+  currentPage = 'dashboard',
+}) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notificationFilter, setNotificationFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
@@ -92,12 +100,10 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout })
     setNotifications(notifications.map((n) => ({ ...n, read: true })));
   };
 
-  const onSelectMenuItem = (tabId) => {
-    setActiveTab(tabId);
-    setIsMobileMenuOpen(false);
-  };
-
-  const currentTab = tabMeta[activeTab] || tabMeta.dashboard;
+  const currentTab =
+    activeSection !== 'main'
+      ? sectionMeta[activeSection] || tabMeta.dashboard
+      : tabMeta[activeTab] || tabMeta.dashboard;
   const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg';
 
   return (
@@ -129,34 +135,26 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout })
                   </div>
                 </div>
                 <div className="p-4">
-                  <nav className="space-y-2">
-                    {menuItems.map((item) => {
-                      const Icon = item.icon;
-                      const isActive = activeTab === item.id;
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => onSelectMenuItem(item.id)}
-                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-                            isActive
-                              ? 'bg-[#FF7120] text-white'
-                              : 'text-white/70 hover:text-white hover:bg-white/5'
-                          }`}
-                        >
-                          <Icon className="h-5 w-5" />
-                          <span className="font-medium">{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </nav>
-                  <Button
-                    onClick={onLogout}
-                    className="mt-6 w-full justify-start gap-3 rounded-xl border border-red-400/30 bg-red-500/10 text-red-100 hover:bg-red-500/20 hover:text-white"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </Button>
+                <AccountingSidebar
+                  activeTab={activeTab}
+                  activeSection={activeSection}
+                  currentPage={currentPage}
+                  onSelectTab={(tabId) => {
+                    setActiveTab(tabId);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  onSelectSection={(section) => {
+                    setActiveSection?.(section);
+                    if (section !== 'main') {
+                      setIsMobileMenuOpen(false);
+                    }
+                  }}
+                  onNavigate={(page) => {
+                    onNavigate?.(page);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  withFrame={false}
+                />
                 </div>
               </SheetContent>
             </Sheet>
@@ -302,29 +300,13 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout })
         <div className="max-w-[1600px] mx-auto">
           <div className="flex gap-6">
             <aside className="w-64 shrink-0 hidden lg:block">
-              <div className={`${cardClass} p-4 sticky top-24`}>
-                <nav className="space-y-2">
-                  {menuItems.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = activeTab === item.id;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => setActiveTab(item.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-                          isActive
-                            ? 'bg-[#FF7120] text-white'
-                            : 'text-white/70 hover:text-white hover:bg-white/5'
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" />
-                        <span className="font-medium">{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </nav>
-              </div>
+              <AccountingSidebar
+                activeTab={activeTab}
+                activeSection={activeSection}
+                currentPage={currentPage}
+                onSelectTab={setActiveTab}
+                onSelectSection={setActiveSection}
+              />
             </aside>
 
             <main className="flex-1 min-w-0">
@@ -334,16 +316,18 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout })
                     <h1 className="text-2xl font-semibold text-white">{currentTab.title}</h1>
                     <p className="text-white/60 text-sm mt-1">{currentTab.description}</p>
                   </div>
-                  <div className="relative w-full md:w-80">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/45" />
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      placeholder="Search..."
-                      className="h-10 w-full rounded-xl border border-white/15 bg-[#00273C]/60 pl-10 pr-4 text-sm text-white placeholder:text-white/45 outline-none focus:border-[#FF7120]/70 focus:ring-2 focus:ring-[#FF7120]/25"
-                    />
-                  </div>
+                  {activeSection === 'main' && (
+                    <div className="relative w-full md:w-80">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/45" />
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        placeholder="Search..."
+                        className="h-10 w-full rounded-xl border border-white/15 bg-[#00273C]/60 pl-10 pr-4 text-sm text-white placeholder:text-white/45 outline-none focus:border-[#FF7120]/70 focus:ring-2 focus:ring-[#FF7120]/25"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-6">

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import {
   Avatar,
   AvatarFallback,
@@ -125,6 +127,11 @@ export function AttendanceLeave() {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
   const [attendanceError, setAttendanceError] = useState('');
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
+  const [exportEmployee, setExportEmployee] = useState('all');
+  const [isExporting, setIsExporting] = useState(false);
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
   const fetchAttendanceRecords = async () => {
@@ -199,15 +206,158 @@ export function AttendanceLeave() {
     };
   }, [attendanceRecords]);
 
+  const employeeOptions = useMemo(() => {
+    const names = attendanceRecords
+      .map((record) => record.employee_name)
+      .filter(Boolean);
+    return ['all', ...Array.from(new Set(names))];
+  }, [attendanceRecords]);
+
+  const handleExportReport = () => {
+    if (!exportStartDate || !exportEndDate) {
+      alert('Please select both start and end dates.');
+      return;
+    }
+
+    const start = new Date(exportStartDate);
+    const end = new Date(exportEndDate);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      alert('Please provide valid dates.');
+      return;
+    }
+
+    if (start > end) {
+      alert('Start date must be before or equal to end date.');
+      return;
+    }
+
+    const filtered = attendanceRecords.filter((record) => {
+      const recordDate = new Date(record.date);
+      if (Number.isNaN(recordDate.getTime())) return false;
+      if (recordDate < start || recordDate > end) return false;
+      if (exportEmployee !== 'all' && record.employee_name !== exportEmployee) return false;
+      return true;
+    });
+
+    if (!filtered.length) {
+      alert('No attendance records found for the selected filters.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const now = new Date();
+
+      doc.setFontSize(16);
+      doc.text('Attendance Report', 14, 14);
+
+      doc.setFontSize(10);
+      doc.text('Employee: ' + (exportEmployee === 'all' ? 'All employees' : exportEmployee), 14, 20);
+      doc.text(
+        'Date range: ' + start.toLocaleDateString() + ' - ' + end.toLocaleDateString(),
+        14,
+        26
+      );
+      doc.text('Generated: ' + now.toLocaleString(), 14, 32);
+
+      const tableBody = filtered.map((record) => [
+        new Date(record.date).toLocaleDateString(),
+        record.employee_name || '-',
+        record.time_in || '-',
+        record.time_out || '-',
+        String(getWorkedHours(record)) + 'h',
+        record.status_label || record.status || '-',
+        record.location || '-',
+      ]);
+
+      autoTable(doc, {
+        startY: 38,
+        head: [['Date', 'Employee', 'Time In', 'Time Out', 'Hours Worked', 'Status', 'Location']],
+        body: tableBody,
+        styles: { fontSize: 9, cellPadding: 3 },
+        headStyles: { fillColor: [32, 34, 37], textColor: 255 },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+      });
+
+      doc.save('attendance_report_' + exportStartDate + '_' + exportEndDate + '.pdf');
+      setIsExportOpen(false);
+    } catch (error) {
+      console.error('Failed to export attendance report:', error);
+      alert('Failed to export attendance report. Please try again.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header Actions */}
       <div className="flex justify-end gap-2">
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <Download className="w-4 h-4" />
-            Export Report
-          </Button>
+          <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2">
+                <Download className="w-4 h-4" />
+                Export Report
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Export Attendance Report</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="exportStart">Start Date</Label>
+                    <Input
+                      id="exportStart"
+                      type="date"
+                      value={exportStartDate}
+                      onChange={(e) => setExportStartDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="exportEnd">End Date</Label>
+                    <Input
+                      id="exportEnd"
+                      type="date"
+                      value={exportEndDate}
+                      onChange={(e) => setExportEndDate(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="exportEmployee">Employee</Label>
+                  <Select value={exportEmployee} onValueChange={setExportEmployee}>
+                    <SelectTrigger id="exportEmployee">
+                      <SelectValue placeholder="Select employee" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All employees</SelectItem>
+                      {employeeOptions
+                        .filter((name) => name !== 'all')
+                        .map((name) => (
+                          <SelectItem key={name} value={name}>
+                            {name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setIsExportOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleExportReport} disabled={isExporting}>
+                  {isExporting ? 'Exporting...' : 'Generate PDF'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
           <Dialog open={isLeaveRequestOpen} onOpenChange={setIsLeaveRequestOpen}>
             <DialogTrigger asChild>
               <Button className="gap-2">
@@ -315,7 +465,7 @@ export function AttendanceLeave() {
       </div>
 
       <Tabs value={selectedTab} onValueChange={setSelectedTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
           <TabsTrigger value="leave">Leave Requests</TabsTrigger>
         </TabsList>

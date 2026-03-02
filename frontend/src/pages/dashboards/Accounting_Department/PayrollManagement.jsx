@@ -633,9 +633,6 @@ export function PayrollManagement() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Payroll Actions</CardTitle>
-            <div className="text-sm text-muted-foreground">
-              Next Payroll: <span className="font-medium text-primary">Jan 31, 2024</span>
-            </div>
           </div>
         </CardHeader>
         <CardContent>

@@ -33,7 +33,7 @@ import {
 const mockData = {
   totalEmployees: 247,
   activeEmployees: 234,
-  onLeave: 13,
+  onLeaveToday: 13,
   newHires: 8,
   monthlyPayroll: 1240000,
   attendanceRate: 94.2,
@@ -68,14 +68,14 @@ export function DashboardOverview({ user }) {
   const [metrics, setMetrics] = useState({
     totalEmployees: mockData.totalEmployees,
     activeEmployees: mockData.activeEmployees,
-    onLeave: mockData.onLeave,
+    onLeaveToday: mockData.onLeaveToday,
     newHires: mockData.newHires,
     monthlyPayroll: mockData.monthlyPayroll,
     attendanceRate: mockData.attendanceRate,
     engagementScore: mockData.engagementScore,
     performanceRating: mockData.performanceRating,
-    payrollCount: 0,
-    avgNetPay: 0,
+    overtimePending: 0,
+    absencesToday: 0,
   });
   const [loading, setLoading] = useState(false);
   const [activities, setActivities] = useState([]);
@@ -130,9 +130,13 @@ export function DashboardOverview({ user }) {
         const activeEmployees = employees.filter(
           (e) => (e.status || '').toLowerCase() === 'active' || e.is_active
         ).length;
-        const onLeave = employees.filter(
-          (e) => (e.status || '').toLowerCase() === 'on leave'
-        ).length;
+
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const onLeaveToday = attendance.filter((a) => {
+          const status = (a.status || '').toLowerCase();
+          const date = a.date || a.created_at || '';
+          return date.startsWith(todayStr) && ['leave', 'on leave', 'absent'].includes(status);
+        }).length;
 
         const newHires = employees.filter((e) => {
           const joinDate = e.joinDate || e.startDate || e.date_hired;
@@ -155,20 +159,22 @@ export function DashboardOverview({ user }) {
           return Number.isFinite(val) ? sum + val : sum;
         }, 0);
 
-        const payrollCount = payroll.length || 0;
-        const avgNetPay =
-          payrollCount > 0 ? Math.round((monthlyPayroll / payrollCount) * 100) / 100 : 0;
+        const absencesToday = attendance.filter((a) => {
+          const status = (a.status || '').toLowerCase();
+          const date = a.date || a.created_at || '';
+          return date.startsWith(todayStr) && ['absent', 'no show'].includes(status);
+        }).length;
 
         setMetrics((prev) => ({
           ...prev,
           totalEmployees: totalEmployees || prev.totalEmployees,
           activeEmployees: activeEmployees || prev.activeEmployees,
-          onLeave,
+          onLeaveToday,
           newHires: newHires || prev.newHires,
           attendanceRate: attendanceRate || prev.attendanceRate,
           monthlyPayroll: monthlyPayroll || prev.monthlyPayroll,
-          payrollCount,
-          avgNetPay: avgNetPay || prev.avgNetPay,
+          overtimePending: pending.length,
+          absencesToday,
         }));
 
         // Recent Activities from attendance logs (latest 8)
@@ -187,8 +193,8 @@ export function DashboardOverview({ user }) {
         // Pending approvals from overtime requests lacking management signature
         const pending = (overtime || []).filter(
           (o) => !o.management_signature && !o.approval_date
-        ).slice(0, 5);
-        setPendingApprovals(pending.map((o) => ({
+        );
+        setPendingApprovals(pending.slice(0, 5).map((o) => ({
           id: o.id,
           type: 'Overtime Request',
           employee: o.employee_name || o.full_name || 'Unknown',
@@ -285,7 +291,7 @@ export function DashboardOverview({ user }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">On Leave Today</p>
-                <p className="text-2xl font-medium">{metrics.onLeave}</p>
+                <p className="text-2xl font-medium">{metrics.onLeaveToday}</p>
               </div>
               <CalendarDays className="h-8 w-8 text-primary" />
             </div>
@@ -300,16 +306,16 @@ export function DashboardOverview({ user }) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Avg Net Pay</p>
+                <p className="text-sm text-muted-foreground">Attendance Rate</p>
                 <p className="text-2xl font-medium">
-                  ${metrics.avgNetPay.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  {metrics.attendanceRate}%
                 </p>
               </div>
-              <DollarSign className="h-8 w-8 text-primary" />
+              <Clock className="h-8 w-8 text-primary" />
             </div>
             <div className="flex items-center text-xs text-muted-foreground mt-2">
               <ArrowUpRight className="w-3 h-3 mr-1 text-primary" />
-              Based on recent payslips
+              Latest 30 days attendance
             </div>
           </CardContent>
         </Card>
@@ -318,14 +324,14 @@ export function DashboardOverview({ user }) {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Recent Payslips</p>
-                <p className="text-2xl font-medium">{metrics.payrollCount}</p>
+                <p className="text-sm text-muted-foreground">Pending OT Approvals</p>
+                <p className="text-2xl font-medium">{metrics.overtimePending}</p>
               </div>
-              <CheckCircle className="h-8 w-8 text-primary" />
+              <AlertCircle className="h-8 w-8 text-primary" />
             </div>
             <div className="flex items-center text-xs text-muted-foreground mt-2">
               <ArrowUpRight className="w-3 h-3 mr-1 text-primary" />
-              Pulled from payroll history
+              Awaiting management decision
             </div>
           </CardContent>
         </Card>

@@ -14,8 +14,19 @@ import LocationAttendance from "../../../components/attendance/LocationAttendanc
 import WorkDocCard from "../../../components/attendance/WorkDocCard";
 import axios from "axios";
 
-const AttendanceDashboard = ({ user, onLogout, onNavigate }) => {
+const AttendanceDashboard = ({
+  user,
+  onLogout,
+  onNavigate,
+  NavComponent = PublicNavigation,
+  sidebarComponent = null,
+  currentPage = "attendance",
+  topSpacingClass = "pt-40 sm:pt-28",
+}) => {
   const isStudioHeadMode = user?.role === "studio_head" || user?.role === "admin";
+  const hasCustomSidebar = Boolean(sidebarComponent);
+  const showStudioHeadSidebar = isStudioHeadMode && !hasCustomSidebar;
+  const hasSidebar = hasCustomSidebar || showStudioHeadSidebar;
 
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
@@ -120,6 +131,12 @@ const AttendanceDashboard = ({ user, onLogout, onNavigate }) => {
   const subtleText = "text-white/60";
   const titleText = "text-white font-semibold tracking-[-0.02em]";
   const sectionTitle = "text-white font-semibold tracking-tight text-[clamp(0.95rem,2.4vw,1.1rem)]";
+  const containerClass = hasSidebar
+    ? "max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-4 lg:gap-6"
+    : "max-w-[1400px] mx-auto";
+  const mainClass = hasSidebar
+    ? "flex-1 min-w-0 space-y-5 sm:space-y-8"
+    : "px-2 sm:px-10 space-y-5 sm:space-y-8";
 
   const Badge = ({ tone = "neutral", children }) => {
     const base = "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border";
@@ -141,17 +158,28 @@ const AttendanceDashboard = ({ user, onLogout, onNavigate }) => {
         <div className="absolute bottom-[-200px] left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-white/5 blur-[110px]" />
       </div>
 
-      <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
+      <NavComponent
+        onNavigate={onNavigate}
+        currentPage={currentPage || "attendance"}
+        user={user}
+        onLogout={onLogout}
+      />
 
-      <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10 w-full">
-        <div className={isStudioHeadMode ? "max-w-[1600px] mx-auto flex gap-6" : ""}>
-          {isStudioHeadMode && (
-            <aside className="w-64 shrink-0">
+      <div className={`relative ${topSpacingClass} px-3 sm:px-6 pb-10 w-full`}>
+        <div className={containerClass}>
+          {hasCustomSidebar && (
+            <aside className="w-full lg:w-64 shrink-0">
+              {sidebarComponent}
+            </aside>
+          )}
+
+          {showStudioHeadSidebar && (
+            <aside className="w-full lg:w-64 shrink-0">
               <StudioHeadSidebar currentPage="attendance" onNavigate={onNavigate} />
             </aside>
           )}
 
-          <div className={isStudioHeadMode ? "flex-1 min-w-0 space-y-5 sm:space-y-8" : "max-w-[1400px] mx-auto px-2 sm:px-10 space-y-5 sm:space-y-8"}>
+          <div className={mainClass}>
             {/* Header / Welcome */}
             <div className={cardClass}>
               <div className="p-4 sm:p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

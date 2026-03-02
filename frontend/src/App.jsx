@@ -36,6 +36,8 @@ import { EmployeeManagement } from './pages/dashboards/Accounting_Department/Emp
 import { AttendanceLeave } from './pages/dashboards/Accounting_Department/AttendanceLeave';
 import { PayrollManagement } from './pages/dashboards/Accounting_Department/PayrollManagement';
 import { Settings } from './pages/dashboards/Accounting_Department/Settings';
+import AccountingPersonalAttendance from './pages/dashboards/Accounting_Department/AccountingPersonalAttendance';
+import AccountingOvertimePage from './pages/dashboards/Accounting_Department/AccountingOvertimePage';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 const API_URL = `${API_BASE_URL}/accounts`;
@@ -801,6 +803,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [accountingSection, setAccountingSection] = useState('main');
   const [currentPage, setCurrentPage] = useState('attendance');
   const [notifications, setNotifications] = useState([]);
 
@@ -919,7 +922,33 @@ export default function App() {
   };
 
   const renderAccountingDashboard = () => {
+    const effectiveSection =
+      accountingSection !== 'main'
+        ? accountingSection
+        : currentPage === 'personal-attendance'
+          ? 'personal-attendance'
+          : currentPage === 'overtime'
+            ? 'overtime'
+            : 'main';
+
     const renderContent = () => {
+      if (effectiveSection === 'personal-attendance') {
+        return (
+          <div className="space-y-4">
+            <AccountingPersonalAttendance user={user} onNavigate={handleNavigate} />
+          </div>
+        );
+      }
+      if (effectiveSection === 'overtime') {
+        return (
+          <AccountingOvertimePage
+            user={user}
+            token={token}
+            onNavigate={handleNavigate}
+            embedded
+          />
+        );
+      }
       switch (activeTab) {
         case 'dashboard':
           return <DashboardOverview user={user} />;
@@ -937,7 +966,15 @@ export default function App() {
     };
 
     return (
-      <DashboardLayout activeTab={activeTab} setActiveTab={setActiveTab} onLogout={handleLogout}>
+      <DashboardLayout
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        activeSection={effectiveSection}
+        setActiveSection={setAccountingSection}
+        onLogout={handleLogout}
+        onNavigate={handleNavigate}
+        currentPage={currentPage}
+      >
         {renderContent()}
       </DashboardLayout>
     );
@@ -969,8 +1006,6 @@ export default function App() {
     if (user.role === 'accounting') {
       return renderAccountingDashboard();
     }
-
-    const token = localStorage.getItem('token');
 
     // Employee in Accounting Department - redirect to Accounting Dashboard
     if (user.role === 'employee' && (user.department_name?.toLowerCase() === 'accounting department' || user.department_name?.toLowerCase() === 'accounting')) {
