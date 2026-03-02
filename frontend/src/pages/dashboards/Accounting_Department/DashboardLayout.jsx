@@ -34,7 +34,9 @@ const menuItems = [
   { id: 'personal_attendance', label: 'Attendance', icon: Calendar },
   { id: 'personal_overtime', label: 'Overtime & Leave', icon: Clock },
   { id: 'personal_todo', label: 'Todo', icon: CheckSquare },
+
   { id: 'divider', label: 'divider' },
+  
   { id: 'dashboard', label: 'Dashboard', icon: Home },
   { id: 'employees', label: 'Employees', icon: Users },
   { id: 'attendance', label: 'Attendance Management', icon: Calendar },
@@ -340,7 +342,7 @@ export function DashboardLayout({ activeTab, setActiveTab, children, onLogout, o
                       <button
                         key={item.id}
                         type="button"
-                        onClick={() => setActiveTab(item.id)}
+                        onClick={() => onSelectMenuItem(item.id)}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${
                           isActive
                             ? 'bg-[#FF7120] text-white'
