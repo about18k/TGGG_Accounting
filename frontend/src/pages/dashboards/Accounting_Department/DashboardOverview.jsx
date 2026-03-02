@@ -63,13 +63,19 @@ const mockData = {
   ]
 };
 
-export function DashboardOverview() {
+export function DashboardOverview({ user }) {
+  const userName =
+    user?.full_name ||
+    [user?.first_name, user?.last_name].filter(Boolean).join(' ') ||
+    user?.username ||
+    'there';
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-card via-secondary to-muted p-6 text-primary-foreground" style={{boxShadow: '0 8px 32px #001F35'}}>
         <div className="relative z-10">
-          <h1 className="text-2xl mb-2">Good morning, Alvi! </h1>
+          <h1 className="text-2xl mb-2">Good morning, {userName}!</h1>
           <p className="text-primary-foreground/80 mb-4">Here's what's happening with your team today.</p>
           <div className="flex flex-wrap gap-4">
             <Badge variant="secondary" className="bg-primary/20 text-primary border-primary">

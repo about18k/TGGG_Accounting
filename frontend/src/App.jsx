@@ -922,7 +922,7 @@ export default function App() {
     const renderContent = () => {
       switch (activeTab) {
         case 'dashboard':
-          return <DashboardOverview />;
+          return <DashboardOverview user={user} />;
         case 'employees':
           return <EmployeeManagement />;
         case 'attendance':
@@ -932,7 +932,7 @@ export default function App() {
         case 'settings':
           return <Settings />;
         default:
-          return <DashboardOverview />;
+          return <DashboardOverview user={user} />;
       }
     };
 
