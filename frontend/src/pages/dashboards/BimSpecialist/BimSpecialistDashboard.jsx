@@ -14,6 +14,7 @@ import {
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import BimSpecialistSidebar from './components/BimSpecialistSidebar';
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
+import useMyAttendance from '../../../hooks/useMyAttendance';
 
 const SECTION_META = {
   overview: {
@@ -41,6 +42,14 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [workDoc, setWorkDoc] = useState('');
   const [attendanceReady, setAttendanceReady] = useState(false);
+  const {
+    records: attendanceRows,
+    loading: attendanceLoading,
+    error: attendanceError,
+    refresh: refreshAttendance,
+    latest,
+  } = useMyAttendance();
+  const todayIso = new Date().toISOString().split('T')[0];
 
   const [docTitle, setDocTitle] = useState('');
   const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
@@ -57,20 +66,29 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
     if (requested && SECTION_KEYS.has(requested)) setActiveSection(requested);
   }, [location.search]);
 
-  const attendanceRows = [
-    { date: '2026-02-09', in: '08:00', out: '17:00', late: '0', hours: '8h 0m', note: 'Model updates and clash review completed.' },
-    { date: '2026-02-08', in: '08:15', out: '17:00', late: '15', hours: '7h 45m', note: 'Issued sheet revisions and updated BIM families.' },
-  ];
-
   const stats = useMemo(() => {
-    const latest = attendanceRows[0];
-    const lateMinutes = latest?.late ?? '0';
+    const lateStatus = latest?.status === 'late' ? 'Late' : latest?.status_label || 'On time';
+    const lateTone = latest?.status === 'late' ? 'warn' : 'good';
+    const hours = (() => {
+      if (!latest?.time_in || !latest?.time_out) return '-';
+      const [inH, inM] = latest.time_in.split(':').map(Number);
+      const [outH, outM] = latest.time_out.split(':').map(Number);
+      if ([inH, inM, outH, outM].some((v) => Number.isNaN(v))) return '-';
+      const mins = outH * 60 + outM - (inH * 60 + inM);
+      if (mins <= 0) return '-';
+      return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+    })();
+    const todayStatus = latest?.date === todayIso && latest?.time_in
+      ? (latest.time_out ? 'Completed' : 'Timed In')
+      : attendanceReady
+        ? 'Ready to Time In'
+        : 'Location Required';
     return [
-      { label: "Today's Status", value: attendanceReady ? 'Ready to Time In' : 'Location Required', tone: attendanceReady ? 'good' : 'warn', icon: MapPin },
-      { label: 'Late Minutes (Latest)', value: lateMinutes, tone: lateMinutes === '0' ? 'good' : 'warn', icon: Clock },
-      { label: 'Total Hours (Latest)', value: latest?.hours ?? '-', tone: 'neutral', icon: FileText },
+      { label: "Today's Status", value: todayStatus, tone: attendanceReady || latest?.time_in ? 'good' : 'warn', icon: MapPin },
+      { label: 'Latest Status', value: lateStatus, tone: lateTone, icon: Clock },
+      { label: 'Total Hours (Latest)', value: hours, tone: 'neutral', icon: FileText },
     ];
-  }, [attendanceReady]);
+  }, [attendanceReady, latest, todayIso]);
 
   const overviewStats = useMemo(
     () => [
@@ -82,24 +100,6 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
   );
 
   const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
-
-  const getLocationIn = () => {
-    if (!navigator.geolocation) return setLocationInError('Geolocation is not supported by your browser');
-    setLocationInError('');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setLocationIn({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy }),
-      () => setLocationInError('Unable to retrieve location. Please enable location access.'),
-    );
-  };
-
-  const getLocationOut = () => {
-    if (!navigator.geolocation) return setLocationOutError('Geolocation is not supported by your browser');
-    setLocationOutError('');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => setLocationOut({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy }),
-      () => setLocationOutError('Unable to retrieve location. Please enable location access.'),
-    );
-  };
 
   const saveDocumentation = (e) => {
     e.preventDefault();
@@ -214,6 +214,7 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
           role={user?.role}
           className={`${cardClass} p-4 sm:p-6`}
           onStatusChange={({ ready }) => setAttendanceReady(ready)}
+          onRecordSaved={refreshAttendance}
         />
 
         <WorkDocCard value={workDoc} onChange={setWorkDoc} cardClass={cardClass} />
@@ -231,17 +232,40 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
           <table className="w-full min-w-[720px] border-collapse">
             <thead>
               <tr className="border-b border-white/10 text-white/60 text-xs">
-                <th className="text-left py-3">Date</th><th className="text-left py-3">In</th><th className="text-left py-3">Out</th><th className="text-left py-3">Late</th><th className="text-left py-3">Hours</th><th className="text-left py-3">Note</th>
+                <th className="text-left py-3">Date</th><th className="text-left py-3">In</th><th className="text-left py-3">Out</th><th className="text-left py-3">Status</th><th className="text-left py-3">Hours</th><th className="text-left py-3">Note</th>
               </tr>
             </thead>
             <tbody>
-              {attendanceRows.map((row) => (
-                <tr key={row.date} className="border-b border-white/5 text-sm text-white/85">
-                  <td className="py-3">{row.date}</td><td className="py-3">{row.in}</td><td className="py-3">{row.out}</td><td className="py-3">{row.late} min</td><td className="py-3 text-emerald-300">{row.hours}</td><td className="py-3">{row.note}</td>
-                </tr>
-              ))}
+              {attendanceLoading && (
+                <tr><td colSpan={6} className="py-3 text-white/70 text-sm">Loading attendance...</td></tr>
+              )}
+              {!attendanceLoading && attendanceRows.length === 0 && (
+                <tr><td colSpan={6} className="py-3 text-white/60 text-sm">No attendance records yet.</td></tr>
+              )}
+              {attendanceRows.map((row) => {
+                const hours = (() => {
+                  if (!row.time_in || !row.time_out) return '-';
+                  const [inH, inM] = row.time_in.split(':').map(Number);
+                  const [outH, outM] = row.time_out.split(':').map(Number);
+                  if ([inH, inM, outH, outM].some((v) => Number.isNaN(v))) return '-';
+                  const mins = outH * 60 + outM - (inH * 60 + inM);
+                  if (mins <= 0) return '-';
+                  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+                })();
+                return (
+                  <tr key={row.id || row.date} className="border-b border-white/5 text-sm text-white/85">
+                    <td className="py-3">{row.date}</td>
+                    <td className="py-3">{row.time_in || '-'}</td>
+                    <td className="py-3">{row.time_out || '-'}</td>
+                    <td className="py-3">{row.status_label || row.status || '—'}</td>
+                    <td className="py-3 text-emerald-300">{hours}</td>
+                    <td className="py-3">{row.notes || '—'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+          {attendanceError && <p className="mt-3 text-xs text-red-200">{attendanceError}</p>}
         </div>
       </div>
     </div>
