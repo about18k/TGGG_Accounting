@@ -1,12 +1,14 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Attendance, Leave, OvertimeRequest, CalendarEvent
+from .models import Attendance, CalendarEvent, Leave, OvertimeRequest, TimeLog
 
 # Create your views here.
 
@@ -102,6 +104,40 @@ def _parse_date_or_none(value, field_name):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+def _format_location(payload):
+    """
+    Compress geolocation payload into a short string that fits TimeLog.location (100 chars).
+    """
+    if not payload:
+        return None
+
+    mode = (payload.get('mode') or '').strip()
+    latitude = payload.get('latitude')
+    longitude = payload.get('longitude')
+    accuracy = payload.get('accuracy')
+    label = (payload.get('location_label') or payload.get('location') or '').strip()
+
+    parts = []
+    if mode:
+        parts.append(f"mode={mode}")
+    if latitude not in [None, ''] and longitude not in [None, '']:
+        try:
+            lat_fmt = f"{float(latitude):.5f}"
+            lng_fmt = f"{float(longitude):.5f}"
+            parts.append(f"lat={lat_fmt} lng={lng_fmt}")
+        except (TypeError, ValueError):
+            parts.append(f"lat={latitude} lng={longitude}")
+    if accuracy not in [None, '']:
+        parts.append(f"±{accuracy}m")
+    if label:
+        parts.append(label[:30])
+
+    if not parts:
+        return None
+
+    formatted = " | ".join(parts)
+    return formatted[:95]  # keep under 100 chars with buffer
+
 
 def _serialize_overtime_request(request_obj):
     return {
@@ -193,6 +229,116 @@ def all_attendance_records(request):
         .order_by('-date', '-created_at')
     )
     return Response([_serialize_attendance(record) for record in records])
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_attendance_today(request):
+    """Return today's attendance record for the logged-in user, if it exists."""
+    today = timezone.localdate()
+    record = (
+        Attendance.objects
+        .select_related('employee', 'employee__department')
+        .prefetch_related('logs')
+        .filter(employee=request.user, date=today)
+        .first()
+    )
+    if not record:
+        return Response({'record': None})
+    return Response({'record': _serialize_attendance(record)})
+
+
+def _apply_status_override(record, requested_status: str | None):
+    valid_status = {choice[0] for choice in Attendance.STATUS_CHOICES}
+    if requested_status in valid_status:
+        record.status = requested_status
+    elif record.status in [None, '', 'absent']:
+        record.status = 'present'
+
+
+def _append_notes(record, notes_text: str | None):
+    if not notes_text:
+        return
+    notes_text = notes_text.strip()
+    if not notes_text:
+        return
+    record.notes = f"{record.notes}\n{notes_text}" if record.notes else notes_text
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def clock_in(request):
+    """Record time in for the authenticated user for today's date."""
+    now = timezone.localtime()
+    today = now.date()
+
+    with transaction.atomic():
+        record, _created = Attendance.objects.select_for_update().get_or_create(
+            employee=request.user,
+            date=today,
+            defaults={'status': 'present'},
+        )
+
+        if record.time_in:
+            return Response(
+                {'error': 'You already timed in today.', 'attendance': _serialize_attendance(record)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        record.time_in = now.time()
+        _apply_status_override(record, request.data.get('status'))
+        _append_notes(record, request.data.get('notes'))
+        record.save(update_fields=['time_in', 'status', 'notes', 'updated_at'])
+
+        TimeLog.objects.create(
+            employee=request.user,
+            attendance=record,
+            log_type='time_in',
+            location=_format_location(request.data),
+        )
+
+    return Response({'success': True, 'attendance': _serialize_attendance(record)}, status=status.HTTP_201_CREATED)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def clock_out(request):
+    """Record time out for the authenticated user for today's date."""
+    now = timezone.localtime()
+    today = now.date()
+
+    with transaction.atomic():
+        record, _created = Attendance.objects.select_for_update().get_or_create(
+            employee=request.user,
+            date=today,
+            defaults={'status': 'present'},
+        )
+
+        if record.time_out:
+            return Response(
+                {'error': 'You already timed out today.', 'attendance': _serialize_attendance(record)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if record.time_in and now.time() < record.time_in:
+            return Response(
+                {'error': 'Time out cannot be earlier than time in.', 'attendance': _serialize_attendance(record)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        record.time_out = now.time()
+        _apply_status_override(record, request.data.get('status'))
+        _append_notes(record, request.data.get('notes'))
+        record.save(update_fields=['time_out', 'status', 'notes', 'updated_at'])
+
+        TimeLog.objects.create(
+            employee=request.user,
+            attendance=record,
+            log_type='time_out',
+            location=_format_location(request.data),
+        )
+
+    return Response({'success': True, 'attendance': _serialize_attendance(record)}, status=status.HTTP_200_OK)
 
 
 @api_view(['GET', 'POST'])

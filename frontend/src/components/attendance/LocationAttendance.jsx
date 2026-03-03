@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import axios from "axios";
 import {
   CheckCircle,
   MapPin,
@@ -14,7 +15,6 @@ import {
 } from "lucide-react";
 import attendanceLocations from "../../configs/attendanceLocations";
 import { createPortal } from "react-dom";
-import { useLayoutEffect } from "react";
 
 const MapPortal = ({ children }) => {
   const [target, setTarget] = useState(null);
@@ -33,6 +33,7 @@ const MapPortal = ({ children }) => {
   return <>{children}</>;
 };
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
 const RADIO_OPTIONS = [
   { value: "office", label: "Office", icon: Building2, hint: "Inside the office geofence" },
@@ -81,6 +82,7 @@ const LocationAttendance = ({
   title = "Attendance",
   description = "Select your work mode, then capture your location to enable Time In / Out.",
   onStatusChange,
+  onRecordSaved,
 }) => {
   const [mode, setMode] = useState("office");
   const [modeOut, setModeOut] = useState("office");
@@ -89,6 +91,9 @@ const LocationAttendance = ({
   const [locationOut, setLocationOut] = useState(null);
   const [locationOutError, setLocationOutError] = useState("");
   const [processing, setProcessing] = useState("");
+  const [todayRecord, setTodayRecord] = useState(null);
+  const [banner, setBanner] = useState(null);
+  const [loadingToday, setLoadingToday] = useState(false);
 
   const officeConfig = attendanceLocations.mainOffice || {
     name: "Office",
@@ -97,6 +102,19 @@ const LocationAttendance = ({
     radius: 1000,
   };
   const officeLabel = officeConfig?.name ?? "Office";
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+    setLoadingToday(true);
+    axios
+      .get(`${API_URL}/attendance/my/today/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      .then((res) => setTodayRecord(res.data?.record || null))
+      .catch(() => setTodayRecord(null))
+      .finally(() => setLoadingToday(false));
+  }, []);
 
   const requestCoordinates = (setter, errorSetter) => {
     if (!navigator.geolocation) {
@@ -138,11 +156,14 @@ const LocationAttendance = ({
     );
   }, [locationOut, officeConfig]);
 
+  const hasClockedIn = Boolean(todayRecord?.time_in);
+  const hasClockedOut = Boolean(todayRecord?.time_out);
+
   const inRangeIn = mode === "office" ? officeDistanceIn != null && officeDistanceIn <= officeConfig.radius : true;
   const inRangeOut = modeOut === "office" ? officeDistanceOut != null && officeDistanceOut <= officeConfig.radius : true;
 
-  const canTimeIn = Boolean(locationIn) && inRangeIn;
-  const canTimeOut = Boolean(locationOut) && inRangeOut;
+  const canTimeIn = Boolean(locationIn) && inRangeIn && !hasClockedIn;
+  const canTimeOut = Boolean(locationOut) && inRangeOut && !hasClockedOut;
 
   useEffect(() => {
     onStatusChange?.({ ready: canTimeIn || canTimeOut, locationIn, locationOut });
@@ -180,12 +201,47 @@ const LocationAttendance = ({
 
   const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${mapBounds.minLng},${mapBounds.minLat},${mapBounds.maxLng},${mapBounds.maxLat}&layer=mapnik&marker=${mapCenter.latitude ?? fallbackLocation.latitude},${mapCenter.longitude ?? fallbackLocation.longitude}`;
 
-  const handleTimeAction = (type) => {
+  const handleTimeAction = async (type) => {
     if ((type === "in" && !canTimeIn) || (type === "out" && !canTimeOut)) return;
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setBanner({ tone: "error", text: "Missing login token. Please login again." });
+      return;
+    }
+
+    const isTimeIn = type === "in";
+    const location = isTimeIn ? locationIn : locationOut;
+    const modeValue = isTimeIn ? mode : modeOut;
+
     setProcessing(type);
-    setTimeout(() => {
+    setBanner(null);
+
+    try {
+      const payload = {
+        mode: modeValue,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+        accuracy: location?.accuracy,
+      };
+
+      const endpoint = isTimeIn ? "clock-in" : "clock-out";
+      const response = await axios.post(
+        `${API_URL}/attendance/${endpoint}/`,
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const attendance = response.data?.attendance || null;
+      setTodayRecord(attendance);
+      setBanner({ tone: "success", text: `Time ${isTimeIn ? "in" : "out"} recorded.` });
+      onRecordSaved?.(attendance);
+    } catch (error) {
+      const message = error.response?.data?.error || "Unable to save attendance.";
+      setBanner({ tone: "error", text: message });
+    } finally {
       setProcessing("");
-    }, 1000);
+    }
   };
 
   /* ── Location section renderer — now with accent border + icon ── */
@@ -267,6 +323,41 @@ const LocationAttendance = ({
           </div>
         </div>
       </div>
+
+      {loadingToday && (
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
+          Checking today's attendance…
+        </div>
+      )}
+
+      {banner && (
+        <div
+          className={`mt-3 rounded-xl border px-4 py-3 text-sm ${
+            banner.tone === "success"
+              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+              : "border-red-500/40 bg-red-500/10 text-red-200"
+          }`}
+        >
+          {banner.text}
+        </div>
+      )}
+
+      {(hasClockedIn || hasClockedOut) && (
+        <div className="mt-3 grid gap-1.5 text-xs text-white/70">
+          {hasClockedIn && (
+            <p className="flex items-center gap-2">
+              <LogIn className="h-3.5 w-3.5 text-emerald-300" />
+              Time in recorded at {todayRecord?.time_in || "—"}
+            </p>
+          )}
+          {hasClockedOut && (
+            <p className="flex items-center gap-2">
+              <LogOut className="h-3.5 w-3.5 text-emerald-300" />
+              Time out recorded at {todayRecord?.time_out || "—"}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ── Mode selector ── */}
       <div className="mt-5">

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import LocationAttendance from "../../../components/attendance/LocationAttendance";
 import WorkDocCard from "../../../components/attendance/WorkDocCard";
+import useMyAttendance from "../../../hooks/useMyAttendance";
 import axios from "axios";
 
 const AttendanceDashboard = ({
@@ -33,9 +34,16 @@ const AttendanceDashboard = ({
   );
   const [workDoc, setWorkDoc] = useState("");
   const [locationReady, setLocationReady] = useState(false);
-  const [expandedWorkIdx, setExpandedWorkIdx] = useState(null);
   const [isHoliday, setIsHoliday] = useState(false);
   const [events, setEvents] = useState([]);
+  const {
+    records: attendanceData,
+    loading: attendanceLoading,
+    error: attendanceError,
+    refresh: refreshAttendance,
+    latest,
+  } = useMyAttendance();
+  const todayIso = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -63,46 +71,42 @@ const AttendanceDashboard = ({
     fetchEvents();
   }, [selectedDate]);
 
-  // Mock data (keep yours / replace with API)
-  const attendanceData = [
-    {
-      date: "2026-02-09",
-      amIn: "08:00",
-      amOut: "12:00",
-      pmIn: "13:00",
-      pmOut: "17:00",
-      otIn: "-",
-      otOut: "-",
-      totalHours: "4h 0m",
-      late: { afternoon: "0", total: "0" },
-      workDone:
-        "Completed database design and implemented user authentication system. Fixed edge cases in validation and updated UI states for better UX.",
-    },
-    {
-      date: "2026-02-08",
-      amIn: "08:15",
-      amOut: "12:00",
-      pmIn: "13:00",
-      pmOut: "17:00",
-      otIn: "-",
-      otOut: "-",
-      totalHours: "3h 45m",
-      late: { afternoon: "15", total: "15" },
-      workDone:
-        "Attended team meeting, updated project documentation and reviewed code. Refactored components for maintainability and reduced inline styling.",
-    },
-  ];
-
-  const latest = attendanceData?.[0];
+  const computeHours = (record) => {
+    if (!record?.time_in || !record?.time_out) return "-";
+    const [inH, inM] = record.time_in.split(":").map(Number);
+    const [outH, outM] = record.time_out.split(":").map(Number);
+    if ([inH, inM, outH, outM].some((v) => Number.isNaN(v))) return "-";
+    const minutes = outH * 60 + outM - (inH * 60 + inM);
+    if (minutes <= 0) return "-";
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hrs}h ${mins}m`;
+  };
 
   const stats = useMemo(() => {
-    const isLate = (latest?.late?.total ?? "0") !== "0";
-    const todayStatus = isHoliday
-      ? "Holiday / No Work"
-      : locationReady
-        ? "Ready to Time In"
-        : "Location Required";
-    const todayTone = isHoliday ? "neutral" : locationReady ? "good" : "warn";
+    const isToday = latest?.date === todayIso;
+    const hasIn = isToday && latest?.time_in;
+    const hasOut = isToday && latest?.time_out;
+    const todayStatus = attendanceLoading
+      ? "Loading..."
+      : isHoliday
+        ? "Holiday / No Work"
+        : hasOut
+          ? "Completed"
+          : hasIn
+            ? "Timed In"
+            : locationReady
+              ? "Ready to Time In"
+              : "Location Required";
+    const todayTone = isHoliday
+      ? "neutral"
+      : hasOut || hasIn || locationReady
+        ? "good"
+        : "warn";
+
+    const lateTone = latest?.status === "late" ? "warn" : "good";
+    const lateLabel = latest?.status === "late" ? "Late" : latest?.status_label || "On time";
+
     return [
       {
         label: "Today's Status",
@@ -111,19 +115,19 @@ const AttendanceDashboard = ({
         tone: todayTone,
       },
       {
-        label: "Late Minutes (Latest)",
-        value: latest?.late?.total ?? "0",
+        label: "Latest Status",
+        value: lateLabel,
         icon: Clock,
-        tone: isLate ? "warn" : "good",
+        tone: lateTone,
       },
       {
         label: "Total Hours (Latest)",
-        value: latest?.totalHours ?? "-",
+        value: computeHours(latest),
         icon: FileText,
         tone: "neutral",
       },
     ];
-  }, [latest, locationReady]);
+  }, [attendanceLoading, isHoliday, latest, locationReady, todayIso]);
 
   const cardClass =
     "rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]";
@@ -278,6 +282,7 @@ const AttendanceDashboard = ({
                     role={user?.role}
                     className="p-0"
                     onStatusChange={({ ready }) => setLocationReady(ready)}
+                    onRecordSaved={refreshAttendance}
                   />
                 )}
               </div>
@@ -308,24 +313,17 @@ const AttendanceDashboard = ({
                 </div>
               </div>
 
+              {attendanceError && (
+                <div className="px-6 pb-3 text-sm text-red-200">
+                  {attendanceError}
+                </div>
+              )}
+
               <div className="max-h-[520px] overflow-auto">
-                <table className="w-full min-w-[1200px] border-collapse">
+                <table className="w-full min-w-[720px] border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-[#001a2b] border-b border-white/10">
-                      {[
-                        "Date",
-                        "AM In",
-                        "AM Out",
-                        "PM In",
-                        "PM Out",
-                        "OT In",
-                        "OT Out",
-                        "Total Hours",
-                        "Late",
-                        "Work Done",
-                        "Attachments",
-                        "Photo",
-                      ].map((h) => (
+                      {["Date", "Time In", "Time Out", "Status", "Location", "Notes", "Hours"].map((h) => (
                         <th
                           key={h}
                           className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/60 whitespace-nowrap"
@@ -337,98 +335,54 @@ const AttendanceDashboard = ({
                   </thead>
 
                   <tbody>
+                    {attendanceLoading && (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-4 text-white/70 text-sm">
+                          Loading attendance records…
+                        </td>
+                      </tr>
+                    )}
+                    {!attendanceLoading && attendanceData.length === 0 && (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-4 text-white/60 text-sm">
+                          No attendance records yet.
+                        </td>
+                      </tr>
+                    )}
                     {attendanceData.map((record, index) => {
-                      const isLate = (record?.late?.total ?? "0") !== "0";
-                      const expanded = expandedWorkIdx === index;
-
+                      const isLate = record?.status === "late";
+                      const hours = computeHours(record);
                       return (
-                        <React.Fragment key={index}>
-                          <tr
-                            className={[
-                              "border-b border-white/5",
-                              index % 2 === 0 ? "bg-black/10" : "bg-transparent",
-                              "hover:bg-[#FF7120]/5 transition",
-                            ].join(" ")}
-                          >
-                            <td className="px-6 py-4 text-white/90 text-sm whitespace-nowrap">
-                              {record.date}
-                            </td>
-                            <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                              {record.amIn}
-                            </td>
-                            <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                              {record.amOut}
-                            </td>
-                            <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                              {record.pmIn}
-                            </td>
-                            <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                              {record.pmOut}
-                            </td>
-                            <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                              {record.otIn}
-                            </td>
-                            <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                              {record.otOut}
-                            </td>
-                            <td className="px-6 py-4 text-emerald-300 text-sm font-semibold whitespace-nowrap">
-                              {record.totalHours}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex flex-col gap-1">
-                                <Badge tone={record.late.afternoon !== "0" ? "warn" : "neutral"}>
-                                  A: {record.late.afternoon} min
-                                </Badge>
-                                <Badge tone={isLate ? "warn" : "good"}>
-                                  {isLate ? `Late: ${record.late.total} min` : "On time"}
-                                </Badge>
-                              </div>
-                            </td>
-
-                            <td className="px-6 py-4 text-white/85 text-sm max-w-[340px]">
-                              <div className="flex items-center gap-2">
-                                <span className="truncate">{record.workDone}</span>
-                                <button
-                                  className="shrink-0 p-1 rounded-lg text-[#FF7120] hover:bg-[#FF7120]/10 transition"
-                                  onClick={() =>
-                                    setExpandedWorkIdx((v) => (v === index ? null : index))
-                                  }
-                                  type="button"
-                                  aria-label="Toggle work done details"
-                                >
-                                  <ChevronDownIcon
-                                    className={[
-                                      "h-4 w-4 transition-transform",
-                                      expanded ? "rotate-180" : "rotate-0",
-                                    ].join(" ")}
-                                  />
-                                </button>
-                              </div>
-                            </td>
-
-                            <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
-                              -
-                            </td>
-                            <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
-                              -
-                            </td>
-                          </tr>
-
-                          {expanded && (
-                            <tr className="border-b border-white/5 bg-[#00273C]/40">
-                              <td colSpan={12} className="px-6 py-4">
-                                <div className="rounded-xl border border-white/10 bg-black/10 p-4">
-                                  <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">
-                                    Work Done (Full)
-                                  </p>
-                                  <p className="mt-2 text-white/90 text-sm leading-relaxed">
-                                    {record.workDone}
-                                  </p>
-                                </div>
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
+                        <tr
+                          key={record.id || index}
+                          className={[
+                            "border-b border-white/5",
+                            index % 2 === 0 ? "bg-black/10" : "bg-transparent",
+                            "hover:bg-[#FF7120]/5 transition",
+                          ].join(" ")}
+                        >
+                          <td className="px-6 py-4 text-white/90 text-sm whitespace-nowrap">
+                            {record.date}
+                          </td>
+                          <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                            {record.time_in || "-"}
+                          </td>
+                          <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                            {record.time_out || "-"}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <Badge tone={isLate ? "warn" : "good"}>{record.status_label || record.status}</Badge>
+                          </td>
+                          <td className="px-6 py-4 text-white/70 text-sm whitespace-nowrap">
+                            {record.location || "—"}
+                          </td>
+                          <td className="px-6 py-4 text-white/85 text-sm">
+                            {record.notes || "—"}
+                          </td>
+                          <td className="px-6 py-4 text-emerald-300 text-sm font-semibold whitespace-nowrap">
+                            {hours}
+                          </td>
+                        </tr>
                       );
                     })}
                   </tbody>
