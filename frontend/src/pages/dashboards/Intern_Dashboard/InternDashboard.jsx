@@ -1,64 +1,34 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Calendar, Clock, FileText, MapPin, ShieldCheck, User } from 'lucide-react';
+import { Calendar, MapPin, ShieldCheck, User } from 'lucide-react';
 import PublicNavigation from './PublicNavigation';
-import InternSidebar from './components/InternSidebar';
 import LocationAttendance from '../../../components/attendance/LocationAttendance';
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
 import useMyAttendance from '../../../hooks/useMyAttendance';
+import { TableSkeleton, CardSkeleton } from '../../../components/SkeletonLoader';
 
-const SECTION_KEYS = new Set(['overview', 'attendance']);
-const MOBILE_SECTION_TABS = [
-  { id: 'overview', label: 'Dashboard' },
-  { id: 'attendance', label: 'Attendance' },
-];
+const SECTION_KEYS = new Set(['attendance']);
 
 export default function InternDashboard({ user, onNavigate }) {
   const location = useLocation();
-  const [activeSection, setActiveSection] = useState('overview');
+  const [activeSection, setActiveSection] = useState('attendance');
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [workDoc, setWorkDoc] = useState('');
   const [attendanceReady, setAttendanceReady] = useState(false);
+  const [expandedWorkIdx, setExpandedWorkIdx] = useState(null);
   const {
     records: attendanceRows,
     loading: attendanceLoading,
     error: attendanceError,
     refresh: refreshAttendance,
-    latest,
   } = useMyAttendance();
-  const todayIso = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('section');
     if (requested && SECTION_KEYS.has(requested)) setActiveSection(requested);
   }, [location.search]);
-
-  const stats = useMemo(() => {
-    const lateMinutes = latest?.status === 'late' ? 'Late' : 'On time';
-    const statusTone = latest?.status === 'late' ? 'warn' : 'good';
-    const hours = (() => {
-      if (!latest?.time_in || !latest?.time_out) return '-';
-      const [inH, inM] = latest.time_in.split(':').map(Number);
-      const [outH, outM] = latest.time_out.split(':').map(Number);
-      if ([inH, inM, outH, outM].some((v) => Number.isNaN(v))) return '-';
-      const mins = outH * 60 + outM - (inH * 60 + inM);
-      if (mins <= 0) return '-';
-      return `${Math.floor(mins / 60)}h ${mins % 60}m`;
-    })();
-    const todayStatus = latest?.date === todayIso && latest?.time_in
-      ? (latest.time_out ? 'Completed' : 'Timed In')
-      : attendanceReady
-        ? 'Ready to Time In'
-        : 'Location Required';
-
-    return [
-      { label: "Today's Status", value: todayStatus, tone: attendanceReady || latest?.time_in ? 'good' : 'warn', icon: MapPin },
-      { label: 'Latest Status', value: lateMinutes, tone: statusTone, icon: Clock },
-      { label: 'Total Hours (Latest)', value: hours, tone: 'neutral', icon: FileText },
-    ];
-  }, [attendanceReady, latest, todayIso]);
 
   const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -72,25 +42,7 @@ export default function InternDashboard({ user, onNavigate }) {
     return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${cls}`}>{children}</span>;
   };
 
-  const renderOverview = () => (
-    <div className={cardClass}>
-      <div className="p-6 border-b border-white/10">
-        <h1 className="text-2xl font-semibold text-white">Intern Dashboard</h1>
-        <p className="text-white/60 text-sm mt-1">Track attendance, assigned work, and daily progress.</p>
-      </div>
-      <div className="p-6 space-y-6">
-        <div className={`${cardClass} p-6`}>
-          <h3 className="text-white text-lg font-semibold">Intern Focus</h3>
-          <ul className="mt-3 space-y-2 text-sm text-white/75">
-            <li>• Follow assigned tasks and timeline.</li>
-            <li>• Keep attendance and work documentation updated.</li>
-            <li>• Coordinate with leads for feedback and revisions.</li>
-            <li>• Maintain clear daily progress transparency.</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
+
 
   const renderAttendance = () => (
     <div className="space-y-5 sm:space-y-8">
@@ -114,58 +66,85 @@ export default function InternDashboard({ user, onNavigate }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        {stats.map((s) => {
-          const Icon = s.icon;
-          return (
-            <div key={s.label} className={`${cardClass} p-4`}>
-              <div className="flex items-center justify-between">
-                <p className="text-white/60 text-sm font-medium">{s.label}</p>
-                <Icon className="h-4 w-4 text-white/40" />
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <p className="text-white text-lg font-semibold">{s.value}</p>
-                {s.tone !== 'neutral' && <Badge tone={s.tone}>{s.tone === 'good' ? 'OK' : 'Attention'}</Badge>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-        <LocationAttendance
-          role={user?.role}
-          className={`${cardClass} p-4 sm:p-6`}
-          onStatusChange={({ ready }) => setAttendanceReady(ready)}
-          onRecordSaved={refreshAttendance}
-        />
-
-        <WorkDocCard value={workDoc} onChange={setWorkDoc} cardClass={cardClass} />
+        {attendanceLoading ? (
+          <>
+            <CardSkeleton />
+            <CardSkeleton />
+          </>
+        ) : (
+          <>
+            <LocationAttendance
+              role={user?.role}
+              className={`${cardClass} p-4 sm:p-6`}
+              onStatusChange={({ ready }) => setAttendanceReady(ready)}
+              onRecordSaved={refreshAttendance}
+            />
+            <WorkDocCard value={workDoc} onChange={setWorkDoc} cardClass={cardClass} />
+          </>
+        )}
       </div>
 
-      <div className={cardClass}>
-        <div className="p-4 sm:p-6 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-white font-semibold">My Attendance History</h3>
-          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#00273C]/60 px-3 py-2">
-            <Calendar className="h-4 w-4 text-white/40" />
-            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-transparent text-white/80 text-sm outline-none" />
+      <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
+        <div className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-white/10">
+          <h3 className="text-white font-semibold text-lg tracking-tight">My Attendance History</h3>
+
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#001a2b] px-3 py-2">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent text-white/80 text-sm outline-none w-full cursor-pointer [&::-webkit-calendar-picker-indicator]:invert-[0.6]"
+              placeholder="mm/dd/yyyy"
+            />
           </div>
         </div>
-        <div className="p-4 sm:p-6 overflow-auto">
-          <table className="w-full min-w-[720px] border-collapse">
-            <thead>
-              <tr className="border-b border-white/10 text-white/60 text-xs">
-                <th className="text-left py-3">Date</th><th className="text-left py-3">In</th><th className="text-left py-3">Out</th><th className="text-left py-3">Status</th><th className="text-left py-3">Hours</th><th className="text-left py-3">Note</th>
+        <div className="max-h-[520px] overflow-auto">
+          <table className="w-full min-w-[1200px] border-collapse">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-[#001a2b] border-b border-white/10">
+                {[
+                  "DATE",
+                  "AM IN",
+                  "AM OUT",
+                  "PM IN",
+                  "PM OUT",
+                  "OT IN",
+                  "OT OUT",
+                  "TOTAL HOURS",
+                  "LATE (MIN)",
+                  "WORK DONE",
+                  "ATTACHMENTS",
+                  "PHOTO",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {attendanceLoading && (
-                <tr><td colSpan={6} className="py-3 text-white/70 text-sm">Loading attendance...</td></tr>
+                <tr>
+                  <td colSpan={12} className="px-6 py-4">
+                    <TableSkeleton />
+                  </td>
+                </tr>
               )}
               {!attendanceLoading && attendanceRows.length === 0 && (
-                <tr><td colSpan={6} className="py-3 text-white/60 text-sm">No attendance records yet.</td></tr>
+                <tr>
+                  <td colSpan={12} className="px-6 py-4 text-white/60 text-sm text-center">
+                    No attendance records yet.
+                  </td>
+                </tr>
               )}
-              {attendanceRows.map((row) => {
+              {attendanceRows.map((row, index) => {
+                const isLate = row?.status === "late";
+                expandedWorkIdx === index;
+
                 const hours = (() => {
                   if (!row.time_in || !row.time_out) return '-';
                   const [inH, inM] = row.time_in.split(':').map(Number);
@@ -175,15 +154,103 @@ export default function InternDashboard({ user, onNavigate }) {
                   if (mins <= 0) return '-';
                   return `${Math.floor(mins / 60)}h ${mins % 60}m`;
                 })();
+
+                // Formatting times. Fallbacks to 8AM - 5PM logic if only standard time_in/out provided
+                const [inH, inM] = row.time_in ? row.time_in.split(':') : [];
+                let formattedAmIn = '-'; let formattedPmOut = '-';
+                if (inH) formattedAmIn = `${inH > 12 ? inH - 12 : inH}:${inM} ${inH >= 12 ? 'PM' : 'AM'}`;
+                const [outH, outM] = row.time_out ? row.time_out.split(':') : [];
+                if (outH) formattedPmOut = `${outH > 12 ? outH - 12 : outH}:${outM} ${outH >= 12 ? 'PM' : 'AM'}`;
+
+                // Fallbacks to match screenshot design 
+                const amOut = row.time_in && row.time_out ? '12:00 PM' : '-';
+                const pmIn = row.time_in && row.time_out ? '01:00 PM' : '-';
+
                 return (
-                  <tr key={row.id || row.date} className="border-b border-white/5 text-sm text-white/85">
-                    <td className="py-3">{row.date}</td>
-                    <td className="py-3">{row.time_in || '-'}</td>
-                    <td className="py-3">{row.time_out || '-'}</td>
-                    <td className="py-3">{row.status_label || row.status || '—'}</td>
-                    <td className="py-3 text-emerald-300">{hours}</td>
-                    <td className="py-3">{row.notes || '—'}</td>
-                  </tr>
+                  <React.Fragment key={row.id || index}>
+                    <tr
+                      className={[
+                        "border-b border-white/5",
+                        index % 2 === 0 ? "bg-[#00273C]" : "bg-[#001f35]",
+                        "hover:bg-[#FF7120]/5 transition",
+                      ].join(" ")}
+                    >
+                      <td className="px-6 py-4 text-white/90 text-sm whitespace-nowrap">
+                        {row.date}
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        {formattedAmIn}
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        {amOut}
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        {pmIn}
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        {formattedPmOut}
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        -
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        -
+                      </td>
+                      <td className="px-6 py-4 text-emerald-400 text-sm font-semibold whitespace-nowrap">
+                        {hours}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">
+                        {isLate ? (
+                          <div className="flex flex-col gap-1 text-[#FF7120]">
+                            <span>M: Late</span>
+                            <span>Total: Late</span>
+                          </div>
+                        ) : (
+                          <span className="text-white/85">-</span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4 text-white/85 text-sm max-w-[200px]">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate">{row.notes || '-'}</span>
+                          {row.notes && (
+                            <button
+                              className="shrink-0 p-1 px-2 text-[10px] rounded bg-[#FF7120] text-white hover:bg-[#e0611b] transition"
+                              onClick={() =>
+                                setExpandedWorkIdx((v) => (v === index ? null : index))
+                              }
+                              type="button"
+                              aria-label="Toggle work done details"
+                            >
+                              ...
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
+                        -
+                      </td>
+                      <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
+                        -
+                      </td>
+                    </tr>
+
+                    {expandedWorkIdx === index && (
+                      <tr className="border-b border-white/5 bg-[#001a2b]">
+                        <td colSpan={12} className="px-6 py-4">
+                          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                            <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">
+                              WORK DONE (FULL)
+                            </p>
+                            <p className="mt-2 text-white/90 text-sm leading-relaxed">
+                              {row.notes}
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -202,24 +269,9 @@ export default function InternDashboard({ user, onNavigate }) {
 
       <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
 
-      <div className="relative pt-28 px-6 pb-10">
-        <div className="max-w-[1600px] mx-auto flex gap-6">
-          <aside className="w-64 shrink-0 hidden lg:block">
-            <InternSidebar currentPage="attendance" onNavigate={onNavigate} activeSection={activeSection} onSelectSection={setActiveSection} />
-          </aside>
-
-          <main className="flex-1 min-w-0">
-            <div className="lg:hidden mb-4 rounded-2xl border border-white/10 bg-[#001f35]/70 p-2 backdrop-blur-md">
-              <div className="grid grid-cols-2 gap-2">
-                {MOBILE_SECTION_TABS.map((tab) => (
-                  <button key={tab.id} type="button" onClick={() => setActiveSection(tab.id)} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${activeSection === tab.id ? 'bg-[#FF7120] text-white' : 'bg-white/5 text-white/70 hover:text-white'}`}>{tab.label}</button>
-                ))}
-              </div>
-            </div>
-
-            {activeSection === 'overview' && renderOverview()}
-            {activeSection === 'attendance' && renderAttendance()}
-          </main>
+      <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10 w-full">
+        <div className="max-w-[1400px] mx-auto px-2 sm:px-10 space-y-5 sm:space-y-8">
+          {activeSection === 'attendance' && renderAttendance()}
         </div>
       </div>
     </div>

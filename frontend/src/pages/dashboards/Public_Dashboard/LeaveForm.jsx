@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import Alert from '../../../components/Alert.jsx';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { submitLeave } from '../../../services/leaveService';
 
 const LEAVE_TYPES = [
   { value: 'sick', label: 'Sick Leave' },
@@ -63,16 +61,12 @@ export default function LeaveForm({ token }) {
 
     setSaving(true);
     try {
-      await axios.post(
-        `${API}/attendance/leave/`,
-        {
-          leave_type: form.leave_type,
-          start_date: form.start_date,
-          end_date: form.end_date,
-          reason: form.reason.trim(),
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await submitLeave({
+        leave_type: form.leave_type,
+        start_date: form.start_date,
+        end_date: form.end_date,
+        reason: form.reason.trim(),
+      });
 
       setAlert({
         type: 'success',

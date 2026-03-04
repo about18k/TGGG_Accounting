@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { getMyAttendance } from '../services/attendanceService';
 
 export function useMyAttendance() {
   const [records, setRecords] = useState([]);
@@ -17,10 +15,8 @@ export function useMyAttendance() {
         throw new Error('Missing login token. Please login again.');
       }
 
-      const res = await axios.get(`${API_URL}/attendance/my/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setRecords(Array.isArray(res.data) ? res.data : []);
+      const data = await getMyAttendance();
+      setRecords(Array.isArray(data) ? data : []);
     } catch (err) {
       const message = err.response?.data?.error || err.message || 'Failed to load attendance.';
       setError(message);
@@ -40,3 +36,4 @@ export function useMyAttendance() {
 }
 
 export default useMyAttendance;
+

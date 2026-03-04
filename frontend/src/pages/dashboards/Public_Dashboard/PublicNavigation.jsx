@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import * as notifService from '../../../services/notificationService';
 import { Bell, User, Home, Clock, CheckSquare, ArrowUpDown, Check } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/accounting-ui';
@@ -14,18 +14,15 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
   const [sortOrder, setSortOrder] = useState('newest');
   const [notifications, setNotifications] = useState([]);
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
   const fetchNotifications = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      const res = await axios.get(`${API_BASE}/notifications`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setNotifications(res.data);
+      const data = await notifService.getNotifications();
+      setNotifications(data);
     } catch { /* ignore */ }
-  }, [API_BASE]);
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
@@ -45,12 +42,8 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const markAllAsRead = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
     try {
-      await axios.post(`${API_BASE}/notifications/read-all`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await notifService.markAllNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     } catch { /* ignore */ }
   };
@@ -58,15 +51,10 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
   const handleNotificationClick = async (notif) => {
     // Mark as read if unread
     if (!notif.is_read) {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          await axios.post(`${API_BASE}/notifications/${notif.id}/read`, {}, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
-        } catch { /* ignore */ }
-      }
+      try {
+        await notifService.markNotificationRead(notif.id);
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+      } catch { /* ignore */ }
     }
     // Determine which tab to open based on notification type
     const type = notif.type || '';

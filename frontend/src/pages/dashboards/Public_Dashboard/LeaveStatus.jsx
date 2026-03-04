@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import Alert from '../../../components/Alert.jsx';
 import { TableSkeleton } from '../../../components/SkeletonLoader.jsx';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { getMyLeaves } from '../../../services/leaveService';
 
 const badgeStyleByStatus = {
   pending: {
@@ -37,9 +35,7 @@ export default function LeaveStatus({ token }) {
     const load = async () => {
       setLoading(true);
       try {
-        const { data } = await axios.get(`${API}/attendance/leave/my/`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const data = await getMyLeaves();
         setRequests(Array.isArray(data) ? data : []);
       } catch (err) {
         setAlert({

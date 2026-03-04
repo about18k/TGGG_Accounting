@@ -1,13 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
 import { CardSkeleton } from '../../../components/SkeletonLoader.jsx';
 import { CreateGroupModal, ManageGroupsModal, ManageLeadersModal, ConfirmTaskModal, DeleteConfirmModal } from '../../../components/modals/TodoModals.jsx';
 import { TabNavigation, ManagementButtons, Calendar, GroupInfo, TaskForm, TeamFilter } from '../../../components/TodoUI.jsx';
 import { TaskCard, MemberStats } from '../../../components/TodoCards.jsx';
 import Icon from '../../../components/Icon.jsx';
 import Alert from '../../../components/Alert.jsx';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/todos';
+import { getProfile } from '../../../services/profileService';
+import {
+  getTodos, createTodo, toggleTodo as toggleTodoService, deleteTodo as deleteTodoService,
+  confirmTodo, confirmCompletion as confirmCompletionService, rejectCompletion as rejectCompletionService,
+  getGroups, createGroup as createGroupService, deleteGroup as deleteGroupService,
+  addGroupMember, removeGroupMember,
+  getDepartmentTasks, createDepartmentTask, grabTask, completeTask, abandonTask, deleteDepartmentTask,
+  getAvailableUsers, getInterns, toggleLeader as toggleLeaderService
+} from '../../../services/todoService';
 
 function TodoList({ token, user, onNotificationUpdate }) {
   const [todos, setTodos] = useState([]);
@@ -73,78 +79,65 @@ function TodoList({ token, user, onNotificationUpdate }) {
 
   const fetchUserProfile = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${API}/profile`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await getProfile();
       setUserProfile(data);
     } catch (err) {
       console.error('Failed to fetch profile:', err);
     }
-  }, [token]);
+  }, []);
 
   const fetchGroups = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${API}/groups`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await getGroups();
       setGroups(data);
     } catch (err) {
       console.error('Failed to fetch groups:', err);
     }
-  }, [token]);
+  }, []);
 
   const fetchTodos = useCallback(async (tab = activeTab, subTab = teamSubTab) => {
     setLoading(true);
     try {
-      // For team tab, use 'group' type for manage subtab, 'team' for tasks subtab
       let queryType = tab;
       if (tab === 'team') {
         queryType = subTab === 'manage' ? 'group' : 'team';
       }
-      const { data } = await axios.get(`${API}/todos?type=${queryType}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await getTodos(queryType);
       setTodos(data);
     } catch (err) {
       console.error('Failed to fetch todos:', err);
     } finally {
       setLoading(false);
     }
-  }, [activeTab, teamSubTab, token]);
+  }, [activeTab, teamSubTab]);
 
   const fetchAvailableUsers = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${API}/users/available`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await getAvailableUsers();
       setAvailableUsers(data);
     } catch (err) {
       console.error('Failed to fetch available users:', err);
     }
-  }, [token]);
+  }, []);
 
   const fetchInterns = useCallback(async () => {
     if (user?.role !== 'coordinator') return;
     try {
-      const { data } = await axios.get(`${API}/users/interns`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await getInterns();
       setInterns(data);
     } catch (err) {
       console.error('Failed to fetch interns:', err);
     }
-  }, [token, user?.role]);
+  }, [user?.role]);
 
   const fetchDepartmentTasks = useCallback(async () => {
     try {
-      const { data } = await axios.get(`${API}/department-tasks`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await getDepartmentTasks();
       setDepartmentTasks(data);
     } catch (err) {
       console.error('Failed to fetch department tasks:', err);
     }
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     fetchUserProfile();
@@ -238,9 +231,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
         todoData.description = taskDescription.trim();
       }
 
-      await axios.post(`${API}/todos`, todoData, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await createTodo(todoData);
       setDateTask('');
       setTaskDescription('');
       setSelectedAssignee('');
@@ -258,9 +249,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
     if (actionInProgress) return;
     setActionInProgress(true);
     try {
-      await axios.put(`${API}/todos/${id}`, { completed: !completed }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await toggleTodoService(id, completed);
       fetchTodos(activeTab);
       if (onNotificationUpdate) onNotificationUpdate();
     } catch (error) {
@@ -274,9 +263,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
     if (actionInProgress) return;
     setActionInProgress(true);
     try {
-      await axios.delete(`${API}/todos/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await deleteTodoService(id);
       fetchTodos(activeTab);
     } catch (error) {
       showAlert(error.response?.data?.error || 'Failed to delete task.');
@@ -298,14 +285,12 @@ function TodoList({ token, user, onNotificationUpdate }) {
   const submitConfirmTodo = async () => {
     if (!confirmingTodo) return;
     try {
-      await axios.post(`${API}/todos/${confirmingTodo.id}/confirm`, {
+      await confirmTodo(confirmingTodo.id, {
         task: `[${selectedDate.toLocaleDateString()}] ${confirmTask}`,
         description: confirmDescription,
         start_date: confirmStartDate || null,
         deadline: confirmDeadline || null,
         assigned_to: confirmAssignee || null
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
       setShowConfirmModal(false);
       setConfirmingTodo(null);
@@ -322,9 +307,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
     if (actionInProgress) return;
     setActionInProgress(true);
     try {
-      await axios.post(`${API}/todos/${id}/confirm-completion`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await confirmCompletionService(id);
       fetchTodos(activeTab);
       if (onNotificationUpdate) onNotificationUpdate();
     } catch (error) {
@@ -338,9 +321,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
     if (actionInProgress) return;
     setActionInProgress(true);
     try {
-      await axios.post(`${API}/todos/${id}/reject-completion`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await rejectCompletionService(id);
       fetchTodos(activeTab);
       if (onNotificationUpdate) onNotificationUpdate();
     } catch (error) {
@@ -357,11 +338,9 @@ function TodoList({ token, user, onNotificationUpdate }) {
       return;
     }
     try {
-      await axios.post(`${API}/groups`, {
+      await createGroupService({
         name: newGroupName,
         description: newGroupDesc
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
       setNewGroupName('');
       setNewGroupDesc('');
@@ -374,9 +353,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
 
   const addMemberToGroup = async (groupId, userId) => {
     try {
-      await axios.post(`${API}/groups/${groupId}/members`, { user_id: userId }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await addGroupMember(groupId, userId);
       fetchGroups();
       fetchAvailableUsers();
     } catch (error) {
@@ -386,9 +363,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
 
   const removeMemberFromGroup = async (groupId, userId) => {
     try {
-      await axios.delete(`${API}/groups/${groupId}/members/${userId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await removeGroupMember(groupId, userId);
       fetchGroups();
       fetchAvailableUsers();
     } catch (error) {
@@ -406,9 +381,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
       onConfirm: async () => {
         setAlertConfig(prev => ({ ...prev, show: false }));
         try {
-          await axios.delete(`${API}/groups/${groupId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
+          await deleteGroupService(groupId);
           fetchGroups();
         } catch (error) {
           showAlert(error.response?.data?.error || 'Failed to delete group.');
@@ -420,9 +393,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
   const toggleLeader = async (userId, isCurrentlyLeader) => {
     try {
       const endpoint = isCurrentlyLeader ? 'remove-leader' : 'make-leader';
-      await axios.post(`${API}/users/${userId}/${endpoint}`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await toggleLeaderService(userId, !isCurrentlyLeader);
       fetchInterns();
     } catch (error) {
       showAlert(error.response?.data?.error || 'Failed to update leader status.');
@@ -442,13 +413,11 @@ function TodoList({ token, user, onNotificationUpdate }) {
     }
     setSubmitting(true);
     try {
-      await axios.post(`${API}/department-tasks`, {
+      await createDepartmentTask({
         task: dateTask,
         description: taskDescription,
         start_date: selectedDate ? selectedDate.toISOString().split('T')[0] : null,
         deadline: deadlineDate ? deadlineDate.toISOString().split('T')[0] : null
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
       setDateTask('');
       setTaskDescription('');
@@ -466,9 +435,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
     if (actionInProgress) return;
     setActionInProgress(true);
     try {
-      await axios.post(`${API}/department-tasks/${taskId}/grab`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await grabTask(taskId);
       fetchDepartmentTasks();
     } catch (error) {
       showAlert(error.response?.data?.error || 'Failed to grab task.');
@@ -481,9 +448,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
     if (actionInProgress) return;
     setActionInProgress(true);
     try {
-      await axios.post(`${API}/department-tasks/${taskId}/complete`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await completeTask(taskId);
       fetchDepartmentTasks();
     } catch (error) {
       showAlert(error.response?.data?.error || 'Failed to complete task.');
@@ -496,9 +461,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
     if (actionInProgress) return;
     setActionInProgress(true);
     try {
-      await axios.post(`${API}/department-tasks/${taskId}/abandon`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await abandonTask(taskId);
       fetchDepartmentTasks();
     } catch (error) {
       showAlert(error.response?.data?.error || 'Failed to abandon task.');
@@ -517,9 +480,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
     if (!deleteTarget || actionInProgress) return;
     setActionInProgress(true);
     try {
-      await axios.delete(`${API}/department-tasks/${deleteTarget}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await deleteDepartmentTask(deleteTarget);
       fetchDepartmentTasks();
     } catch (error) {
       showAlert(error.response?.data?.error || 'Failed to delete task.');

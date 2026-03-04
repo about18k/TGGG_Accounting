@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import Alert from '../../../components/Alert.jsx';
 import { TableSkeleton } from '../../../components/SkeletonLoader.jsx';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { getAllOvertime, approveOvertime } from '../../../services/overtimeService';
 
 const escapeHtml = (value) => {
   if (value === null || value === undefined) {
@@ -35,9 +33,7 @@ function OvertimeRequests({ token }) {
   const load = async () => {
     setLoading(true);
     try {
-      const { data } = await axios.get(`${API}/overtime/all`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await getAllOvertime();
       setRequests(data);
     } catch (err) {
       setAlert({
@@ -69,12 +65,10 @@ function OvertimeRequests({ token }) {
   const submitApproval = async () => {
     if (!selected) return;
     try {
-      await axios.put(`${API}/overtime/${selected.id}/approve`, {
+      await approveOvertime(selected.id, {
         supervisor_signature: 'approved',
         management_signature: 'approved',
         approval_date: approvalDate
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
       setAlert({ type: 'success', title: 'Saved', message: 'Approval updated.' });
       setSelected(null);
@@ -89,7 +83,7 @@ function OvertimeRequests({ token }) {
     const doc = window.open('', '_blank');
     if (!doc) return;
     const periods = Array.isArray(req.periods) ? req.periods : [];
-    
+
     // Generate period rows for the table (5 rows minimum)
     const periodRows = [];
     for (let i = 0; i < 5; i++) {
@@ -536,145 +530,144 @@ function OvertimeRequests({ token }) {
         {loading ? (
           <TableSkeleton />
         ) : (
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>Department</th>
-                <th>Date Completed</th>
-                <th>Hours</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.length === 0 ? (
+          <div className="table-wrapper">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan="6" className="text-center text-gray-500 p-6">
-                    No requests yet.
-                  </td>
+                  <th>Employee</th>
+                  <th>Department</th>
+                  <th>Date Completed</th>
+                  <th>Hours</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
-              ) : (
-                requests
-                  .filter(req => filterStatus === 'all' || statusLabel(req) === filterStatus)
-                  .filter(req => filterEmployee === 'all' || (req.full_name || req.employee_name) === filterEmployee)
-                  .filter(req => !filterDate || req.date_completed === filterDate)
-                  .map(req => (
-                  <tr key={req.id} onClick={() => openDetail(req)} className="cursor-pointer">
-                    <td>{req.full_name || req.employee_name}</td>
-                    <td>{req.department || '-'}</td>
-                    <td>{req.date_completed || '-'}</td>
-                    <td>{req.anticipated_hours || '-'}</td>
-                    <td>{statusLabel(req)}</td>
-                    <td>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); printReport(req); }}
-                        disabled={statusLabel(req) !== 'Approved'}
-                        className={`px-3 py-1 rounded text-white text-xs font-semibold transition-all ${
-                          statusLabel(req) === 'Approved'
-                            ? 'bg-orange-500 cursor-pointer hover:bg-orange-600'
-                            : 'bg-gray-600 cursor-not-allowed opacity-50'
-                        }`}
-                      >
-                        Print Form
-                      </button>
+              </thead>
+              <tbody>
+                {requests.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="text-center text-gray-500 p-6">
+                      No requests yet.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  requests
+                    .filter(req => filterStatus === 'all' || statusLabel(req) === filterStatus)
+                    .filter(req => filterEmployee === 'all' || (req.full_name || req.employee_name) === filterEmployee)
+                    .filter(req => !filterDate || req.date_completed === filterDate)
+                    .map(req => (
+                      <tr key={req.id} onClick={() => openDetail(req)} className="cursor-pointer">
+                        <td>{req.full_name || req.employee_name}</td>
+                        <td>{req.department || '-'}</td>
+                        <td>{req.date_completed || '-'}</td>
+                        <td>{req.anticipated_hours || '-'}</td>
+                        <td>{statusLabel(req)}</td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); printReport(req); }}
+                            disabled={statusLabel(req) !== 'Approved'}
+                            className={`px-3 py-1 rounded text-white text-xs font-semibold transition-all ${statusLabel(req) === 'Approved'
+                                ? 'bg-orange-500 cursor-pointer hover:bg-orange-600'
+                                : 'bg-gray-600 cursor-not-allowed opacity-50'
+                              }`}
+                          >
+                            Print Form
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
       {selected && (
-        <div style={{position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem'}}>
-          <div style={{background: '#00273C', borderRadius: '12px', border: '1px solid rgba(255, 113, 32, 0.2)', maxWidth: '900px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '1.5rem'}}>
-            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem'}}>
-              <h3 style={{color: '#e8eaed', margin: 0, fontSize: '1.1rem', fontWeight: '600'}}>{selected.full_name || selected.employee_name}</h3>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '1rem' }}>
+          <div style={{ background: '#00273C', borderRadius: '12px', border: '1px solid rgba(255, 113, 32, 0.2)', maxWidth: '900px', width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: '1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ color: '#e8eaed', margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>{selected.full_name || selected.employee_name}</h3>
               <button
                 onClick={() => setSelected(null)}
-                style={{background: 'transparent', border: 'none', color: '#FF7120', fontSize: '2rem', cursor: 'pointer', padding: 0, lineHeight: 1}}
+                style={{ background: 'transparent', border: 'none', color: '#FF7120', fontSize: '2rem', cursor: 'pointer', padding: 0, lineHeight: 1 }}
               >×</button>
             </div>
-            <div style={{display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem'}}>
+            <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Employee Name</label>
-                <div style={{color: '#e8eaed'}}>{selected.full_name || selected.employee_name || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Employee Name</label>
+                <div style={{ color: '#e8eaed' }}>{selected.full_name || selected.employee_name || '-'}</div>
               </div>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Job Position</label>
-                <div style={{color: '#e8eaed'}}>{selected.job_position || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Job Position</label>
+                <div style={{ color: '#e8eaed' }}>{selected.job_position || '-'}</div>
               </div>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Department</label>
-                <div style={{color: '#e8eaed'}}>{selected.department || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Department</label>
+                <div style={{ color: '#e8eaed' }}>{selected.department || '-'}</div>
               </div>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Date Completed</label>
-                <div style={{color: '#e8eaed'}}>{selected.date_completed || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Date Completed</label>
+                <div style={{ color: '#e8eaed' }}>{selected.date_completed || '-'}</div>
               </div>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Anticipated Hours</label>
-                <div style={{color: '#e8eaed'}}>{selected.anticipated_hours || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Anticipated Hours</label>
+                <div style={{ color: '#e8eaed' }}>{selected.anticipated_hours || '-'}</div>
               </div>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Approval Date</label>
-                <div style={{color: '#e8eaed'}}>{selected.approval_date || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Approval Date</label>
+                <div style={{ color: '#e8eaed' }}>{selected.approval_date || '-'}</div>
               </div>
             </div>
-            <div style={{marginBottom: '1rem'}}>
-              <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem'}}>Explanation</label>
-              <div style={{color: '#e8eaed', background: '#001a2b', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)'}}>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Explanation</label>
+              <div style={{ color: '#e8eaed', background: '#001a2b', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.1)' }}>
                 {selected.explanation || '-'}
               </div>
             </div>
-            <div style={{marginBottom: '1rem'}}>
-              <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem'}}>Overtime Periods</label>
-              <div style={{background: '#00273C', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '0.75rem'}}>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Overtime Periods</label>
+              <div style={{ background: '#00273C', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', padding: '0.75rem' }}>
                 {Array.isArray(selected.periods) && selected.periods.length > 0 ? (
-                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem'}}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                     <thead>
                       <tr>
-                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>#</th>
-                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>Start Date</th>
-                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>Start Time</th>
-                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>End Date</th>
-                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>End Time</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>#</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>Start Date</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>Start Time</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>End Date</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>End Time</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selected.periods.map((period, idx) => (
                         <tr key={`pv-${idx}`}>
-                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{idx + 1}</td>
-                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.start_date || '-'}</td>
-                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.start_time || '-'}</td>
-                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.end_date || '-'}</td>
-                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.end_time || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{idx + 1}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_date || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_time || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_date || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_time || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 ) : (
-                  <div style={{color: '#e8eaed'}}>No periods recorded.</div>
+                  <div style={{ color: '#e8eaed' }}>No periods recorded.</div>
                 )}
               </div>
             </div>
-            <div style={{marginBottom: '1rem', maxWidth: '300px'}}>
-              <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem'}}>Date of Approval</label>
+            <div style={{ marginBottom: '1rem', maxWidth: '300px' }}>
+              <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Date of Approval</label>
               <input
                 type="date"
                 value={approvalDate}
                 onChange={(e) => setApprovalDate(e.target.value)}
                 min="2000-01-01"
                 max="2026-12-31"
-                style={{width: '100%', padding: '0.5rem', background: '#001a2b', color: '#e8eaed', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'inherit'}}
+                style={{ width: '100%', padding: '0.5rem', background: '#001a2b', color: '#e8eaed', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '8px', fontSize: '0.9rem', fontFamily: 'inherit' }}
               />
             </div>
-            <div style={{display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem'}}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
               <button
                 onClick={submitApproval}
                 disabled={isSelectedApproved}
@@ -697,9 +690,9 @@ function OvertimeRequests({ token }) {
               </button>
               <button
                 onClick={() => setSelected(null)}
-                style={{background: 'transparent', color: '#a0a4a8', border: '1px solid rgba(255, 113, 32, 0.3)', borderRadius: '8px', padding: '0.5rem 1.5rem', cursor: 'pointer', fontSize: '0.9rem'}}
-                onMouseEnter={(e) => {e.target.style.color = '#FF7120'; e.target.style.borderColor = 'rgba(255, 113, 32, 0.5)'}}
-                onMouseLeave={(e) => {e.target.style.color = '#a0a4a8'; e.target.style.borderColor = 'rgba(255, 113, 32, 0.3)'}}
+                style={{ background: 'transparent', color: '#a0a4a8', border: '1px solid rgba(255, 113, 32, 0.3)', borderRadius: '8px', padding: '0.5rem 1.5rem', cursor: 'pointer', fontSize: '0.9rem' }}
+                onMouseEnter={(e) => { e.target.style.color = '#FF7120'; e.target.style.borderColor = 'rgba(255, 113, 32, 0.5)' }}
+                onMouseLeave={(e) => { e.target.style.color = '#a0a4a8'; e.target.style.borderColor = 'rgba(255, 113, 32, 0.3)' }}
               >
                 Close
               </button>

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import Alert from '../../../components/Alert.jsx';
 import { CardSkeleton } from '../../../components/SkeletonLoader.jsx';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { getMyAttendance } from '../../../services/attendanceService';
+import * as profileService from '../../../services/profileService';
 
 function Profile({ token, user, onLogout }) {
   const [profile, setProfile] = useState({ full_name: '', email: '' });
@@ -50,9 +49,7 @@ function Profile({ token, user, onLogout }) {
 
   const fetchAttendanceHours = async () => {
     try {
-      const { data } = await axios.get(`${API}/attendance/my`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await getMyAttendance();
       let totalMinutes = 0;
 
       data.forEach(a => {
@@ -100,9 +97,7 @@ function Profile({ token, user, onLogout }) {
 
   const fetchProfile = async () => {
     try {
-      const { data } = await axios.get(`${API}/profile`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await profileService.getProfile();
       setProfile(data);
     } catch (err) {
       console.error('Failed to fetch profile:', err);
@@ -111,9 +106,7 @@ function Profile({ token, user, onLogout }) {
 
   const updateProfile = async () => {
     try {
-      await axios.put(`${API}/profile`, profile, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await profileService.updateProfile(profile);
       showAlert('success', 'Profile Updated', 'Your profile has been updated successfully.');
       setIsEditing(false);
     } catch (err) {
@@ -135,12 +128,7 @@ function Profile({ token, user, onLogout }) {
     formData.append('profile_pic', profilePic);
 
     try {
-      const response = await axios.post(`${API}/profile/picture`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const response = await profileService.uploadProfilePicture(formData);
       showAlert('success', 'Picture Updated', 'Profile picture updated successfully.');
       setProfilePic(null);
       fetchProfile();
@@ -149,7 +137,7 @@ function Profile({ token, user, onLogout }) {
       try {
         const storedUser = JSON.parse(localStorage.getItem('user'));
         if (storedUser) {
-          storedUser.profile_picture = response.data.profile_picture;
+          storedUser.profile_picture = response.profile_picture;
           localStorage.setItem('user', JSON.stringify(storedUser));
           window.dispatchEvent(new Event('userUpdated'));
         }
@@ -178,9 +166,7 @@ function Profile({ token, user, onLogout }) {
     }
 
     try {
-      await axios.put(`${API}/profile/password`, { password: password.new }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await profileService.changePassword(password.new);
       showAlert('success', 'Password Set', 'Your password has been set successfully.');
       setPassword({ new: '', confirm: '' });
       setShowPasswordSection(false);

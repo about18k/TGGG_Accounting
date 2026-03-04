@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import { getEvents, createEvent } from '../../../../services/attendanceService';
 import { CalendarDays, Plus, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Textarea, Switch } from '../../../../components/ui/accounting-ui';
 
 export default function EventsPanel() {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -17,15 +16,12 @@ export default function EventsPanel() {
   });
   const [error, setError] = useState('');
 
-  const token = localStorage.getItem('token');
-  const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
   const fetchEvents = async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.get(`${API_URL}/attendance/events/`, { headers, params: { upcoming: true } });
-      setEvents(res.data || []);
+      const data = await getEvents({ upcoming: true });
+      setEvents(data || []);
     } catch (err) {
       setError('Unable to load events');
     } finally {
@@ -46,7 +42,7 @@ export default function EventsPanel() {
     setSaving(true);
     setError('');
     try {
-      await axios.post(`${API_URL}/attendance/events/`, form, { headers });
+      await createEvent(form);
       setForm({ title: '', date: '', event_type: 'event', is_holiday: false, description: '' });
       fetchEvents();
     } catch (err) {

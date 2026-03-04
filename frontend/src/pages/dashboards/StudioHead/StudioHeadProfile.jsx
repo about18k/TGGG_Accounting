@@ -1,9 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import Alert from '../../../components/Alert.jsx';
 import { CardSkeleton } from '../../../components/SkeletonLoader.jsx';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { getProfile, updateProfile as updateProfileService, uploadProfilePicture, changePassword } from '../../../services/profileService';
 
 function StudioHeadProfile({ token, user, onLogout }) {
   const [profile, setProfile] = useState({ full_name: '', email: '' });
@@ -32,20 +30,16 @@ function StudioHeadProfile({ token, user, onLogout }) {
 
   const fetchProfile = async () => {
     try {
-      const { data } = await axios.get(`${API}/profile`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const data = await getProfile();
       setProfile(data);
     } catch (err) {
       console.error('Failed to fetch profile:', err);
     }
   };
 
-  const updateProfile = async () => {
+  const handleUpdateProfile = async () => {
     try {
-      await axios.put(`${API}/profile`, profile, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await updateProfileService(profile);
       showAlert('success', 'Profile Updated', 'Your profile has been updated successfully.');
       setIsEditing(false);
     } catch (err) {
@@ -67,12 +61,7 @@ function StudioHeadProfile({ token, user, onLogout }) {
     formData.append('profile_pic', profilePic);
 
     try {
-      const response = await axios.post(`${API}/profile/picture`, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const response = await uploadProfilePicture(formData);
       showAlert('success', 'Picture Updated', 'Profile picture updated successfully.');
       setProfilePic(null);
       fetchProfile();
@@ -81,7 +70,7 @@ function StudioHeadProfile({ token, user, onLogout }) {
       try {
         const storedUser = JSON.parse(localStorage.getItem('user'));
         if (storedUser) {
-          storedUser.profile_picture = response.data.profile_picture;
+          storedUser.profile_picture = response.profile_picture;
           localStorage.setItem('user', JSON.stringify(storedUser));
           window.dispatchEvent(new Event('userUpdated'));
         }
@@ -110,9 +99,7 @@ function StudioHeadProfile({ token, user, onLogout }) {
     }
 
     try {
-      await axios.put(`${API}/profile/password`, { password: password.new }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await changePassword(password.new);
       showAlert('success', 'Password Set', 'Your password has been set successfully.');
       setPassword({ new: '', confirm: '' });
       setShowPasswordSection(false);
@@ -515,7 +502,7 @@ function StudioHeadProfile({ token, user, onLogout }) {
                 ) : (
                   <>
                     <button
-                      onClick={updateProfile}
+                      onClick={handleUpdateProfile}
                       style={{
                         padding: '0.75rem 1.5rem',
                         background: '#FF7120',

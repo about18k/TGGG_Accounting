@@ -13,7 +13,8 @@ import {
 import LocationAttendance from "../../../components/attendance/LocationAttendance";
 import WorkDocCard from "../../../components/attendance/WorkDocCard";
 import useMyAttendance from "../../../hooks/useMyAttendance";
-import axios from "axios";
+import { getEvents } from "../../../services/attendanceService";
+import { TableSkeleton, CardSkeleton } from "../../../components/SkeletonLoader";
 
 const AttendanceDashboard = ({
   user,
@@ -46,15 +47,9 @@ const AttendanceDashboard = ({
   const todayIso = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
-    const fetchEvents = async () => {
-      const token = localStorage.getItem("token");
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+    const fetchEventsData = async () => {
       try {
-        const res = await axios.get(
-          `${import.meta.env.VITE_API_URL || "http://localhost:8000/api"}/attendance/events/`,
-          { headers, params: { upcoming: true } }
-        );
-        const data = res.data || [];
+        const data = await getEvents({ upcoming: true });
         setEvents(data);
         const todayHoliday = data.some(
           (ev) =>
@@ -68,7 +63,7 @@ const AttendanceDashboard = ({
         console.error("Failed to load events", err);
       }
     };
-    fetchEvents();
+    fetchEventsData();
   }, [selectedDate]);
 
   const computeHours = (record) => {
@@ -248,23 +243,31 @@ const AttendanceDashboard = ({
 
             {/* Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              {stats.map((s, i) => {
-                const Icon = s.icon;
-                return (
-                  <div key={i} className={`${cardClass} p-4`}>
-                    <div className="flex items-center justify-between">
-                      <p className="text-white/60 text-sm font-medium">{s.label}</p>
-                      <Icon className="h-4 w-4 text-white/40" />
+              {attendanceLoading ? (
+                <>
+                  <CardSkeleton />
+                  <CardSkeleton />
+                  <CardSkeleton />
+                </>
+              ) : (
+                stats.map((s, i) => {
+                  const Icon = s.icon;
+                  return (
+                    <div key={i} className={`${cardClass} p-4`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-white/60 text-sm font-medium">{s.label}</p>
+                        <Icon className="h-4 w-4 text-white/40" />
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <p className="text-white text-lg font-semibold tracking-tight">{s.value}</p>
+                        {s.tone !== "neutral" && (
+                          <Badge tone={s.tone}>{s.tone === "good" ? "OK" : "Attention"}</Badge>
+                        )}
+                      </div>
                     </div>
-                    <div className="mt-2 flex items-center gap-2">
-                      <p className="text-white text-lg font-semibold tracking-tight">{s.value}</p>
-                      {s.tone !== "neutral" && (
-                        <Badge tone={s.tone}>{s.tone === "good" ? "OK" : "Attention"}</Badge>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
 
             {/* Forms */}
@@ -337,8 +340,8 @@ const AttendanceDashboard = ({
                   <tbody>
                     {attendanceLoading && (
                       <tr>
-                        <td colSpan={7} className="px-6 py-4 text-white/70 text-sm">
-                          Loading attendance records…
+                        <td colSpan={7} className="px-6 py-4">
+                          <TableSkeleton />
                         </td>
                       </tr>
                     )}

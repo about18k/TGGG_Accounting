@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { getAccountingEmployees } from '../../../services/adminService';
+import { getAllAttendance, getEvents, getOvertimeRecords } from '../../../services/attendanceService';
+import { getRecentPayroll } from '../../../services/payrollService';
 import {
   Avatar,
   AvatarFallback,
@@ -13,11 +15,11 @@ import {
   Progress
 } from '../../../components/ui/accounting-ui';
 import { ImageWithFallback } from '../../../components/figma/ImageWithFallback';
-import { 
-  Users, 
-  Clock, 
-  DollarSign, 
-  TrendingUp, 
+import {
+  Users,
+  Clock,
+  DollarSign,
+  TrendingUp,
   UserCheck,
   CalendarDays,
   Award,
@@ -63,7 +65,6 @@ const mockData = {
 };
 
 export function DashboardOverview({ user }) {
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
   const [metrics, setMetrics] = useState({
     totalEmployees: mockData.totalEmployees,
@@ -94,26 +95,21 @@ export function DashboardOverview({ user }) {
 
     const fetchOverview = async () => {
       setLoading(true);
-      const token = localStorage.getItem('token');
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       try {
-        const [employeesRes, attendanceRes, payrollRes, eventsRes, overtimeRes] = await Promise.all([
-          axios.get(`${API_URL}/accounts/accounting/employees/`, {
-            headers,
-            params: { active_only: false },
-          }),
-          axios.get(`${API_URL}/attendance/all/`, { headers }),
-          axios.get(`${API_URL}/payroll/recent/`, { headers }),
-          axios.get(`${API_URL}/attendance/events/`, { headers, params: { upcoming: true } }),
-          axios.get(`${API_URL}/attendance/overtime/`, { headers }),
+        const [employeesData, attendanceData, payrollData, eventsData, overtimeData] = await Promise.all([
+          getAccountingEmployees({ active_only: false }),
+          getAllAttendance(),
+          getRecentPayroll(),
+          getEvents({ upcoming: true }),
+          getOvertimeRecords(),
         ]);
 
-        const employees = employeesRes.data || [];
-        const attendance = attendanceRes.data || [];
-        const payroll = payrollRes.data || [];
-        const eventsData = eventsRes.data || [];
-        const overtime = overtimeRes.data || [];
+        const employees = employeesData || [];
+        const attendance = attendanceData || [];
+        const payroll = payrollData || [];
+        const eventsArr = eventsData || [];
+        const overtime = overtimeData || [];
 
         const employeeIndex = new Map();
         employees.forEach((emp) => {
@@ -223,7 +219,7 @@ export function DashboardOverview({ user }) {
         setTopPerformers(performers);
 
         const today = new Date().toISOString().slice(0, 10);
-        const upcomingEvents = (eventsData || [])
+        const upcomingEvents = (eventsArr || [])
           .filter((ev) => ev.date >= today)
           .sort((a, b) => new Date(a.date) - new Date(b.date))
           .slice(0, 6);
@@ -236,12 +232,12 @@ export function DashboardOverview({ user }) {
     };
 
     fetchOverview();
-  }, [API_URL, user]);
+  }, [user]);
 
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-card via-secondary to-muted p-6 text-primary-foreground" style={{boxShadow: '0 8px 32px #001F35'}}>
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-card via-secondary to-muted p-6 text-primary-foreground" style={{ boxShadow: '0 8px 32px #001F35' }}>
         <div className="relative z-10">
           <h1 className="text-2xl mb-2">Good morning, {userName}!</h1>
           <p className="text-primary-foreground/80 mb-4">Here's what's happening with your team today.</p>
@@ -260,7 +256,7 @@ export function DashboardOverview({ user }) {
           </div>
         </div>
         <div className="absolute top-0 right-0 w-64 h-32 opacity-20">
-          <ImageWithFallback 
+          <ImageWithFallback
             src="https://images.unsplash.com/photo-1594892342285-9b86df3ad47a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBvZmZpY2UlMjB0ZWFtJTIwd29ya3NwYWNlfGVufDF8fHx8MTc1ODc2ODAyNXww&ixlib=rb-4.1.0&q=80&w=1080"
             alt="Team workspace"
             className="w-full h-full object-cover rounded-lg"
@@ -458,11 +454,11 @@ export function DashboardOverview({ user }) {
                     <p className="text-sm font-medium">{event.title}</p>
                     <p className="text-xs text-muted-foreground">{event.date}</p>
                   </div>
-                  <Badge 
-                    variant="outline" 
+                  <Badge
+                    variant="outline"
                     className={
                       event.event_type === 'holiday' || event.is_holiday ? 'border-red-400 text-red-400' :
-                      'border-primary text-primary'
+                        'border-primary text-primary'
                     }
                   >
                     {event.event_type || (event.is_holiday ? 'holiday' : 'event')}

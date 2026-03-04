@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import { getAccountingEmployees, addAccountingEmployee, updateAccountingEmployee } from '../../../services/adminService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
@@ -82,21 +82,17 @@ export function EmployeeManagement() {
     temporary_password: '',
   });
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
 
   const fetchEmployees = async () => {
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const roleFilter = roleFilterMap[selectedDepartment] || undefined;
-      const response = await axios.get(`${API_URL}/accounts/accounting/employees/`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: {
-          active_only: true,
-          ...(roleFilter ? { role: roleFilter } : {}),
-        },
+      const data = await getAccountingEmployees({
+        active_only: true,
+        ...(roleFilter ? { role: roleFilter } : {}),
       });
-      setEmployees(response.data);
+      setEmployees(data);
     } catch (error) {
       console.error("Failed to fetch employees:", error);
     } finally {
@@ -131,16 +127,13 @@ export function EmployeeManagement() {
 
     setIsAddingEmployee(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.post(`${API_URL}/accounts/accounting/employees/`, {
+      await addAccountingEmployee({
         first_name: firstName,
         last_name: lastName,
         email,
         phone: formData.phone,
         startDate: formData.startDate,
         temporary_password: temporaryPassword,
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
       });
       setIsAddEmployeeOpen(false);
       setFormData({
@@ -163,14 +156,8 @@ export function EmployeeManagement() {
   const handleExportEmployees = async () => {
     setIsExporting(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/accounts/accounting/employees/`, {
-        headers: { Authorization: `Bearer ${token}` },
-        params: { active_only: true },
-      });
-
-      const allEmployees = response.data || [];
-      if (!allEmployees.length) {
+      const allEmployees = await getAccountingEmployees({ active_only: true });
+      if (!allEmployees?.length) {
         alert('No employees available to export.');
         return;
       }
@@ -268,21 +255,14 @@ export function EmployeeManagement() {
 
     setIsUpdatingEmployee(true);
     try {
-      const token = localStorage.getItem('token');
-      await axios.patch(
-        `${API_URL}/accounts/accounting/employees/${selectedEmployee.id}/`,
-        {
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          phone: editFormData.phone,
-          startDate: editFormData.startDate || null,
-          status: editFormData.status,
-        },
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await updateAccountingEmployee(selectedEmployee.id, {
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone: editFormData.phone,
+        startDate: editFormData.startDate || null,
+        status: editFormData.status,
+      });
 
       alert('Employee updated successfully.');
       setIsEditingEmployee(false);
@@ -564,60 +544,60 @@ export function EmployeeManagement() {
               </DialogHeader>
               {!isEditingEmployee ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Contact Information</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="w-4 h-4 text-muted-foreground" />
-                        {selectedEmployee.email || '---'}
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium mb-2">Contact Information</h4>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="w-4 h-4 text-muted-foreground" />
+                          {selectedEmployee.email || '---'}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="w-4 h-4 text-muted-foreground" />
+                          {selectedEmployee.phone || '---'}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <MapPin className="w-4 h-4 text-muted-foreground" />
+                          {selectedEmployee.location || '---'}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Phone className="w-4 h-4 text-muted-foreground" />
-                        {selectedEmployee.phone || '---'}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <MapPin className="w-4 h-4 text-muted-foreground" />
-                        {selectedEmployee.location || '---'}
+                    </div>
+                    <div>
+                      <h4 className="font-medium mb-2">Employment Details</h4>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Building className="w-4 h-4 text-muted-foreground" />
+                          {selectedEmployee.department || '---'}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Briefcase className="w-4 h-4 text-muted-foreground" />
+                          {selectedEmployee.position || '---'}
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Calendar className="w-4 h-4 text-muted-foreground" />
+                          Joined {selectedEmployee.joinDate ? new Date(selectedEmployee.joinDate).toLocaleDateString() : '---'}
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Employment Details</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Building className="w-4 h-4 text-muted-foreground" />
-                        {selectedEmployee.department || '---'}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Briefcase className="w-4 h-4 text-muted-foreground" />
-                        {selectedEmployee.position || '---'}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        Joined {selectedEmployee.joinDate ? new Date(selectedEmployee.joinDate).toLocaleDateString() : '---'}
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium mb-2">Skills</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedEmployee.skills && selectedEmployee.skills.length > 0 ? selectedEmployee.skills.map((skill, index) => (
+                          <Badge key={index} variant="secondary">{skill}</Badge>
+                        )) : <span className="text-sm text-muted-foreground">---</span>}
                       </div>
                     </div>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-medium mb-2">Skills</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedEmployee.skills && selectedEmployee.skills.length > 0 ? selectedEmployee.skills.map((skill, index) => (
-                        <Badge key={index} variant="secondary">{skill}</Badge>
-                      )) : <span className="text-sm text-muted-foreground">---</span>}
+                    <div>
+                      <h4 className="font-medium mb-2">Manager</h4>
+                      <p className="text-sm">{selectedEmployee.manager || '---'}</p>
+                    </div>
+                    <div>
+                      <h4 className="font-medium mb-2">Salary</h4>
+                      <p className="text-sm">{selectedEmployee.salary ? `$${selectedEmployee.salary.toLocaleString()}` : '---'}</p>
                     </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Manager</h4>
-                    <p className="text-sm">{selectedEmployee.manager || '---'}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-medium mb-2">Salary</h4>
-                    <p className="text-sm">{selectedEmployee.salary ? `$${selectedEmployee.salary.toLocaleString()}` : '---'}</p>
-                  </div>
-                </div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">

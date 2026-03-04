@@ -1,4 +1,4 @@
-import axios from 'axios';
+import api from '../services/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
@@ -53,12 +53,12 @@ export const refreshAccessToken = async () => {
       throw new Error('No refresh token available');
     }
 
-    const response = await axios.post(`${API_URL}/token/refresh/`, {
+    const response = await api.post(`/token/refresh/`, {
       refresh: refreshToken
     });
 
     const newAccessToken = response.data.access;
-    
+
     // Store new token in same location as old one
     if (localStorage.getItem('access_token') || localStorage.getItem('token')) {
       localStorage.setItem('token', newAccessToken);
@@ -77,58 +77,15 @@ export const refreshAccessToken = async () => {
 // Verify token validity
 export const verifyToken = async (token) => {
   try {
-    await axios.post(`${API_URL}/token/verify/`, { token });
+    await api.post(`/token/verify/`, { token });
     return true;
   } catch {
     return false;
   }
 };
 
-// Create axios instance with automatic token injection and refresh
 const createApiClient = () => {
-  const client = axios.create({
-    baseURL: API_URL,
-  });
-
-  // Request interceptor - add token to headers
-  client.interceptors.request.use(
-    (config) => {
-      const token = getAccessToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    },
-    (error) => Promise.reject(error)
-  );
-
-  // Response interceptor - handle 401 and refresh token
-  client.interceptors.response.use(
-    (response) => response,
-    async (error) => {
-      const originalRequest = error.config;
-
-      // If 401 and we haven't already tried to refresh
-      if (error.response?.status === 401 && !originalRequest._retry) {
-        originalRequest._retry = true;
-
-        try {
-          const newToken = await refreshAccessToken();
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          return client(originalRequest);
-        } catch (refreshError) {
-          // Refresh failed, clear tokens and redirect to login
-          clearTokens();
-          window.location.href = '/login';
-          return Promise.reject(refreshError);
-        }
-      }
-
-      return Promise.reject(error);
-    }
-  );
-
-  return client;
+  return api;
 };
 
 export const apiClient = createApiClient();

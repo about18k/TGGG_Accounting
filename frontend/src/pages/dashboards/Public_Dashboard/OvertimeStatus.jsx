@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import Alert from '../../../components/Alert.jsx';
 import { TableSkeleton } from '../../../components/SkeletonLoader.jsx';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { getMyOvertime } from '../../../services/overtimeService';
 
 const escapeHtml = (value) => {
   if (value === null || value === undefined) return '';
@@ -34,9 +32,7 @@ function OvertimeStatus({ token }) {
     const load = async () => {
       setLoading(true);
       try {
-        const { data } = await axios.get(`${API}/overtime/my`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const data = await getMyOvertime();
         setRequests(data);
       } catch (err) {
         setAlert({
@@ -191,57 +187,56 @@ function OvertimeStatus({ token }) {
         {loading ? (
           <TableSkeleton />
         ) : (
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Date Submitted</th>
-                <th>Department</th>
-                <th>Total Hours</th>
-                <th>Explanation</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {requests.length === 0 ? (
+          <div className="table-wrapper">
+            <table>
+              <thead>
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
-                    No overtime requests yet.
-                  </td>
+                  <th>Date Submitted</th>
+                  <th>Department</th>
+                  <th>Total Hours</th>
+                  <th>Explanation</th>
+                  <th>Status</th>
+                  <th>Action</th>
                 </tr>
-              ) : (
-                requests.map(req => (
-                  <tr key={req.id}>
-                    <td>{req.date_completed || '-'}</td>
-                    <td>{req.department || '-'}</td>
-                    <td>{req.anticipated_hours || '-'}</td>
-                    <td style={{ maxWidth: '320px', whiteSpace: 'normal' }}>
-                      {req.explanation || '-'}
-                    </td>
-                    <td>
-                      {statusLabel(req)}
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); setSelectedForView(req); }}
-                        disabled={statusLabel(req) !== 'Approved'}
-                        className={`px-3 py-1 rounded text-white text-xs font-semibold transition-all ${
-                          statusLabel(req) === 'Approved'
-                            ? 'bg-orange-500 cursor-pointer hover:bg-orange-600'
-                            : 'bg-gray-600 cursor-not-allowed opacity-50'
-                        }`}
-                      >
-                        View Form
-                      </button>
+              </thead>
+              <tbody>
+                {requests.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
+                      No overtime requests yet.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ) : (
+                  requests.map(req => (
+                    <tr key={req.id}>
+                      <td>{req.date_completed || '-'}</td>
+                      <td>{req.department || '-'}</td>
+                      <td>{req.anticipated_hours || '-'}</td>
+                      <td style={{ maxWidth: '320px', whiteSpace: 'normal' }}>
+                        {req.explanation || '-'}
+                      </td>
+                      <td>
+                        {statusLabel(req)}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setSelectedForView(req); }}
+                          disabled={statusLabel(req) !== 'Approved'}
+                          className={`px-3 py-1 rounded text-white text-xs font-semibold transition-all ${statusLabel(req) === 'Approved'
+                              ? 'bg-orange-500 cursor-pointer hover:bg-orange-600'
+                              : 'bg-gray-600 cursor-not-allowed opacity-50'
+                            }`}
+                        >
+                          View Form
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -273,7 +268,7 @@ function OvertimeStatus({ token }) {
               alignItems: 'center',
               marginBottom: '1.5rem'
             }}>
-              <h3 style={{color: '#e8eaed', margin: 0, fontSize: '1.1rem', fontWeight: '600'}}>Overtime Request Form</h3>
+              <h3 style={{ color: '#e8eaed', margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>Overtime Request Form</h3>
               <button
                 onClick={() => setSelectedForView(null)}
                 style={{
@@ -295,33 +290,33 @@ function OvertimeStatus({ token }) {
               marginBottom: '1rem'
             }}>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Employee Name</label>
-                <div style={{color: '#e8eaed'}}>{selectedForView.employee_name || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Employee Name</label>
+                <div style={{ color: '#e8eaed' }}>{selectedForView.employee_name || '-'}</div>
               </div>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Job Position</label>
-                <div style={{color: '#e8eaed'}}>{selectedForView.job_position || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Job Position</label>
+                <div style={{ color: '#e8eaed' }}>{selectedForView.job_position || '-'}</div>
               </div>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Department</label>
-                <div style={{color: '#e8eaed'}}>{selectedForView.department || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Department</label>
+                <div style={{ color: '#e8eaed' }}>{selectedForView.department || '-'}</div>
               </div>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Date Submitted</label>
-                <div style={{color: '#e8eaed'}}>{selectedForView.date_completed || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Date Submitted</label>
+                <div style={{ color: '#e8eaed' }}>{selectedForView.date_completed || '-'}</div>
               </div>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Total Hours</label>
-                <div style={{color: '#e8eaed'}}>{selectedForView.anticipated_hours || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Total Hours</label>
+                <div style={{ color: '#e8eaed' }}>{selectedForView.anticipated_hours || '-'}</div>
               </div>
               <div>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem'}}>Approval Date</label>
-                <div style={{color: '#e8eaed'}}>{selectedForView.approval_date || '-'}</div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Approval Date</label>
+                <div style={{ color: '#e8eaed' }}>{selectedForView.approval_date || '-'}</div>
               </div>
             </div>
 
-            <div style={{marginBottom: '1rem'}}>
-              <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem'}}>Explanation</label>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Explanation</label>
               <div style={{
                 color: '#e8eaed',
                 background: '#001a2b',
@@ -334,8 +329,8 @@ function OvertimeStatus({ token }) {
               </div>
             </div>
 
-            <div style={{marginBottom: '1rem'}}>
-              <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem'}}>Overtime Periods</label>
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Overtime Periods</label>
               <div style={{
                 background: '#00273C',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
@@ -344,35 +339,35 @@ function OvertimeStatus({ token }) {
                 overflowX: 'auto'
               }}>
                 {Array.isArray(selectedForView.periods) && selectedForView.periods.length > 0 ? (
-                  <table style={{width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem'}}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                     <thead>
                       <tr>
-                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>Start Date</th>
-                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>Start Time</th>
-                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>End Date</th>
-                        <th style={{textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600'}}>End Time</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>Start Date</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>Start Time</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>End Date</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>End Time</th>
                       </tr>
                     </thead>
                     <tbody>
                       {selectedForView.periods.map((period, idx) => (
                         <tr key={`pv-${idx}`}>
-                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.start_date || '-'}</td>
-                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.start_time || '-'}</td>
-                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.end_date || '-'}</td>
-                          <td style={{borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed'}}>{period.end_time || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_date || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_time || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_date || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_time || '-'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 ) : (
-                  <div style={{color: '#e8eaed'}}>No periods recorded.</div>
+                  <div style={{ color: '#e8eaed' }}>No periods recorded.</div>
                 )}
               </div>
             </div>
 
             {selectedForView.employee_signature && (
-              <div style={{marginBottom: '1rem'}}>
-                <label style={{color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem'}}>Employee Signature</label>
+              <div style={{ marginBottom: '1rem' }}>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>Employee Signature</label>
                 <div style={{
                   background: '#001a2b',
                   padding: '0.75rem',
@@ -383,13 +378,13 @@ function OvertimeStatus({ token }) {
                   <img
                     src={selectedForView.employee_signature}
                     alt="Employee Signature"
-                    style={{maxWidth: '200px', maxHeight: '100px', objectFit: 'contain'}}
+                    style={{ maxWidth: '200px', maxHeight: '100px', objectFit: 'contain' }}
                   />
                 </div>
               </div>
             )}
 
-            <div style={{display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem'}}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
               <button
                 onClick={() => printReport(selectedForView)}
                 style={{
@@ -418,8 +413,8 @@ function OvertimeStatus({ token }) {
                   cursor: 'pointer',
                   fontSize: '0.9rem'
                 }}
-                onMouseEnter={(e) => {e.target.style.color = '#FF7120'; e.target.style.borderColor = 'rgba(255, 113, 32, 0.5)';}}
-                onMouseLeave={(e) => {e.target.style.color = '#a0a4a8'; e.target.style.borderColor = 'rgba(255, 113, 32, 0.3)';}}  
+                onMouseEnter={(e) => { e.target.style.color = '#FF7120'; e.target.style.borderColor = 'rgba(255, 113, 32, 0.5)'; }}
+                onMouseLeave={(e) => { e.target.style.color = '#a0a4a8'; e.target.style.borderColor = 'rgba(255, 113, 32, 0.3)'; }}
               >
                 Close
               </button>

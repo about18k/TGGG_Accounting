@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
-import { Bell, User, ArrowUpDown, Check } from 'lucide-react';
+import * as notifService from '../../../services/notificationService';
+import { Bell, User, ArrowUpDown, Check, Home, Clock, CheckSquare } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/accounting-ui';
 
@@ -9,18 +9,15 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance' }) => {
   const [sortOrder, setSortOrder] = useState('newest');
   const [notifications, setNotifications] = useState([]);
 
-  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
   const fetchNotifications = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) return;
     try {
-      const res = await axios.get(`${API_BASE}/notifications`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setNotifications(res.data);
+      const data = await notifService.getNotifications();
+      setNotifications(data);
     } catch { /* ignore */ }
-  }, [API_BASE]);
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
@@ -40,12 +37,8 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance' }) => {
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   const markAllAsRead = async () => {
-    const token = localStorage.getItem('token');
-    if (!token) return;
     try {
-      await axios.post(`${API_BASE}/notifications/read-all`, {}, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await notifService.markAllNotificationsRead();
       setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     } catch { /* ignore */ }
   };
@@ -53,15 +46,10 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance' }) => {
   const handleNotificationClick = async (notif) => {
     // Mark as read if unread
     if (!notif.is_read) {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          await axios.post(`${API_BASE}/notifications/${notif.id}/read`, {}, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
-        } catch { /* ignore */ }
-      }
+      try {
+        await notifService.markNotificationRead(notif.id);
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+      } catch { /* ignore */ }
     }
     // Determine which tab to open based on notification type
     const type = notif.type || '';
@@ -93,11 +81,125 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance' }) => {
     <nav className="fixed top-0 w-full z-50 px-3 sm:px-6 py-3 sm:py-4" style={{ background: '#001f35' }}>
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full mx-auto px-2 sm:px-4 gap-2 sm:gap-0">
         <div className="flex items-center gap-2 sm:gap-4">
-          <img src="/logotripleg.png" alt="Triple G AOC" className="h-8 sm:h-10" />
+          <img src="/logo.png" alt="Triple G AOC" className="h-8 sm:h-10" />
           <span className="text-base sm:text-2xl font-semibold hidden sm:inline">Triple G AOC</span>
           <span className="text-base font-semibold sm:hidden">TG AOC</span>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+          <button
+            onClick={() => onNavigate('attendance')}
+            style={{
+              background: currentPage === 'attendance' ? '#FF7120' : 'transparent',
+              border: '1px solid #FF7120',
+              color: currentPage === 'attendance' ? 'white' : '#FF7120',
+              padding: '0.4rem 0.6rem',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== 'attendance') {
+                e.currentTarget.style.background = '#FF7120';
+                e.currentTarget.style.borderColor = '#FF7120';
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== 'attendance') {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.borderColor = '#FF7120';
+                e.currentTarget.style.color = '#FF7120';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }
+            }}
+          >
+            <Home className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>Dashboard</span>
+          </button>
+          <button
+            onClick={() => onNavigate('overtime')}
+            style={{
+              background: currentPage === 'overtime' ? '#FF7120' : 'transparent',
+              border: '1px solid #FF7120',
+              color: currentPage === 'overtime' ? 'white' : '#FF7120',
+              padding: '0.4rem 0.6rem',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== 'overtime') {
+                e.currentTarget.style.background = '#FF7120';
+                e.currentTarget.style.borderColor = '#FF7120';
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== 'overtime') {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.borderColor = '#FF7120';
+                e.currentTarget.style.color = '#FF7120';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }
+            }}
+          >
+            <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>OT</span>
+          </button>
+          <button
+            onClick={() => onNavigate('todo')}
+            style={{
+              background: currentPage === 'todo' ? '#FF7120' : 'transparent',
+              border: '1px solid #FF7120',
+              color: currentPage === 'todo' ? 'white' : '#FF7120',
+              padding: '0.4rem 0.6rem',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              fontWeight: '500',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              if (currentPage !== 'todo') {
+                e.currentTarget.style.background = '#FF7120';
+                e.currentTarget.style.borderColor = '#FF7120';
+                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (currentPage !== 'todo') {
+                e.currentTarget.style.background = 'transparent';
+                e.currentTarget.style.borderColor = '#FF7120';
+                e.currentTarget.style.color = '#FF7120';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'none';
+              }
+            }}
+          >
+            <CheckSquare className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span>Todo</span>
+          </button>
           <div className="hidden sm:flex items-center gap-2 sm:gap-4">
             <Popover>
               <PopoverTrigger asChild>

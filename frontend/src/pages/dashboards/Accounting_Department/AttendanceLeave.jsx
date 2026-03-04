@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import axios from 'axios';
+import { getAllAttendance } from '../../../services/attendanceService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import {
@@ -32,11 +32,11 @@ import {
   TabsTrigger,
   Textarea
 } from '../../../components/ui/accounting-ui';
-import { 
-  Clock, 
-  CalendarDays, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Clock,
+  CalendarDays,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Plus,
   Download,
@@ -132,23 +132,14 @@ export function AttendanceLeave() {
   const [exportEndDate, setExportEndDate] = useState('');
   const [exportEmployee, setExportEmployee] = useState('all');
   const [isExporting, setIsExporting] = useState(false);
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+
 
   const fetchAttendanceRecords = async () => {
     setIsAttendanceLoading(true);
     setAttendanceError('');
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setAttendanceError('Missing login token. Please login again.');
-        setAttendanceRecords([]);
-        return;
-      }
-
-      const response = await axios.get(`${API_URL}/attendance/all/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setAttendanceRecords(Array.isArray(response.data) ? response.data : []);
+      const data = await getAllAttendance();
+      setAttendanceRecords(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch attendance records:', error);
       setAttendanceError(error.response?.data?.error || 'Failed to load attendance records.');
@@ -175,7 +166,7 @@ export function AttendanceLeave() {
       'Approved': 'bg-primary/10 text-primary border-primary',
       'Rejected': 'bg-red-100 text-red-800',
     };
-    
+
     return (
       <Badge className={variants[status] || 'bg-gray-100 text-gray-800'}>
         {status}
@@ -534,7 +525,7 @@ export function AttendanceLeave() {
             </CardContent>
           </Card>
 
-          
+
         </TabsContent>
 
         <TabsContent value="leave" className="space-y-6">
@@ -549,7 +540,7 @@ export function AttendanceLeave() {
                   const leaveType = leaveTypes.find(lt => lt.value === type);
                   const Icon = leaveType?.icon || CalendarIcon;
                   const percentage = (balance.used / balance.total) * 100;
-                  
+
                   return (
                     <div key={type} className="p-4 rounded-lg border border-border/50">
                       <div className="flex items-center gap-2 mb-3">

@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import supabase from '../../../lib/supabaseClient';
 import Alert from '../../../components/Alert.jsx';
 import { CardSkeleton } from '../../../components/SkeletonLoader.jsx';
-
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+import { getProfile } from '../../../services/profileService';
+import { submitOvertime } from '../../../services/overtimeService';
 
 const getTodayDate = () => {
   const now = new Date();
@@ -82,9 +81,7 @@ function OvertimeForm({ token }) {
     const loadProfile = async () => {
       setLoading(true);
       try {
-        const { data } = await axios.get(`${API}/profile`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const data = await getProfile();
         setForm(prev => ({
           ...prev,
           employee_name: data.full_name || prev.employee_name,
@@ -252,9 +249,7 @@ function OvertimeForm({ token }) {
         employee_signature: signatureUrl,
         periods: periods.filter(p => p.start_date || p.end_date || p.start_time || p.end_time)
       };
-      await axios.post(`${API}/overtime`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await submitOvertime(payload);
       setAlert({ type: 'success', title: 'Submitted', message: 'Overtime request submitted successfully.' });
       setPeriods([{
         start_date: '',
@@ -321,7 +316,7 @@ function OvertimeForm({ token }) {
   };
 
   return (
-    <div className="dashboard" style={{overflowX: 'hidden'}}>
+    <div className="dashboard" style={{ overflowX: 'hidden' }}>
       {alert && (
         <Alert
           type={alert.type}
@@ -330,323 +325,323 @@ function OvertimeForm({ token }) {
           onClose={() => setAlert(null)}
         />
       )}
-      <div className="overtime-card" style={{boxSizing: 'border-box', maxWidth: '100%', width: '100%', overflow: 'hidden'}}>
+      <div className="overtime-card" style={{ boxSizing: 'border-box', maxWidth: '100%', width: '100%', overflow: 'hidden' }}>
         {loading ? (
           <CardSkeleton />
         ) : (
           <>
-        <div className="overtime-heading">
-          <h2>Overtime Request Form</h2>
-          <p>Submit overtime details for approval.</p>
-        </div>
+            <div className="overtime-heading">
+              <h2>Overtime Request Form</h2>
+              <p>Submit overtime details for approval.</p>
+            </div>
 
-        <form onSubmit={handleSubmit} className="overtime-form">
-          <div className="overtime-grid">
-            <div className="overtime-field">
-              <label>Employee Name</label>
-              <input
-                type="text"
-                value={form.employee_name}
-                onChange={(e) => updateFormField('employee_name', e.target.value)}
-                required
-              />
-            </div>
-            <div className="overtime-field">
-              <label>Job Position</label>
-              <input
-                type="text"
-                value={form.job_position}
-                onChange={(e) => updateFormField('job_position', e.target.value)}
-                required
-              />
-            </div>
-            <div className="overtime-field">
-              <label>Date Form Completed</label>
-              <input
-                type="date"
-                value={form.date_completed}
-                min={getTodayDate()}
-                max={getTodayDate()}
-                onChange={(e) => updateFormField('date_completed', e.target.value)}
-                required
-              />
-            </div>
-            <div className="overtime-field span-3">
-              <label>Department</label>
-              <select
-                value={form.department}
-                onChange={(e) => updateFormField('department', e.target.value)}
-                required
-              >
-                <option value="">Select department</option>
-                <option value="OJT Department">OJT Department</option>
-                <option value="Design Department">DesignDepartment</option>
-                <option value="Engineering Department">Engineering Department</option>
-                <option value="Accounting Department">Accounting Department</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="overtime-section">
-            <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-              {periods.map((p, idx) => (
-                <div key={`period-${idx}`} style={{
-                  background: '#00273C',
-                  padding: '1rem',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  boxSizing: 'border-box',
-                  width: '100%',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem'}}>
-                    <h4 style={{color: '#e8eaed', margin: 0, fontSize: '0.9rem'}}>Period {idx + 1}</h4>
-                    <button
-                      type="button"
-                      onClick={() => removeRow(idx)}
-                      disabled={periods.length <= 1}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid rgba(255, 113, 32, 0.3)',
-                        color: periods.length <= 1 ? '#6b7280' : '#FF7120',
-                        padding: '0.4rem 0.75rem',
-                        borderRadius: '6px',
-                        cursor: periods.length <= 1 ? 'not-allowed' : 'pointer',
-                        fontSize: '0.8rem'
-                      }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                  <div style={{display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr', gap: '0.75rem'}}>
-                    <div>
-                      <label style={{display: 'block', color: '#a0a4a8', marginBottom: '0.4rem', fontSize: '0.85rem'}}>Start Date</label>
-                      <input
-                        type="date"
-                        value={p.start_date}
-                        min={getTodayDate()}
-                        onChange={(e) => {
-                          updatePeriod(idx, 'start_date', e.target.value);
-                          updatePeriod(idx, 'end_date', e.target.value);
-                        }}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          background: '#001a2b',
-                          color: '#e8eaed',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          borderRadius: '8px',
-                          fontSize: '0.9rem'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{display: 'block', color: '#a0a4a8', marginBottom: '0.4rem', fontSize: '0.85rem'}}>End Date</label>
-                      <input
-                        type="date"
-                        value={p.end_date}
-                        min={p.start_date || getTodayDate()}
-                        onChange={(e) => updatePeriod(idx, 'end_date', e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          background: '#001a2b',
-                          color: '#e8eaed',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          borderRadius: '8px',
-                          fontSize: '0.9rem'
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{display: 'block', color: '#a0a4a8', marginBottom: '0.4rem', fontSize: '0.85rem'}}>Start Time</label>
-                      <select
-                        value={p.start_time}
-                        onChange={(e) => updatePeriod(idx, 'start_time', e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          background: '#001a2b',
-                          color: '#e8eaed',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          borderRadius: '8px',
-                          fontSize: '0.9rem'
-                        }}
-                      >
-                        <option value="">Select time</option>
-                        {TIME_SLOTS.map(slot => (
-                          <option key={`start-${slot.value}`} value={slot.value}>
-                            {slot.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{display: 'block', color: '#a0a4a8', marginBottom: '0.4rem', fontSize: '0.85rem'}}>End Time</label>
-                      <select
-                        value={p.end_time}
-                        onChange={(e) => updatePeriod(idx, 'end_time', e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '0.75rem',
-                          background: '#001a2b',
-                          color: '#e8eaed',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          borderRadius: '8px',
-                          fontSize: '0.9rem'
-                        }}
-                      >
-                        <option value="">Select time</option>
-                        {TIME_SLOTS.map(slot => (
-                          <option key={`end-${slot.value}`} value={slot.value}>
-                            {slot.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addRow}
-                style={{
-                  width: '100%',
-                  background: '#FF7120',
-                  color: 'white',
-                  border: 'none',
-                  padding: '0.75rem',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#e66310';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = '#FF7120';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                Add Period
-              </button>
-            </div>
-          </div>
-
-          <div className="overtime-grid hours-explanation">
-            <div className="overtime-field">
-              <label>Anticipated Number of Overtime Hours</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.anticipated_hours}
-                readOnly
-              />
-            </div>
-            <div className="overtime-field stretch">
-              <label>Please provide an explanation of the work that requires overtime</label>
-              <textarea
-                rows="4"
-                value={form.explanation}
-                onChange={(e) => updateFormField('explanation', e.target.value)}
-              />
-            </div>
-          </div>
-
-              
-          <div className="overtime-section">
-            <h4>Approval</h4>
-            <div className="overtime-grid">
-              <div className="overtime-field">
-                <label>Employee Signature</label>
-                <div className="signature-pad">
-                  <canvas
-                    ref={sigCanvasRef}
-                    width={400}
-                    height={140}
-                    style={{maxWidth: '100%', height: 'auto'}}
-                    onMouseDown={startDrawing}
-                    onMouseMove={draw}
-                    onMouseUp={endDrawing}
-                    onMouseLeave={endDrawing}
-                    onTouchStart={startDrawing}
-                    onTouchMove={draw}
-                    onTouchEnd={endDrawing}
+            <form onSubmit={handleSubmit} className="overtime-form">
+              <div className="overtime-grid">
+                <div className="overtime-field">
+                  <label>Employee Name</label>
+                  <input
+                    type="text"
+                    value={form.employee_name}
+                    onChange={(e) => updateFormField('employee_name', e.target.value)}
+                    required
                   />
-                  <div className="signature-actions">
-                    <button type="button" className="ghost" onClick={clearSignature}>
-                      Clear
-                    </button>
-                    <span className="signature-hint">Sign with mouse or finger</span>
+                </div>
+                <div className="overtime-field">
+                  <label>Job Position</label>
+                  <input
+                    type="text"
+                    value={form.job_position}
+                    onChange={(e) => updateFormField('job_position', e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="overtime-field">
+                  <label>Date Form Completed</label>
+                  <input
+                    type="date"
+                    value={form.date_completed}
+                    min={getTodayDate()}
+                    max={getTodayDate()}
+                    onChange={(e) => updateFormField('date_completed', e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="overtime-field span-3">
+                  <label>Department</label>
+                  <select
+                    value={form.department}
+                    onChange={(e) => updateFormField('department', e.target.value)}
+                    required
+                  >
+                    <option value="">Select department</option>
+                    <option value="OJT Department">OJT Department</option>
+                    <option value="Design Department">DesignDepartment</option>
+                    <option value="Engineering Department">Engineering Department</option>
+                    <option value="Accounting Department">Accounting Department</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="overtime-section">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {periods.map((p, idx) => (
+                    <div key={`period-${idx}`} style={{
+                      background: '#00273C',
+                      padding: '1rem',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      boxSizing: 'border-box',
+                      width: '100%',
+                      overflow: 'hidden'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                        <h4 style={{ color: '#e8eaed', margin: 0, fontSize: '0.9rem' }}>Period {idx + 1}</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeRow(idx)}
+                          disabled={periods.length <= 1}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid rgba(255, 113, 32, 0.3)',
+                            color: periods.length <= 1 ? '#6b7280' : '#FF7120',
+                            padding: '0.4rem 0.75rem',
+                            borderRadius: '6px',
+                            cursor: periods.length <= 1 ? 'not-allowed' : 'pointer',
+                            fontSize: '0.8rem'
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr', gap: '0.75rem' }}>
+                        <div>
+                          <label style={{ display: 'block', color: '#a0a4a8', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Start Date</label>
+                          <input
+                            type="date"
+                            value={p.start_date}
+                            min={getTodayDate()}
+                            onChange={(e) => {
+                              updatePeriod(idx, 'start_date', e.target.value);
+                              updatePeriod(idx, 'end_date', e.target.value);
+                            }}
+                            style={{
+                              width: '100%',
+                              padding: '0.75rem',
+                              background: '#001a2b',
+                              color: '#e8eaed',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '8px',
+                              fontSize: '0.9rem'
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', color: '#a0a4a8', marginBottom: '0.4rem', fontSize: '0.85rem' }}>End Date</label>
+                          <input
+                            type="date"
+                            value={p.end_date}
+                            min={p.start_date || getTodayDate()}
+                            onChange={(e) => updatePeriod(idx, 'end_date', e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '0.75rem',
+                              background: '#001a2b',
+                              color: '#e8eaed',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '8px',
+                              fontSize: '0.9rem'
+                            }}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', color: '#a0a4a8', marginBottom: '0.4rem', fontSize: '0.85rem' }}>Start Time</label>
+                          <select
+                            value={p.start_time}
+                            onChange={(e) => updatePeriod(idx, 'start_time', e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '0.75rem',
+                              background: '#001a2b',
+                              color: '#e8eaed',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '8px',
+                              fontSize: '0.9rem'
+                            }}
+                          >
+                            <option value="">Select time</option>
+                            {TIME_SLOTS.map(slot => (
+                              <option key={`start-${slot.value}`} value={slot.value}>
+                                {slot.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', color: '#a0a4a8', marginBottom: '0.4rem', fontSize: '0.85rem' }}>End Time</label>
+                          <select
+                            value={p.end_time}
+                            onChange={(e) => updatePeriod(idx, 'end_time', e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '0.75rem',
+                              background: '#001a2b',
+                              color: '#e8eaed',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              borderRadius: '8px',
+                              fontSize: '0.9rem'
+                            }}
+                          >
+                            <option value="">Select time</option>
+                            {TIME_SLOTS.map(slot => (
+                              <option key={`end-${slot.value}`} value={slot.value}>
+                                {slot.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={addRow}
+                    style={{
+                      width: '100%',
+                      background: '#FF7120',
+                      color: 'white',
+                      border: 'none',
+                      padding: '0.75rem',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#e66310';
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#FF7120';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    Add Period
+                  </button>
+                </div>
+              </div>
+
+              <div className="overtime-grid hours-explanation">
+                <div className="overtime-field">
+                  <label>Anticipated Number of Overtime Hours</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.anticipated_hours}
+                    readOnly
+                  />
+                </div>
+                <div className="overtime-field stretch">
+                  <label>Please provide an explanation of the work that requires overtime</label>
+                  <textarea
+                    rows="4"
+                    value={form.explanation}
+                    onChange={(e) => updateFormField('explanation', e.target.value)}
+                  />
+                </div>
+              </div>
+
+
+              <div className="overtime-section">
+                <h4>Approval</h4>
+                <div className="overtime-grid">
+                  <div className="overtime-field">
+                    <label>Employee Signature</label>
+                    <div className="signature-pad">
+                      <canvas
+                        ref={sigCanvasRef}
+                        width={400}
+                        height={140}
+                        style={{ maxWidth: '100%', height: 'auto' }}
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={endDrawing}
+                        onMouseLeave={endDrawing}
+                        onTouchStart={startDrawing}
+                        onTouchMove={draw}
+                        onTouchEnd={endDrawing}
+                      />
+                      <div className="signature-actions">
+                        <button type="button" className="ghost" onClick={clearSignature}>
+                          Clear
+                        </button>
+                        <span className="signature-hint">Sign with mouse or finger</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="overtime-field">
+                    <label>Supervisor Signature</label>
+                    <input
+                      type="text"
+                      placeholder="To be signed"
+                      disabled
+                    />
+                  </div>
+                  <div className="overtime-field">
+                    <label>Top Management Signature</label>
+                    <input
+                      type="text"
+                      placeholder="To be signed"
+                      disabled
+                    />
+                  </div>
+                  <div className="overtime-field">
+                    <label>Date of Approval</label>
+                    <input
+                      type="text"
+                      placeholder="Wait for approval"
+                      disabled
+                    />
                   </div>
                 </div>
               </div>
-              <div className="overtime-field">
-                <label>Supervisor Signature</label>
-                <input
-                  type="text"
-                  placeholder="To be signed"
-                  disabled
-                />
-              </div>
-              <div className="overtime-field">
-                <label>Top Management Signature</label>
-                <input
-                  type="text"
-                  placeholder="To be signed"
-                  disabled
-                />
-              </div>
-              <div className="overtime-field">
-                <label>Date of Approval</label>
-                <input
-                  type="text"
-                  placeholder="Wait for approval"
-                  disabled
-                />
-              </div>
-            </div>
-          </div>
 
-          <div className="overtime-instructions">
-            <h4>Instructions</h4>
-            <ul>
-              <li>No overtime will be paid unless this form has been completed prior to overtime. In emergencies, complete within the same week.</li>
-              <li>The employee must submit a signed timesheet for specific overtime work before payroll completion.</li>
-              <li>The form will be returned to the immediate supervisor.</li>
-            </ul>
-          </div>
+              <div className="overtime-instructions">
+                <h4>Instructions</h4>
+                <ul>
+                  <li>No overtime will be paid unless this form has been completed prior to overtime. In emergencies, complete within the same week.</li>
+                  <li>The employee must submit a signed timesheet for specific overtime work before payroll completion.</li>
+                  <li>The form will be returned to the immediate supervisor.</li>
+                </ul>
+              </div>
 
-          <div className="overtime-submit">
-            <button
-              type="submit"
-              disabled={saving}
-              style={{
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                if (!saving) {
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!saving) {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }
-              }}
-            >
-              {saving ? 'Submitting...' : 'Submit Overtime Request'}
-            </button>
-          </div>
-        </form>
+              <div className="overtime-submit">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!saving) {
+                      e.currentTarget.style.transform = 'translateY(-1px)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!saving) {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }
+                  }}
+                >
+                  {saving ? 'Submitting...' : 'Submit Overtime Request'}
+                </button>
+              </div>
+            </form>
           </>
         )}
       </div>

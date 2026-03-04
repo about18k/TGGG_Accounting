@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import {
+  getPayrollEmployees,
+  getRecentPayroll,
+  getDeductions,
+  createDeduction,
+  deleteDeduction,
+  getAttendanceSummary,
+  processPayroll,
+} from '../../../services/payrollService';
 import {
   Avatar,
   AvatarFallback,
@@ -22,8 +30,8 @@ import {
   SelectTrigger,
   SelectValue
 } from '../../../components/ui/accounting-ui';
-import { 
-  DollarSign, 
+import {
+  DollarSign,
   Settings,
   BarChart3,
   Download,
@@ -102,7 +110,6 @@ const detectFrequencyLabel = (periodStart, periodEnd) => {
 
 export function PayrollManagement() {
   const defaultRange = getDefaultPayrollRange();
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
   const [isProcessPayrollOpen, setIsProcessPayrollOpen] = useState(false);
   const [isExportReportOpen, setIsExportReportOpen] = useState(false);
   const [isTaxDeductionsOpen, setIsTaxDeductionsOpen] = useState(false);
@@ -126,7 +133,7 @@ export function PayrollManagement() {
   const [newDeductionName, setNewDeductionName] = useState('');
   const [newDeductionRate, setNewDeductionRate] = useState('');
   const [newDeductionType, setNewDeductionType] = useState('percentage');
-  
+
   // Attendance data for selected employee and period
   const [attendanceData, setAttendanceData] = useState(null);
 
@@ -157,17 +164,15 @@ export function PayrollManagement() {
     setPayrollError('');
     setDeductionError('');
     try {
-      const token = localStorage.getItem('token');
-      const headers = { Authorization: `Bearer ${token}` };
-      const [employeesResponse, recentResponse, deductionsResponse] = await Promise.all([
-        axios.get(`${API_URL}/payroll/employees/`, { headers }),
-        axios.get(`${API_URL}/payroll/recent/`, { headers }),
-        axios.get(`${API_URL}/payroll/deductions/`, { headers }),
+      const [employeesData, recentData, deductionsData] = await Promise.all([
+        getPayrollEmployees(),
+        getRecentPayroll(),
+        getDeductions(),
       ]);
 
-      setEmployees(Array.isArray(employeesResponse.data) ? employeesResponse.data : []);
-      setRecentPayrollRecords(Array.isArray(recentResponse.data) ? recentResponse.data : []);
-      setDeductions(Array.isArray(deductionsResponse.data) ? deductionsResponse.data : []);
+      setEmployees(Array.isArray(employeesData) ? employeesData : []);
+      setRecentPayrollRecords(Array.isArray(recentData) ? recentData : []);
+      setDeductions(Array.isArray(deductionsData) ? deductionsData : []);
     } catch (error) {
       console.error('Failed to load payroll data:', error);
       setPayrollError(error.response?.data?.error || 'Failed to load payroll data.');
@@ -196,16 +201,12 @@ export function PayrollManagement() {
     const fetchAttendanceSummary = async () => {
       setIsFetchingAttendance(true);
       try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`${API_URL}/payroll/attendance-summary/`, {
-          headers: { Authorization: `Bearer ${token}` },
-          params: {
-            employee_id: selectedEmployee,
-            start_date: selectedStartDate,
-            end_date: selectedEndDate,
-          },
+        const data = await getAttendanceSummary({
+          employee_id: selectedEmployee,
+          start_date: selectedStartDate,
+          end_date: selectedEndDate,
         });
-        setAttendanceData(response.data || null);
+        setAttendanceData(data || null);
       } catch (error) {
         console.error('Failed to load attendance summary:', error);
         setAttendanceData(null);
@@ -230,10 +231,10 @@ export function PayrollManagement() {
     if (attendanceData && dailySalary && parseFloat(dailySalary) > 0) {
       const dailyRate = parseFloat(dailySalary);
       const workingDays = attendanceData.totalDays;
-      
+
       // Base salary
       const baseSalary = dailyRate * workingDays;
-      
+
       // Deductions
       const absenceDeduction = dailyRate * attendanceData.absences;
       const lateDeduction = (dailyRate * 0.1) * attendanceData.lateCount; // 10% per late
@@ -257,15 +258,15 @@ export function PayrollManagement() {
       const taxAmount = configuredDeductionItems
         .filter((item) => item.category === 'tax')
         .reduce((sum, item) => sum + item.amount, 0);
-      
-      const totalDeductions = 
-        absenceDeduction + 
-        lateDeduction + 
-        leaveDeduction + 
+
+      const totalDeductions =
+        absenceDeduction +
+        lateDeduction +
+        leaveDeduction +
         configuredDeductionsTotal;
-      
+
       const netSalary = baseSalary - totalDeductions;
-      
+
       setCalculations({
         baseSalary,
         grossSalary: baseSalary,
@@ -294,11 +295,8 @@ export function PayrollManagement() {
     try {
       setIsLoadingDeductions(true);
       setDeductionError('');
-      const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/payroll/deductions/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setDeductions(Array.isArray(response.data) ? response.data : []);
+      const data = await getDeductions();
+      setDeductions(Array.isArray(data) ? data : []);
     } catch (error) {
       setDeductionError(error.response?.data?.error || 'Failed to load deductions.');
     } finally {
@@ -317,18 +315,13 @@ export function PayrollManagement() {
     setIsSavingDeduction(true);
     setDeductionError('');
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${API_URL}/payroll/deductions/`,
-        {
-          name,
-          type: newDeductionType,
-          rate,
-          category: newDeductionType === 'percentage' ? 'tax' : 'other',
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      setDeductions((prev) => [...prev, response.data]);
+      const data = await createDeduction({
+        name,
+        type: newDeductionType,
+        rate,
+        category: newDeductionType === 'percentage' ? 'tax' : 'other',
+      });
+      setDeductions((prev) => [...prev, data]);
       setNewDeductionName('');
       setNewDeductionRate('');
     } catch (error) {
@@ -345,10 +338,7 @@ export function PayrollManagement() {
     if (!confirmed) return;
 
     try {
-      const token = localStorage.getItem('token');
-      await axios.delete(`${API_URL}/payroll/deductions/${deductionId}/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await deleteDeduction(deductionId);
       setDeductions((prev) => prev.filter((item) => item.id !== deductionId));
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to delete deduction.';
@@ -387,12 +377,12 @@ export function PayrollManagement() {
     const totalDeductions = Number(slip.deductions_total ?? calc.total_deductions ?? 0);
     const deductionRowsHtml = deductionItems.length
       ? deductionItems
-          .map((item) => {
-            const amount = toNumber(item.amount);
-            if (amount <= 0) return '';
-            return `<div class="row"><span>${escapeHtml(item.name || 'Deduction')}</span><span>${escapeHtml(formatCurrency(amount))}</span></div>`;
-          })
-          .join('')
+        .map((item) => {
+          const amount = toNumber(item.amount);
+          if (amount <= 0) return '';
+          return `<div class="row"><span>${escapeHtml(item.name || 'Deduction')}</span><span>${escapeHtml(formatCurrency(amount))}</span></div>`;
+        })
+        .join('')
       : `<div class="row"><span>No configured deductions</span><span>${escapeHtml(formatCurrency(0))}</span></div>`;
 
     const logoUrl = `${window.location.origin}/formlogo.png`;
@@ -579,21 +569,16 @@ export function PayrollManagement() {
 
     setIsProcessingPayroll(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${API_URL}/payroll/process/`,
-        {
-          employee_id: selectedEmployee,
-          period_start: selectedStartDate,
-          period_end: selectedEndDate,
-          daily_salary: dailySalary || null,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const responseData = await processPayroll({
+        employee_id: selectedEmployee,
+        period_start: selectedStartDate,
+        period_end: selectedEndDate,
+        daily_salary: dailySalary || null,
+      });
 
-      const name = response.data?.payslip?.employee_name || selectedEmployeeData?.name || 'Employee';
-      const netSalary = response.data?.payslip?.net_salary || '0.00';
-      renderPayslipPrintDocument(printWindow, response.data);
+      const name = responseData?.payslip?.employee_name || selectedEmployeeData?.name || 'Employee';
+      const netSalary = responseData?.payslip?.net_salary || '0.00';
+      renderPayslipPrintDocument(printWindow, responseData);
       alert(`Payslip generated for ${name}\nNet Salary: ${formatCurrency(netSalary)}\n\nA print-ready payslip has been opened.`);
       await fetchPayrollData();
       handleCloseModal();
@@ -637,16 +622,16 @@ export function PayrollManagement() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="h-20 flex-col gap-2"
               onClick={handleProcessPayroll}
             >
               <DollarSign className="w-6 h-6" />
               Process Payroll
             </Button>
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="h-20 flex-col gap-2"
               onClick={handleOpenTaxDeductions}
             >
@@ -714,7 +699,7 @@ export function PayrollManagement() {
               Manage Tax/Deductions
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             {/* Add New Deduction */}
             <div className="p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10">
@@ -736,10 +721,10 @@ export function PayrollManagement() {
                       <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9">
                         <SelectValue />
                       </SelectTrigger>
-                    <SelectContent>
+                      <SelectContent>
                         <SelectItem value="percentage">Percentage (%)</SelectItem>
                         <SelectItem value="fixed">Fixed Amount (₱)</SelectItem>
-                    </SelectContent>
+                      </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1.5">
@@ -753,7 +738,7 @@ export function PayrollManagement() {
                     />
                   </div>
                 </div>
-                <Button 
+                <Button
                   className="w-full gap-2 h-9"
                   onClick={handleAddDeduction}
                   disabled={isSavingDeduction}
@@ -816,7 +801,7 @@ export function PayrollManagement() {
               Export Payroll Report
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="export-month">Month</Label>
@@ -897,7 +882,7 @@ export function PayrollManagement() {
               Process Payroll
             </DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-6 py-4">
             {/* Employee Selection */}
             <div className="space-y-2">
@@ -1053,21 +1038,21 @@ export function PayrollManagement() {
                   {/* Deductions */}
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-muted-foreground">Deductions:</p>
-                    
+
                     {calculations.deductions.absences > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Absences</span>
                         <span className="text-red-600">- ₱{calculations.deductions.absences.toFixed(2)}</span>
                       </div>
                     )}
-                    
+
                     {calculations.deductions.late > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Late Deductions</span>
                         <span className="text-red-600">- ₱{calculations.deductions.late.toFixed(2)}</span>
                       </div>
                     )}
-                    
+
                     {calculations.deductions.leave > 0 && (
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground">Unpaid Leave</span>
@@ -1111,7 +1096,7 @@ export function PayrollManagement() {
             <Button variant="outline" onClick={handleCloseModal}>
               Cancel
             </Button>
-            <Button 
+            <Button
               onClick={handleGeneratePayslip}
               disabled={!selectedEmployee || !selectedStartDate || !selectedEndDate || selectedEndDate < selectedStartDate || isProcessingPayroll}
               className="gap-2"

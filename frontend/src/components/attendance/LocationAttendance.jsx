@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { clockIn, clockOut, getTodayAttendance } from "../../services/attendanceService";
 import {
   CheckCircle,
   MapPin,
@@ -33,7 +33,7 @@ const MapPortal = ({ children }) => {
   return <>{children}</>;
 };
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+
 
 const RADIO_OPTIONS = [
   { value: "office", label: "Office", icon: Building2, hint: "Inside the office geofence" },
@@ -104,16 +104,18 @@ const LocationAttendance = ({
   const officeLabel = officeConfig?.name ?? "Office";
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
-    setLoadingToday(true);
-    axios
-      .get(`${API_URL}/attendance/my/today/`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      .then((res) => setTodayRecord(res.data?.record || null))
-      .catch(() => setTodayRecord(null))
-      .finally(() => setLoadingToday(false));
+    const fetchToday = async () => {
+      setLoadingToday(true);
+      try {
+        const data = await getTodayAttendance();
+        setTodayRecord(data?.record || null);
+      } catch (err) {
+        setTodayRecord(null);
+      } finally {
+        setLoadingToday(false);
+      }
+    };
+    fetchToday();
   }, []);
 
   const requestCoordinates = (setter, errorSetter) => {
@@ -225,14 +227,10 @@ const LocationAttendance = ({
         accuracy: location?.accuracy,
       };
 
-      const endpoint = isTimeIn ? "clock-in" : "clock-out";
-      const response = await axios.post(
-        `${API_URL}/attendance/${endpoint}/`,
-        payload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const endpoint = isTimeIn ? clockIn : clockOut;
+      const data = await endpoint(payload);
 
-      const attendance = response.data?.attendance || null;
+      const attendance = data?.attendance || null;
       setTodayRecord(attendance);
       setBanner({ tone: "success", text: `Time ${isTimeIn ? "in" : "out"} recorded.` });
       onRecordSaved?.(attendance);
@@ -324,19 +322,13 @@ const LocationAttendance = ({
         </div>
       </div>
 
-      {loadingToday && (
-        <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/70">
-          Checking today's attendance…
-        </div>
-      )}
 
       {banner && (
         <div
-          className={`mt-3 rounded-xl border px-4 py-3 text-sm ${
-            banner.tone === "success"
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
-              : "border-red-500/40 bg-red-500/10 text-red-200"
-          }`}
+          className={`mt-3 rounded-xl border px-4 py-3 text-sm ${banner.tone === "success"
+            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
+            : "border-red-500/40 bg-red-500/10 text-red-200"
+            }`}
         >
           {banner.text}
         </div>
