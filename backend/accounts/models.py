@@ -8,7 +8,6 @@ ROLE_CHOICES = [
     ('studio_head', 'Studio Head'),
     ('admin', 'Admin'),
     ('accounting', 'Accounting'),
-    ('employee', 'Employee'),
     ('bim_specialist', 'BIM Specialist'),
     ('intern', 'Intern'),
     ('junior_architect', 'Junior Architect'),
@@ -23,8 +22,6 @@ PERMISSION_CHOICES = [
     ('edit_attendance', 'Edit Attendance'),
     ('view_payroll', 'View Payroll'),
     ('edit_payroll', 'Edit Payroll'),
-    ('view_employees', 'View Employees'),
-    ('edit_employees', 'Edit Employees'),
     ('view_reports', 'View Reports'),
     ('manage_roles', 'Manage Roles'),
     ('manage_permissions', 'Manage Permissions'),
@@ -67,7 +64,6 @@ class CustomUser(AbstractUser):
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, blank=True, null=True)
     permissions = models.JSONField(default=list, blank=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
-    employee_id = models.CharField(max_length=50, unique=True, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     is_leader = models.BooleanField(default=False)
     date_hired = models.DateField(blank=True, null=True)
