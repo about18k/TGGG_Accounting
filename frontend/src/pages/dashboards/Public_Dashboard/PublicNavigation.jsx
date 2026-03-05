@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as notifService from '../../../services/notificationService';
-import { Bell, User, Home, Clock, CheckSquare, ArrowUpDown, Check } from 'lucide-react';
+import { Bell, User, Home, Clock, CheckSquare, FolderKanban, ArrowUpDown, Check } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/accounting-ui';
 
@@ -210,6 +210,133 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                 <span>Todo</span>
               </button>
             </>
+          )}
+          {user?.role === 'bim_specialist' && (
+            <div className="flex lg:hidden flex-wrap items-center gap-2">
+              {[
+                { id: 'attendance', label: 'Dashboard', icon: Home },
+                { id: 'overtime', label: 'OT', icon: Clock },
+                { id: 'todo', label: 'Todo', icon: CheckSquare },
+                { id: 'documentation', label: 'Docs', icon: FolderKanban },
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => onNavigate(id)}
+                  style={{
+                    background: currentPage === id ? '#FF7120' : 'transparent',
+                    border: '1px solid #FF7120',
+                    color: currentPage === id ? 'white' : '#FF7120',
+                    padding: '0.4rem 0.6rem',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Icon className="h-3 w-3" />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {user?.role === 'junior_architect' && (
+            <div className="flex lg:hidden flex-wrap items-center gap-2">
+              {[
+                { id: 'attendance', label: 'Dashboard', icon: Home },
+                { id: 'overtime', label: 'OT', icon: Clock },
+                { id: 'todo', label: 'Todo', icon: CheckSquare },
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => onNavigate(id)}
+                  style={{
+                    background: currentPage === id ? '#FF7120' : 'transparent',
+                    border: '1px solid #FF7120',
+                    color: currentPage === id ? 'white' : '#FF7120',
+                    padding: '0.4rem 0.6rem',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Icon className="h-3 w-3" />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {user?.role === 'site_engineer' && (
+            <div className="flex lg:hidden flex-wrap items-center gap-2">
+              {[
+                { id: 'attendance', label: 'Dashboard', icon: Home },
+                { id: 'engineer-hub', label: 'MatReq', icon: FolderKanban },
+                { id: 'overtime', label: 'OT', icon: Clock },
+                { id: 'todo', label: 'Todo', icon: CheckSquare },
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => onNavigate(id)}
+                  style={{
+                    background: currentPage === id ? '#FF7120' : 'transparent',
+                    border: '1px solid #FF7120',
+                    color: currentPage === id ? 'white' : '#FF7120',
+                    padding: '0.4rem 0.6rem',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Icon className="h-3 w-3" />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {user?.role === 'site_coordinator' && (
+            <div className="flex lg:hidden flex-wrap items-center gap-2">
+              {[
+                { id: 'attendance', label: 'Dashboard', icon: Home },
+                { id: 'coordinator-hub', label: 'MatReq', icon: FolderKanban },
+                { id: 'overtime', label: 'OT', icon: Clock },
+                { id: 'todo', label: 'Todo', icon: CheckSquare },
+              ].map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => onNavigate(id)}
+                  style={{
+                    background: currentPage === id ? '#FF7120' : 'transparent',
+                    border: '1px solid #FF7120',
+                    color: currentPage === id ? 'white' : '#FF7120',
+                    padding: '0.4rem 0.6rem',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Icon className="h-3 w-3" />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </div>
           )}
           <div className="hidden sm:flex items-center gap-2 sm:gap-4">
             <Popover>

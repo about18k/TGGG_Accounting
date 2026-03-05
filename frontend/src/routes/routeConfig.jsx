@@ -17,6 +17,10 @@ import EmployeeTodoPage from '../pages/dashboards/Public_Dashboard/TodoPage';
 import EmployeeProfilePage from '../pages/dashboards/Public_Dashboard/ProfilePage';
 
 import BimSpecialistAttendanceDashboard from '../pages/dashboards/BimSpecialist/BimAttendance';
+import BimSpecialistOvertimePage from '../pages/dashboards/BimSpecialist/BimSpecialistOvertimePage';
+import BimSpecialistTodoPage from '../pages/dashboards/BimSpecialist/BimSpecialistTodoPage';
+import BimSpecialistDocumentationPage from '../pages/dashboards/BimSpecialist/BimSpecialistDocumentationPage';
+import BimSpecialistProfilePage from '../pages/dashboards/BimSpecialist/BimSpecialistProfilePage';
 
 import SiteEngineerAttendanceDashboard from '../pages/dashboards/SiteEngineer_Dashboard/SiteEngineerAttendance';
 import EngineerHub from '../pages/dashboards/SiteEngineer_Dashboard/EngineerHub';
@@ -184,9 +188,10 @@ export function renderDashboard({
 
     // BIM Specialist
     if (user.role === 'bim_specialist') {
-        if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'todo') return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
-        if (currentPage === 'profile') return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'overtime') return <BimSpecialistOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'todo') return <BimSpecialistTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
+        if (currentPage === 'documentation') return <BimSpecialistDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'profile') return <BimSpecialistProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
         return <BimSpecialistAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
     }
 

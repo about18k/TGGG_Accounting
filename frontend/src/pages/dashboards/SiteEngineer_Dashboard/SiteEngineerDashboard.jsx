@@ -1,11 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
 import {
   Calendar,
-  Clock,
-  FileText,
-  HardHat,
-  MapPin,
   ShieldCheck,
   User,
 } from 'lucide-react';
@@ -14,95 +9,21 @@ import SiteEngineerSidebar from './components/SiteEngineerSidebar';
 import LocationAttendance from '../../../components/attendance/LocationAttendance';
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
 import useMyAttendance from '../../../hooks/useMyAttendance';
-
-const SECTION_KEYS = new Set(['overview', 'attendance']);
-const MOBILE_SECTION_TABS = [
-  { id: 'overview', label: 'Dashboard' },
-  { id: 'attendance', label: 'Attendance' },
-];
+import { TableSkeleton } from '../../../components/SkeletonLoader';
 
 export default function SiteEngineerDashboard({ user, onNavigate }) {
-  const location = useLocation();
-  const [activeSection, setActiveSection] = useState('overview');
-
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [workDoc, setWorkDoc] = useState('');
   const [attendanceReady, setAttendanceReady] = useState(false);
+  const [expandedWorkIdx, setExpandedWorkIdx] = useState(null);
   const {
     records: attendanceRows,
     loading: attendanceLoading,
     error: attendanceError,
     refresh: refreshAttendance,
-    latest,
   } = useMyAttendance();
-  const todayIso = new Date().toISOString().split('T')[0];
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const requested = params.get('section');
-    if (requested && SECTION_KEYS.has(requested)) setActiveSection(requested);
-  }, [location.search]);
-  const stats = useMemo(() => {
-    const lateStatus = latest?.status === 'late' ? 'Late' : latest?.status_label || 'On time';
-    const lateTone = latest?.status === 'late' ? 'warn' : 'good';
-    const hours = (() => {
-      if (!latest?.time_in || !latest?.time_out) return '-';
-      const [inH, inM] = latest.time_in.split(':').map(Number);
-      const [outH, outM] = latest.time_out.split(':').map(Number);
-      if ([inH, inM, outH, outM].some((v) => Number.isNaN(v))) return '-';
-      const mins = outH * 60 + outM - (inH * 60 + inM);
-      if (mins <= 0) return '-';
-      return `${Math.floor(mins / 60)}h ${mins % 60}m`;
-    })();
-    const todayStatus = latest?.date === todayIso && latest?.time_in
-      ? (latest.time_out ? 'Completed' : 'Timed In')
-      : attendanceReady
-        ? 'Ready to Time In'
-        : 'Location Required';
-    return [
-      { label: "Today's Status", value: todayStatus, tone: attendanceReady || latest?.time_in ? 'good' : 'warn', icon: MapPin },
-      { label: 'Latest Status', value: lateStatus, tone: lateTone, icon: Clock },
-      { label: 'Total Hours (Latest)', value: hours, tone: 'neutral', icon: FileText },
-    ];
-  }, [attendanceReady, latest, todayIso]);
 
   const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
-
-  const Badge = ({ tone = 'neutral', children }) => {
-    const cls =
-      tone === 'warn'
-        ? 'bg-[#FF7120]/10 text-[#FF7120] border-[#FF7120]/30'
-        : tone === 'good'
-          ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'
-          : 'bg-white/5 text-white/70 border-white/10';
-    return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${cls}`}>{children}</span>;
-  };
-
-  const renderOverview = () => (
-    <div className={cardClass}>
-      <div className="p-6 border-b border-white/10">
-        <h1 className="text-2xl font-semibold text-white">Site Engineer Dashboard</h1>
-        <p className="text-white/60 text-sm mt-1">Track attendance, daily site tasks, and material requests.</p>
-      </div>
-      <div className="p-6 space-y-6">
-        <div className={`${cardClass} p-6`}>
-          <h3 className="text-white text-lg font-semibold">Site Engineer Responsibilities</h3>
-          <ul className="mt-3 space-y-2 text-sm text-white/75">
-            <li>• Monitors field execution and construction quality.</li>
-            <li>• Coordinates technical requirements with site teams.</li>
-            <li>• Tracks material demand and project timeline impacts.</li>
-            <li>• Maintains clear reports and daily documentation.</li>
-          </ul>
-        </div>
-        <div className={`${cardClass} p-6`}>
-          <div className="flex items-center gap-3">
-            <HardHat className="h-5 w-5 text-[#FF7120]" />
-            <p className="text-white/80 text-sm">Use the sidebar to move between attendance, material requests, and task pages.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 
   const renderAttendance = () => (
     <div className="space-y-5 sm:space-y-8">
@@ -118,28 +39,12 @@ export default function SiteEngineerDashboard({ user, onNavigate }) {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge tone="neutral"><ShieldCheck className="h-3.5 w-3.5 mr-1" />Attendance & Work Logs</Badge>
-            <Badge tone={attendanceReady ? 'good' : 'warn'}>{attendanceReady ? 'Location Ready' : 'Location Needed'}</Badge>
+            <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-white/5 text-white/70 border-white/10"><ShieldCheck className="h-3.5 w-3.5 mr-1" />Attendance &amp; Work Logs</span>
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${attendanceReady ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : 'bg-[#FF7120]/10 text-[#FF7120] border-[#FF7120]/30'}`}>
+              {attendanceReady ? 'Location Ready' : 'Location Needed'}
+            </span>
           </div>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-        {stats.map((s) => {
-          const Icon = s.icon;
-          return (
-            <div key={s.label} className={`${cardClass} p-4`}>
-              <div className="flex items-center justify-between">
-                <p className="text-white/60 text-sm font-medium">{s.label}</p>
-                <Icon className="h-4 w-4 text-white/40" />
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <p className="text-white text-lg font-semibold">{s.value}</p>
-                {s.tone !== 'neutral' && <Badge tone={s.tone}>{s.tone === 'good' ? 'OK' : 'Attention'}</Badge>}
-              </div>
-            </div>
-          );
-        })}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
@@ -155,27 +60,61 @@ export default function SiteEngineerDashboard({ user, onNavigate }) {
 
       <div className={cardClass}>
         <div className="p-4 sm:p-6 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-white font-semibold">My Attendance History</h3>
-          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#00273C]/60 px-3 py-2">
-            <Calendar className="h-4 w-4 text-white/40" />
-            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="bg-transparent text-white/80 text-sm outline-none" />
+          <h3 className="text-white font-semibold flex-1 min-w-[200px] text-lg tracking-tight">My Attendance History</h3>
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#001a2b] px-3 py-2 w-full sm:w-auto">
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              className="bg-transparent text-white/80 text-sm outline-none w-full cursor-pointer [&::-webkit-calendar-picker-indicator]:invert-[0.6]"
+            />
           </div>
         </div>
-        <div className="p-4 sm:p-6 overflow-auto">
-          <table className="w-full min-w-[720px] border-collapse">
-            <thead>
-              <tr className="border-b border-white/10 text-white/60 text-xs">
-                <th className="text-left py-3">Date</th><th className="text-left py-3">In</th><th className="text-left py-3">Out</th><th className="text-left py-3">Status</th><th className="text-left py-3">Hours</th><th className="text-left py-3">Note</th>
+        <div className="max-h-[520px] overflow-auto">
+          <table className="w-full min-w-[1200px] border-collapse">
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-[#001a2b] border-b border-white/10">
+                {[
+                  "DATE",
+                  "AM IN",
+                  "AM OUT",
+                  "PM IN",
+                  "PM OUT",
+                  "OT IN",
+                  "OT OUT",
+                  "TOTAL HOURS",
+                  "LATE (MIN)",
+                  "WORK DONE",
+                  "ATTACHMENTS",
+                  "PHOTO",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap"
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {attendanceLoading && (
-                <tr><td colSpan={6} className="py-3 text-white/70 text-sm">Loading attendance...</td></tr>
+                <tr>
+                  <td colSpan={12} className="px-6 py-4">
+                    <TableSkeleton />
+                  </td>
+                </tr>
               )}
               {!attendanceLoading && attendanceRows.length === 0 && (
-                <tr><td colSpan={6} className="py-3 text-white/60 text-sm">No attendance records yet.</td></tr>
+                <tr>
+                  <td colSpan={12} className="px-6 py-4 text-white/60 text-sm text-center">
+                    No attendance records yet.
+                  </td>
+                </tr>
               )}
-              {attendanceRows.map((row) => {
+              {attendanceRows.map((row, index) => {
+                const isLate = row?.status === "late";
+
                 const hours = (() => {
                   if (!row.time_in || !row.time_out) return '-';
                   const [inH, inM] = row.time_in.split(':').map(Number);
@@ -185,15 +124,103 @@ export default function SiteEngineerDashboard({ user, onNavigate }) {
                   if (mins <= 0) return '-';
                   return `${Math.floor(mins / 60)}h ${mins % 60}m`;
                 })();
+
+                // Formatting times
+                const [inH, inM] = row.time_in ? row.time_in.split(':') : [];
+                let formattedAmIn = '-'; let formattedPmOut = '-';
+                if (inH) formattedAmIn = `${inH > 12 ? inH - 12 : inH}:${inM} ${inH >= 12 ? 'PM' : 'AM'}`;
+                const [outH, outM] = row.time_out ? row.time_out.split(':') : [];
+                if (outH) formattedPmOut = `${outH > 12 ? outH - 12 : outH}:${outM} ${outH >= 12 ? 'PM' : 'AM'}`;
+
+                // Fallbacks
+                const amOut = row.time_in && row.time_out ? '12:00 PM' : '-';
+                const pmIn = row.time_in && row.time_out ? '01:00 PM' : '-';
+
                 return (
-                  <tr key={row.id || row.date} className="border-b border-white/5 text-sm text-white/85">
-                    <td className="py-3">{row.date}</td>
-                    <td className="py-3">{row.time_in || '-'}</td>
-                    <td className="py-3">{row.time_out || '-'}</td>
-                    <td className="py-3">{row.status_label || row.status || '—'}</td>
-                    <td className="py-3 text-emerald-300">{hours}</td>
-                    <td className="py-3">{row.notes || '—'}</td>
-                  </tr>
+                  <React.Fragment key={row.id || index}>
+                    <tr
+                      className={[
+                        "border-b border-white/5",
+                        index % 2 === 0 ? "bg-[#00273C]" : "bg-[#001f35]",
+                        "hover:bg-[#FF7120]/5 transition",
+                      ].join(" ")}
+                    >
+                      <td className="px-6 py-4 text-white/90 text-sm whitespace-nowrap">
+                        {row.date}
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        {formattedAmIn}
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        {amOut}
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        {pmIn}
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        {formattedPmOut}
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        -
+                      </td>
+                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
+                        -
+                      </td>
+                      <td className="px-6 py-4 text-emerald-400 text-sm font-semibold whitespace-nowrap">
+                        {hours}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">
+                        {isLate ? (
+                          <div className="flex flex-col gap-1 text-[#FF7120]">
+                            <span>M: Late</span>
+                            <span>Total: Late</span>
+                          </div>
+                        ) : (
+                          <span className="text-white/85">-</span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4 text-white/85 text-sm max-w-[200px]">
+                        <div className="flex items-center gap-2">
+                          <span className="truncate">{row.notes || '-'}</span>
+                          {row.notes && (
+                            <button
+                              className="shrink-0 p-1 px-2 text-[10px] rounded bg-[#FF7120] text-white hover:bg-[#e0611b] transition"
+                              onClick={() =>
+                                setExpandedWorkIdx((v) => (v === index ? null : index))
+                              }
+                              type="button"
+                              aria-label="Toggle work done details"
+                            >
+                              ...
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
+                        -
+                      </td>
+                      <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
+                        -
+                      </td>
+                    </tr>
+
+                    {expandedWorkIdx === index && (
+                      <tr className="border-b border-white/5 bg-[#001a2b]">
+                        <td colSpan={12} className="px-6 py-4">
+                          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                            <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">
+                              WORK DONE (FULL)
+                            </p>
+                            <p className="mt-2 text-white/90 text-sm leading-relaxed">
+                              {row.notes}
+                            </p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -212,23 +239,14 @@ export default function SiteEngineerDashboard({ user, onNavigate }) {
 
       <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
 
-      <div className="relative pt-28 px-6 pb-10">
+      <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
         <div className="max-w-[1600px] mx-auto flex gap-6">
           <aside className="w-64 shrink-0 hidden lg:block">
-            <SiteEngineerSidebar currentPage="attendance" onNavigate={onNavigate} activeSection={activeSection} onSelectSection={setActiveSection} />
+            <SiteEngineerSidebar currentPage="attendance" onNavigate={onNavigate} activeSection="attendance" onSelectSection={() => { }} />
           </aside>
 
           <main className="flex-1 min-w-0">
-            <div className="lg:hidden mb-4 rounded-2xl border border-white/10 bg-[#001f35]/70 p-2 backdrop-blur-md">
-              <div className="grid grid-cols-2 gap-2">
-                {MOBILE_SECTION_TABS.map((tab) => (
-                  <button key={tab.id} type="button" onClick={() => setActiveSection(tab.id)} className={`rounded-xl px-3 py-2 text-xs font-semibold transition ${activeSection === tab.id ? 'bg-[#FF7120] text-white' : 'bg-white/5 text-white/70 hover:text-white'}`}>{tab.label}</button>
-                ))}
-              </div>
-            </div>
-
-            {activeSection === 'overview' && renderOverview()}
-            {activeSection === 'attendance' && renderAttendance()}
+            {renderAttendance()}
           </main>
         </div>
       </div>

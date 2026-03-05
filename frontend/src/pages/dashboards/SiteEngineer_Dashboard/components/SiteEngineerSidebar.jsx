@@ -1,7 +1,6 @@
-import { ClipboardList, Clock, Home, Calendar, CheckSquare, User } from 'lucide-react';
+import { ClipboardList, Clock, Calendar, CheckSquare, User } from 'lucide-react';
 
 const SECTION_LINKS = [
-  { id: 'overview', label: 'Dashboard', icon: Home, section: 'overview' },
   { id: 'attendance', label: 'Attendance', icon: Calendar, section: 'attendance' },
 ];
 
@@ -32,17 +31,16 @@ export default function SiteEngineerSidebar({
       <nav className="space-y-2">
         {SECTION_LINKS.map((item) => {
           const Icon = item.icon;
-          const isActive = activeSection === item.section;
+          const isActive = currentPage === 'attendance' && activeSection === item.section;
           return (
             <button
               key={item.id}
               type="button"
               onClick={() => onSectionClick(item.section)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-                isActive
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive
                   ? 'bg-[#FF7120] text-white'
                   : 'text-white/70 hover:text-white hover:bg-white/5'
-              }`}
+                }`}
             >
               <Icon className="h-5 w-5" />
               <span className="font-medium">{item.label}</span>
@@ -60,11 +58,10 @@ export default function SiteEngineerSidebar({
               key={item.id}
               type="button"
               onClick={() => onNavigate?.(item.page)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${
-                isActive
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive
                   ? 'bg-[#FF7120] text-white'
                   : 'text-white/70 hover:text-white hover:bg-white/5'
-              }`}
+                }`}
             >
               <Icon className="h-5 w-5" />
               <span className="font-medium">{item.label}</span>
