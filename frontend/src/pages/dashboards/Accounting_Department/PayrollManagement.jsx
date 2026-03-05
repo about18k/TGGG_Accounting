@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx-js-style';
 import {
   getPayrollEmployees,
   getRecentPayroll,
@@ -98,6 +99,32 @@ const formatDisplayDate = (value) => {
   return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 };
 
+const formatDisplayDateTime = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString('en-US', {
+    month: 'short',
+    day: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const getDateOnly = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString().split('T')[0];
+};
+
+const toCsvCell = (value) => {
+  if (value === null || value === undefined) return '""';
+  const escaped = String(value).replace(/"/g, '""');
+  return `"${escaped}"`;
+};
+
 const detectFrequencyLabel = (periodStart, periodEnd) => {
   const start = new Date(periodStart);
   const end = new Date(periodEnd);
@@ -116,18 +143,20 @@ export function PayrollManagement() {
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedStartDate, setSelectedStartDate] = useState(defaultRange.startDate);
   const [selectedEndDate, setSelectedEndDate] = useState(defaultRange.endDate);
-  const [selectedMonth, setSelectedMonth] = useState('01');
-  const [selectedYear, setSelectedYear] = useState('2024');
+  const [selectedExportStartDate, setSelectedExportStartDate] = useState(formatDateInput(new Date()));
+  const [selectedExportEndDate, setSelectedExportEndDate] = useState(formatDateInput(new Date()));
   const [dailySalary, setDailySalary] = useState('');
-  const [payrollPeriod, setPayrollPeriod] = useState('1-15');
   const [employees, setEmployees] = useState([]);
   const [recentPayrollRecords, setRecentPayrollRecords] = useState([]);
+  const [exportPayrollRecords, setExportPayrollRecords] = useState([]);
   const [isLoadingPayrollData, setIsLoadingPayrollData] = useState(true);
+  const [isLoadingExportRecords, setIsLoadingExportRecords] = useState(false);
   const [isFetchingAttendance, setIsFetchingAttendance] = useState(false);
   const [isProcessingPayroll, setIsProcessingPayroll] = useState(false);
   const [isSavingDeduction, setIsSavingDeduction] = useState(false);
   const [isLoadingDeductions, setIsLoadingDeductions] = useState(false);
   const [payrollError, setPayrollError] = useState('');
+  const [exportReportError, setExportReportError] = useState('');
   const [deductionError, setDeductionError] = useState('');
   const [deductions, setDeductions] = useState([]);
   const [newDeductionName, setNewDeductionName] = useState('');
@@ -139,24 +168,6 @@ export function PayrollManagement() {
 
   // Calculate payroll whenever inputs change
   const [calculations, setCalculations] = useState(null);
-
-  const currentYear = new Date().getFullYear();
-  const years = [currentYear, currentYear - 1, currentYear - 2];
-
-  const months = [
-    { value: '01', label: 'January' },
-    { value: '02', label: 'February' },
-    { value: '03', label: 'March' },
-    { value: '04', label: 'April' },
-    { value: '05', label: 'May' },
-    { value: '06', label: 'June' },
-    { value: '07', label: 'July' },
-    { value: '08', label: 'August' },
-    { value: '09', label: 'September' },
-    { value: '10', label: 'October' },
-    { value: '11', label: 'November' },
-    { value: '12', label: 'December' },
-  ];
 
   const fetchPayrollData = async () => {
     setIsLoadingPayrollData(true);
@@ -186,6 +197,49 @@ export function PayrollManagement() {
   useEffect(() => {
     fetchPayrollData();
   }, []);
+
+  useEffect(() => {
+    if (!isExportReportOpen) {
+      setExportPayrollRecords([]);
+      setExportReportError('');
+      return;
+    }
+
+    if (!selectedExportStartDate || !selectedExportEndDate) {
+      setExportPayrollRecords([]);
+      return;
+    }
+
+    let isCancelled = false;
+
+    const fetchExportRecords = async () => {
+      setIsLoadingExportRecords(true);
+      setExportReportError('');
+      try {
+        const records = await getRecentPayroll({
+          created_from: selectedExportStartDate,
+          created_to: selectedExportEndDate,
+          limit: 1000,
+        });
+        if (isCancelled) return;
+        setExportPayrollRecords(Array.isArray(records) ? records : []);
+      } catch (error) {
+        if (isCancelled) return;
+        setExportReportError(error.response?.data?.error || 'Failed to load payroll records for export.');
+        setExportPayrollRecords([]);
+      } finally {
+        if (!isCancelled) {
+          setIsLoadingExportRecords(false);
+        }
+      }
+    };
+
+    fetchExportRecords();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isExportReportOpen, selectedExportStartDate, selectedExportEndDate]);
 
   useEffect(() => {
     if (!selectedEmployee || !selectedStartDate || !selectedEndDate) {
@@ -288,6 +342,16 @@ export function PayrollManagement() {
 
   const handleProcessPayroll = () => {
     setIsProcessPayrollOpen(true);
+  };
+
+  const handleOpenExportReport = () => {
+    const mostRecentCreatedDate = getDateOnly(recentPayrollRecords[0]?.created_at);
+    if (mostRecentCreatedDate) {
+      setSelectedExportStartDate(mostRecentCreatedDate);
+      setSelectedExportEndDate(mostRecentCreatedDate);
+    }
+    setExportReportError('');
+    setIsExportReportOpen(true);
   };
 
   const handleOpenTaxDeductions = async () => {
@@ -593,13 +657,348 @@ export function PayrollManagement() {
   };
 
   const handleExportReport = () => {
-    const monthName = months.find(m => m.value === selectedMonth)?.label || '';
-    const periodText = payrollPeriod === '1-15' ? '1st to 15th' : '16th to 30th';
-    alert(`Exporting payroll report for all employees\nPeriod: ${monthName} ${periodText}, ${selectedYear}`);
+    if (!selectedExportStartDate || !selectedExportEndDate) {
+      alert('Please select the payslip created date range to export.');
+      return;
+    }
+
+    if (exportPayrollRecords.length === 0) {
+      alert('No payroll records found for the selected date range.');
+      return;
+    }
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    
+    // Prepare data with proper row structure matching the template
+    const excelData = [];
+    
+    // Row 1: Company Name
+    excelData.push(['TRIPLE G ARCHITECTURAL DESIGN STUDIO']);
+    
+    // Row 2: Payroll Cut-off
+    excelData.push([`Payroll Cut-off: ${formatDisplayDate(selectedExportStartDate)} - ${formatDisplayDate(selectedExportEndDate)}`]);
+    
+    // Row 3: Report Title
+    excelData.push(['PAYROLL REPORT']);
+    
+    // Row 4: Empty row
+    excelData.push([]);
+    
+    // Row 5: Category Headers (Deduction, Government Contributions merged headers)
+    excelData.push([
+      '', '', '', '', '', '', '', '',
+      'Deduction', '', '', '',
+      'Government Contributions', '', '',
+      '', '', '', '', ''
+    ]);
+    
+    // Row 6: Individual Column Headers
+    excelData.push([
+      'Employee',
+      'Hourly Rate',
+      'Daily Rate', 
+      'Days Worked',
+      'Basic Salary (Semi Monthly)',
+      'Regular Overtime',
+      'REST DAY',
+      'Special Holiday',
+      'Salary Adjustment Deduction',
+      'Undertime',
+      'Late',
+      'Gross Pay Before Gov\'t Contributions',
+      'Reg - SSS EE',
+      'PHIC EE',
+      'HDMF EE',
+      'Net Taxable Salary',
+      'Withholding Tax',
+      'Net Pay After Tax',
+      'Allowance',
+      'Salary Net pay'
+    ]);
+    
+    // Data rows with calculations
+    exportPayrollRecords.forEach((record) => {
+      const baseSalary = toNumber(record.base_salary);
+      const workingDays = record.working_days || 0;
+      const daysPresent = record.days_present || 0;
+      const overtime = toNumber(record.overtime_amount);
+      const allowances = toNumber(record.allowances_total);
+      
+      // Calculate rates (avoid division by zero)
+      const dailyRate = daysPresent > 0 ? baseSalary / daysPresent : 0;
+      const hourlyRate = dailyRate / 8;
+      
+      // Calculate government contributions (SSS 4.5%, PhilHealth 2%, Pag-IBIG 100)
+      const sssEE = baseSalary * 0.045;
+      const phicEE = baseSalary * 0.02;
+      const hdmfEE = 100;
+      
+      // Calculate other values
+      const grossBeforeGovt = baseSalary + overtime;
+      const govtContributions = sssEE + phicEE + hdmfEE;
+      const netTaxable = grossBeforeGovt - govtContributions;
+      const withholdingTax = toNumber(record.tax);
+      const netPayAfterTax = netTaxable - withholdingTax;
+      const salaryNetPay = netPayAfterTax + allowances;
+      
+      excelData.push([
+        record.employee_name || '',
+        hourlyRate,
+        dailyRate,
+        daysPresent,
+        baseSalary,
+        overtime,
+        0, // REST DAY - placeholder
+        0, // Special Holiday - placeholder
+        0, // Salary Adjustment Deduction - placeholder
+        0, // Undertime - placeholder
+        0, // Late - placeholder
+        grossBeforeGovt,
+        sssEE,
+        phicEE,
+        hdmfEE,
+        netTaxable,
+        withholdingTax,
+        netPayAfterTax,
+        allowances,
+        salaryNetPay
+      ]);
+    });
+    
+    // Empty row before totals
+    excelData.push([]);
+    
+    // Totals row - placeholder values, will add formulas
+    excelData.push([
+      'Total',
+      '', '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    ]);
+    
+    // Create worksheet from data
+    const ws = XLSX.utils.aoa_to_sheet(excelData);
+    
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 25 }, // Employee
+      { wch: 12 }, // Hourly Rate
+      { wch: 12 }, // Daily Rate
+      { wch: 12 }, // Days Worked
+      { wch: 18 }, // Basic Salary
+      { wch: 15 }, // Regular Overtime
+      { wch: 12 }, // REST DAY
+      { wch: 15 }, // Special Holiday
+      { wch: 20 }, // Salary Adjustment Deduction
+      { wch: 12 }, // Undertime
+      { wch: 10 }, // Late
+      { wch: 25 }, // Gross Pay Before Gov't Contributions
+      { wch: 12 }, // Reg - SSS EE
+      { wch: 12 }, // PHIC EE
+      { wch: 12 }, // HDMF EE
+      { wch: 16 }, // Net Taxable Salary
+      { wch: 15 }, // Withholding Tax
+      { wch: 16 }, // Net Pay After Tax
+      { wch: 12 }, // Allowance
+      { wch: 15 }, // Salary Net pay
+    ];
+    
+    const totalRowIndex = 7 + exportPayrollRecords.length + 1; // Row 1-3=Headers, 4=Empty, 5=Categories, 6=Columns, 7=First data
+    const dataRowStart = 7; // First data row after all headers
+    const lastDataRow = totalRowIndex - 2;
+    
+    // Set up merged cells
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } }, // Company name spans all 20 columns
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 19 } }, // Payroll Cut-off spans all 20 columns
+      { s: { r: 2, c: 0 }, e: { r: 2, c: 19 } }, // Report title spans all 20 columns
+      { s: { r: 4, c: 8 }, e: { r: 4, c: 10 } }, // "Deduction" spans I5:K5 (Salary Adj, Undertime, Late)
+      { s: { r: 4, c: 12 }, e: { r: 4, c: 14 } }, // "Government Contributions" spans M5:O5 (SSS, PHIC, HDMF)
+    ];
+    
+    // Apply cell styles - Row 1: Company Name (Orange background, merged)
+    ws['A1'] = {
+      v: 'TRIPLE G ARCHITECTURAL DESIGN STUDIO',
+      t: 's',
+      s: {
+        font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: 'F27229' } },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      }
+    };
+    
+    // Apply cell styles - Row 2: Payroll Cut-off (Light blue background, merged)
+    ws['A2'] = {
+      v: `Payroll Cut-off: ${formatDisplayDate(selectedExportStartDate)} - ${formatDisplayDate(selectedExportEndDate)}`,
+      t: 's',
+      s: {
+        font: { bold: true, sz: 12 },
+        fill: { fgColor: { rgb: 'D6EAF8' } },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      }
+    };
+    
+    // Apply cell styles - Row 3: Report Title (Gray background, merged)
+    ws['A3'] = {
+      v: 'PAYROLL REPORT',
+      t: 's',
+      s: {
+        font: { bold: true, sz: 14 },
+        fill: { fgColor: { rgb: 'E8E8E8' } },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      }
+    };
+    
+    // Apply Row 5: Category headers (green background)
+    const columnHeaders = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
+    
+    // Row 5 category headers - style the merged cells
+    ['I5', 'M5'].forEach(cellRef => {
+      if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
+      ws[cellRef].s = {
+        font: { bold: true, sz: 10 },
+        fill: { fgColor: { rgb: '92D050' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: '000000' } },
+          bottom: { style: 'thin', color: { rgb: '000000' } },
+          left: { style: 'thin', color: { rgb: '000000' } },
+          right: { style: 'thin', color: { rgb: '000000' } }
+        }
+      };
+    });
+    
+    // Set values for category headers
+    ws['I5'].v = 'Deduction';
+    ws['M5'].v = 'Government Contributions';
+    
+    // Style all Row 5 cells with green (even empty ones for consistency)
+    columnHeaders.forEach((col) => {
+      const cellRef = col + '5';
+      if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
+      if (!ws[cellRef].s) {
+        ws[cellRef].s = {
+          fill: { fgColor: { rgb: '92D050' } },
+          border: {
+            top: { style: 'thin', color: { rgb: '000000' } },
+            bottom: { style: 'thin', color: { rgb: '000000' } },
+            left: { style: 'thin', color: { rgb: '000000' } },
+            right: { style: 'thin', color: { rgb: '000000' } }
+          }
+        };
+      }
+    });
+    
+    // Apply Row 6: Individual column headers (Green background)
+    const headerLabels = [
+      'Employee', 'Hourly Rate', 'Daily Rate', 'Days Worked',
+      'Basic Salary (Semi Monthly)', 'Regular Overtime', 'REST DAY', 'Special Holiday',
+      'Salary Adjustment Deduction', 'Undertime', 'Late',
+      'Gross Pay Before Gov\'t Contributions', 'Reg - SSS EE', 'PHIC EE', 'HDMF EE',
+      'Net Taxable Salary', 'Withholding Tax', 'Net Pay After Tax',
+      'Allowance', 'Salary Net pay'
+    ];
+    
+    columnHeaders.forEach((col, idx) => {
+      const cellRef = col + '6';
+      ws[cellRef] = {
+        v: headerLabels[idx],
+        t: 's',
+        s: {
+          font: { bold: true, sz: 10 },
+          fill: { fgColor: { rgb: '92D050' } },
+          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+          border: {
+            top: { style: 'thin', color: { rgb: '000000' } },
+            bottom: { style: 'thin', color: { rgb: '000000' } },
+            left: { style: 'thin', color: { rgb: '000000' } },
+            right: { style: 'thin', color: { rgb: '000000' } }
+          }
+        }
+      };
+    });
+    
+    // Apply center alignment and borders to all data cells
+    for (let row = dataRowStart; row <= lastDataRow; row++) {
+      columnHeaders.forEach((col) => {
+        const cellRef = col + row;
+        if (ws[cellRef]) {
+          ws[cellRef].s = {
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: {
+              top: { style: 'thin', color: { rgb: '000000' } },
+              bottom: { style: 'thin', color: { rgb: '000000' } },
+              left: { style: 'thin', color: { rgb: '000000' } },
+              right: { style: 'thin', color: { rgb: '000000' } }
+            }
+          };
+        }
+      });
+    }
+    
+    // Apply TOTAL row styles (Green background) with formulas
+    const numericColumns = ['B', 'C', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
+    columnHeaders.forEach((col) => {
+      const cellRef = col + totalRowIndex;
+      
+      if (numericColumns.includes(col)) {
+        ws[cellRef] = {
+          f: `SUM(${col}${dataRowStart}:${col}${lastDataRow})`,
+          t: 'n',
+          s: {
+            font: { bold: true, sz: 11 },
+            fill: { fgColor: { rgb: '92D050' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: {
+              top: { style: 'thin', color: { rgb: '000000' } },
+              bottom: { style: 'thin', color: { rgb: '000000' } },
+              left: { style: 'thin', color: { rgb: '000000' } },
+              right: { style: 'thin', color: { rgb: '000000' } }
+            }
+          }
+        };
+      } else if (ws[cellRef]) {
+        ws[cellRef].s = {
+          font: { bold: true, sz: 11 },
+          fill: { fgColor: { rgb: '92D050' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          border: {
+            top: { style: 'thin', color: { rgb: '000000' } },
+            bottom: { style: 'thin', color: { rgb: '000000' } },
+            left: { style: 'thin', color: { rgb: '000000' } },
+            right: { style: 'thin', color: { rgb: '000000' } }
+          }
+        };
+      }
+    });
+    
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Payroll');
+    
+    // Generate file name
+    const fileName = `Payroll_Cutoff_${selectedExportStartDate}_${selectedExportEndDate}.xlsx`;
+    
+    // Write file
+    XLSX.writeFile(wb, fileName);
+
+    const totalNetPay = exportPayrollRecords.reduce((sum, r) => {
+      const baseSalary = toNumber(r.base_salary);
+      const allowances = toNumber(r.allowances_total);
+      const tax = toNumber(r.tax);
+      const sss = baseSalary * 0.045;
+      const phic = baseSalary * 0.02;
+      const hdmf = 100;
+      return sum + (baseSalary - sss - phic - hdmf - tax + allowances);
+    }, 0);
+    
+    alert(`Payroll report exported successfully!\n${exportPayrollRecords.length} employees\nTotal Net Pay: ${formatCurrency(totalNetPay)}`);
     setIsExportReportOpen(false);
   };
 
   const selectedEmployeeData = employees.find(e => e.id === selectedEmployee);
+  const totalExportNetSalary = exportPayrollRecords.reduce(
+    (total, record) => total + toNumber(record.net_salary),
+    0,
+  );
 
   return (
     <div className="space-y-6">
@@ -636,9 +1035,9 @@ export function PayrollManagement() {
               onClick={handleOpenTaxDeductions}
             >
               <Settings className="w-6 h-6" />
-              Manage Tax/Deductions
+              Government Contributions
             </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2" onClick={() => setIsExportReportOpen(true)}>
+            <Button variant="outline" className="h-20 flex-col gap-2" onClick={handleOpenExportReport}>
               <Download className="w-6 h-6" />
               Export Reports
             </Button>
@@ -794,7 +1193,7 @@ export function PayrollManagement() {
 
       {/* Export Report Modal */}
       <Dialog open={isExportReportOpen} onOpenChange={setIsExportReportOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Download className="w-5 h-5" />
@@ -803,59 +1202,90 @@ export function PayrollManagement() {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="export-month">Month</Label>
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
-                  <SelectValue placeholder="Select month" />
-                </SelectTrigger>
-                <SelectContent>
-                  {months.map(month => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="export-start-date">Payslip Created From</Label>
+                <Input
+                  id="export-start-date"
+                  type="date"
+                  value={selectedExportStartDate}
+                  onChange={(e) => setSelectedExportStartDate(e.target.value)}
+                  className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="export-end-date">Payslip Created To</Label>
+                <Input
+                  id="export-end-date"
+                  type="date"
+                  value={selectedExportEndDate}
+                  onChange={(e) => setSelectedExportEndDate(e.target.value)}
+                  className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                />
+              </div>
             </div>
+            <p className="text-xs text-muted-foreground">
+              This loads all payslips created within the selected date range for all employees.
+            </p>
 
-            <div className="space-y-2">
-              <Label htmlFor="export-year">Year</Label>
-              <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
-                  <SelectValue placeholder="Select year" />
-                </SelectTrigger>
-                <SelectContent>
-                  {years.map(year => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {isLoadingExportRecords ? (
+              <p className="text-sm text-muted-foreground">Loading payroll records...</p>
+            ) : exportReportError ? (
+              <p className="text-sm text-red-600">{exportReportError}</p>
+            ) : exportPayrollRecords.length === 0 ? (
+              <Card className="bg-[#002035] border-[#AEAAAA]/20">
+                <CardContent className="p-4">
+                  <p className="text-sm text-muted-foreground">
+                    No payroll records found for the selected created date.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <Card className="bg-[#002035] border-[#AEAAAA]/20">
+                  <CardContent className="p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Records Found</p>
+                      <p className="text-lg font-semibold">{exportPayrollRecords.length}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-muted-foreground">Total Net Salary</p>
+                      <p className="text-lg font-semibold text-[#F27229]">{formatCurrency(totalExportNetSalary)}</p>
+                    </div>
+                  </CardContent>
+                </Card>
 
-            <div className="space-y-2">
-              <Label htmlFor="payroll-period">Payroll Period</Label>
-              <Select value={payrollPeriod} onValueChange={setPayrollPeriod}>
-                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
-                  <SelectValue placeholder="Select period" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1-15">
-                    1st to 15th of the month
-                  </SelectItem>
-                  <SelectItem value="16-30">
-                    16th to 30th of the month
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                  {exportPayrollRecords.map((record) => (
+                    <div key={record.id} className="p-3 rounded-lg border border-border/50 bg-card/40">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">{record.employee_name || 'Employee'}</p>
+                          <p className="text-xs text-muted-foreground">{record.employee_role || 'Employee'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            Period: {formatDisplayDate(record.period_start)} to {formatDisplayDate(record.period_end)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Created: {formatDisplayDateTime(record.created_at)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-semibold">{formatCurrency(record.net_salary)}</p>
+                          <Badge className="bg-primary/10 text-primary border-primary mt-1">
+                            {record.status_label || 'Processed'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
 
             <Card className="bg-[#002035] border-[#AEAAAA]/20">
-              <CardContent className="p-4">
+              <CardContent className="p-3">
                 <p className="text-sm text-muted-foreground">
-                  This will export payroll reports for all employees for the selected period.
+                  The exported file is a professional Excel (.xlsx) report with formatted headers, totals, and company branding.
                 </p>
               </CardContent>
             </Card>
@@ -865,7 +1295,11 @@ export function PayrollManagement() {
             <Button variant="outline" onClick={() => setIsExportReportOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleExportReport} className="gap-2">
+            <Button
+              onClick={handleExportReport}
+              className="gap-2"
+              disabled={isLoadingExportRecords || exportPayrollRecords.length === 0 || !selectedExportStartDate || !selectedExportEndDate}
+            >
               <Download className="w-4 h-4" />
               Export
             </Button>

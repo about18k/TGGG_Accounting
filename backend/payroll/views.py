@@ -469,5 +469,55 @@ def recent_payroll_records(request):
     if not _can_manage_payroll(request.user):
         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
-    records = PaySlip.objects.select_related('employee').order_by('-period_end', '-created_at')[:30]
+    created_on_raw = request.query_params.get('created_on')
+    created_from_raw = request.query_params.get('created_from')
+    created_to_raw = request.query_params.get('created_to')
+    limit_raw = request.query_params.get('limit')
+
+    records = PaySlip.objects.select_related('employee').order_by('-created_at', '-period_end')
+
+    has_date_filter = bool(created_on_raw or created_from_raw or created_to_raw)
+
+    if created_on_raw:
+        try:
+            created_on = _parse_iso_date(created_on_raw, 'created_on')
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        records = records.filter(created_at__date=created_on)
+    else:
+        created_from = None
+        created_to = None
+
+        if created_from_raw:
+            try:
+                created_from = _parse_iso_date(created_from_raw, 'created_from')
+            except ValueError as exc:
+                return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if created_to_raw:
+            try:
+                created_to = _parse_iso_date(created_to_raw, 'created_to')
+            except ValueError as exc:
+                return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        if created_from and created_to and created_to < created_from:
+            return Response({'error': 'created_to cannot be earlier than created_from.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        if created_from:
+            records = records.filter(created_at__date__gte=created_from)
+        if created_to:
+            records = records.filter(created_at__date__lte=created_to)
+
+    default_limit = 200 if has_date_filter else 30
+    if limit_raw in [None, '']:
+        limit = default_limit
+    else:
+        try:
+            limit = int(limit_raw)
+        except (TypeError, ValueError):
+            return Response({'error': 'limit must be a whole number between 1 and 1000.'}, status=status.HTTP_400_BAD_REQUEST)
+        if limit < 1 or limit > 1000:
+            return Response({'error': 'limit must be between 1 and 1000.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    records = records[:limit]
     return Response([_serialize_payslip(record) for record in records])

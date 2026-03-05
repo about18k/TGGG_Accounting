@@ -8,8 +8,8 @@ export async function getPayrollEmployees() {
     return data;
 }
 
-export async function getRecentPayroll() {
-    const { data } = await api.get('/payroll/recent/');
+export async function getRecentPayroll(params = {}) {
+    const { data } = await api.get('/payroll/recent/', { params });
     return data;
 }
 

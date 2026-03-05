@@ -9,7 +9,7 @@ class DepartmentAdmin(admin.ModelAdmin):
 
 @admin.register(CustomUser)
 class CustomUserAdmin(admin.ModelAdmin):
-    list_display = ['email', 'first_name', 'last_name', 'employee_id', 'department', 'role', 'is_active']
+    list_display = ['email', 'employee_id', 'first_name', 'last_name', 'department', 'role', 'is_active']
     search_fields = ['email', 'first_name', 'last_name', 'employee_id']
     list_filter = ['department', 'role', 'is_active', 'date_hired']
     ordering = ['-created_at']

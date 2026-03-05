@@ -59,6 +59,7 @@ class Department(models.Model):
 
 class CustomUser(AbstractUser):
     email = models.EmailField(unique=True)
+    employee_id = models.CharField(max_length=50, unique=True, blank=True, null=True)
     profile_picture = models.URLField(max_length=500, blank=True, null=True)
     department = models.ForeignKey(Department, on_delete=models.SET_NULL, null=True, blank=True)
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, blank=True, null=True)
