@@ -5,6 +5,7 @@
 import StudioHeadDashboard from '../pages/dashboards/StudioHead/StudioHeadDashboard';
 import StudioHeadAttendance from '../pages/dashboards/StudioHead/StudioHeadAttendance';
 import StudioHeadProfilePage from '../pages/dashboards/StudioHead/StudioHeadProfilePage';
+import StudioHeadEventsPage from '../pages/dashboards/StudioHead/StudioHeadEventsPage';
 
 import InternAttendanceDashboard from '../pages/dashboards/Intern_Dashboard/InternAttendance';
 import InternOvertimePage from '../pages/dashboards/Intern_Dashboard/OvertimePage';
@@ -129,6 +130,7 @@ export function renderDashboard({
         if (currentPage === 'attendance') return <StudioHeadAttendance user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'profile') return <StudioHeadProfilePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'events') return <StudioHeadEventsPage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'studio-head') return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
         return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
     }

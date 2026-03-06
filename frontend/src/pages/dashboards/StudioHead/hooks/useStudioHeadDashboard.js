@@ -12,8 +12,8 @@ import {
   disbandGroup,
 } from '../services/studioHeadApi';
 
-export function useStudioHeadDashboard() {
-  const [activeTab, setActiveTab] = useState('overview'); // overview | approvals | users | reviews | coordination
+export function useStudioHeadDashboard(initialTab = 'approvals') {
+  const [activeTab, setActiveTab] = useState(initialTab); // approvals | users | reviews | coordination
 
   const [message, setMessage] = useState('');
   const [approvingUserId, setApprovingUserId] = useState(null);
