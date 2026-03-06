@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import * as XLSX from 'xlsx-js-style';
 import {
   getPayrollEmployees,
   getRecentPayroll,
@@ -8,6 +7,10 @@ import {
   deleteDeduction,
   getAttendanceSummary,
   processPayroll,
+  getEmployeeContributions,
+  updateEmployeeContributions,
+  deleteEmployeeContribution,
+  notifyEmployeePayroll,
 } from '../../../services/payrollService';
 import {
   Avatar,
@@ -35,7 +38,6 @@ import {
   DollarSign,
   Settings,
   BarChart3,
-  Download,
   Calculator,
   CheckCircle,
   AlertCircle,
@@ -119,11 +121,7 @@ const getDateOnly = (value) => {
   return d.toISOString().split('T')[0];
 };
 
-const toCsvCell = (value) => {
-  if (value === null || value === undefined) return '""';
-  const escaped = String(value).replace(/"/g, '""');
-  return `"${escaped}"`;
-};
+
 
 const detectFrequencyLabel = (periodStart, periodEnd) => {
   const start = new Date(periodStart);
@@ -135,39 +133,89 @@ const detectFrequencyLabel = (periodStart, periodEnd) => {
   return 'Monthly';
 };
 
+const getStoredUserFullName = () => {
+  try {
+    const raw = localStorage.getItem('user');
+    if (!raw) return '';
+    const user = JSON.parse(raw);
+    const fullName = `${user?.first_name || ''} ${user?.last_name || ''}`.trim();
+    return fullName || user?.name || user?.email || '';
+  } catch (_error) {
+    return '';
+  }
+};
+
+const createEmptyPayslipForm = () => ({
+  monthly: '',
+  basicSalary: '',
+  regularOvertime: '',
+  lateUndertime: '',
+  restDayOt: '',
+  netTaxableSalary: '',
+  payrollTax: '',
+  totalDeductions: '',
+  grossAmount: '',
+  payrollAllowance: '',
+  companyLoanCashAdvance: '',
+  salaryNetPay: '',
+  preparedBy: getStoredUserFullName() || 'Accounting Department',
+  approvedByTopManagement: '',
+  approvedBy: '',
+});
+
 export function PayrollManagement() {
   const defaultRange = getDefaultPayrollRange();
   const [isProcessPayrollOpen, setIsProcessPayrollOpen] = useState(false);
-  const [isExportReportOpen, setIsExportReportOpen] = useState(false);
   const [isTaxDeductionsOpen, setIsTaxDeductionsOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [selectedStartDate, setSelectedStartDate] = useState(defaultRange.startDate);
-  const [selectedEndDate, setSelectedEndDate] = useState(defaultRange.endDate);
-  const [selectedExportStartDate, setSelectedExportStartDate] = useState(formatDateInput(new Date()));
-  const [selectedExportEndDate, setSelectedExportEndDate] = useState(formatDateInput(new Date()));
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedPayrollPeriod, setSelectedPayrollPeriod] = useState('29-13');
   const [dailySalary, setDailySalary] = useState('');
   const [employees, setEmployees] = useState([]);
   const [recentPayrollRecords, setRecentPayrollRecords] = useState([]);
-  const [exportPayrollRecords, setExportPayrollRecords] = useState([]);
   const [isLoadingPayrollData, setIsLoadingPayrollData] = useState(true);
-  const [isLoadingExportRecords, setIsLoadingExportRecords] = useState(false);
   const [isFetchingAttendance, setIsFetchingAttendance] = useState(false);
   const [isProcessingPayroll, setIsProcessingPayroll] = useState(false);
   const [isSavingDeduction, setIsSavingDeduction] = useState(false);
   const [isLoadingDeductions, setIsLoadingDeductions] = useState(false);
   const [payrollError, setPayrollError] = useState('');
-  const [exportReportError, setExportReportError] = useState('');
   const [deductionError, setDeductionError] = useState('');
   const [deductions, setDeductions] = useState([]);
   const [newDeductionName, setNewDeductionName] = useState('');
   const [newDeductionRate, setNewDeductionRate] = useState('');
   const [newDeductionType, setNewDeductionType] = useState('percentage');
 
+  // Employee-specific contributions
+  const [selectedContributionEmployee, setSelectedContributionEmployee] = useState('');
+  const [employeeContributions, setEmployeeContributions] = useState([]);
+  const [isLoadingEmployeeContributions, setIsLoadingEmployeeContributions] = useState(false);
+  const [isSavingEmployeeContribution, setIsSavingEmployeeContribution] = useState(false);
+  const [contributionError, setContributionError] = useState('');
+  const [newContributionName, setNewContributionName] = useState('');
+  const [newContributionAmount, setNewContributionAmount] = useState('');
+
+  // Employee contributions in the Process Payroll modal
+  const [modalEmployeeContributions, setModalEmployeeContributions] = useState([]);
+  const [isLoadingModalContributions, setIsLoadingModalContributions] = useState(false);
+  const [isEditingModalContributions, setIsEditingModalContributions] = useState(false);
+  const [isSavingModalContributions, setIsSavingModalContributions] = useState(false);
+
+  // Payslip form values for Process Payroll modal
+  const [payslipForm, setPayslipForm] = useState(createEmptyPayslipForm);
+  const [isPayslipFormInitialized, setIsPayslipFormInitialized] = useState(false);
+
+  // Filter Recent Payroll Records
+  const [filterEmployee, setFilterEmployee] = useState('all');
+  const [filterPayrollPeriod, setFilterPayrollPeriod] = useState('all');
+
   // Attendance data for selected employee and period
   const [attendanceData, setAttendanceData] = useState(null);
 
   // Calculate payroll whenever inputs change
   const [calculations, setCalculations] = useState(null);
+
+  const selectedEmployeeData = employees.find((e) => e.id === selectedEmployee);
 
   const fetchPayrollData = async () => {
     setIsLoadingPayrollData(true);
@@ -198,67 +246,68 @@ export function PayrollManagement() {
     fetchPayrollData();
   }, []);
 
-  useEffect(() => {
-    if (!isExportReportOpen) {
-      setExportPayrollRecords([]);
-      setExportReportError('');
-      return;
+  // Helper function to calculate dates from month, year, and period
+  const calculatePayrollDates = () => {
+    const year = parseInt(selectedYear, 10);
+    const month = parseInt(selectedMonth, 10);
+    
+    let startDate, endDate;
+    if (selectedPayrollPeriod === '29-13') {
+      // 29th of previous month to 13th of current month
+      const prevMonth = month === 1 ? 12 : month - 1;
+      const prevYear = month === 1 ? year - 1 : year;
+      startDate = new Date(prevYear, prevMonth - 1, 29);
+      endDate = new Date(year, month - 1, 13);
+    } else {
+      // 14th to 28th of current month
+      startDate = new Date(year, month - 1, 14);
+      endDate = new Date(year, month - 1, 28);
     }
+    
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+  };
 
-    if (!selectedExportStartDate || !selectedExportEndDate) {
-      setExportPayrollRecords([]);
-      return;
+  // Helper function to determine payroll period from dates
+  const getPayrollPeriodLabel = (startDateStr, endDateStr) => {
+    if (!startDateStr || !endDateStr) return 'Unknown';
+    const startDate = new Date(startDateStr);
+    const startDay = startDate.getDate();
+    // If start day is 14-28, it's a 14-28 period. Otherwise (1-13 or 29-31), it's a 29-13 period
+    return startDay >= 14 && startDay <= 28 ? '14 - 28' : '29 - 13';
+  };
+
+  // Filtered payroll records based on employee and period filters
+  const filteredPayrollRecords = recentPayrollRecords.filter((record) => {
+    if (filterEmployee !== 'all' && record.employee_id !== filterEmployee) {
+      return false;
     }
-
-    let isCancelled = false;
-
-    const fetchExportRecords = async () => {
-      setIsLoadingExportRecords(true);
-      setExportReportError('');
-      try {
-        const records = await getRecentPayroll({
-          created_from: selectedExportStartDate,
-          created_to: selectedExportEndDate,
-          limit: 1000,
-        });
-        if (isCancelled) return;
-        setExportPayrollRecords(Array.isArray(records) ? records : []);
-      } catch (error) {
-        if (isCancelled) return;
-        setExportReportError(error.response?.data?.error || 'Failed to load payroll records for export.');
-        setExportPayrollRecords([]);
-      } finally {
-        if (!isCancelled) {
-          setIsLoadingExportRecords(false);
-        }
+    if (filterPayrollPeriod !== 'all') {
+      const period = getPayrollPeriodLabel(record.period_start, record.period_end);
+      if (period !== filterPayrollPeriod) {
+        return false;
       }
-    };
-
-    fetchExportRecords();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [isExportReportOpen, selectedExportStartDate, selectedExportEndDate]);
+    }
+    return true;
+  });
 
   useEffect(() => {
-    if (!selectedEmployee || !selectedStartDate || !selectedEndDate) {
+    if (!selectedEmployee) {
       setAttendanceData(null);
       return;
     }
 
-    if (selectedEndDate < selectedStartDate) {
-      setAttendanceData(null);
-      return;
-    }
+    const { startDate, endDate } = calculatePayrollDates();
 
     const fetchAttendanceSummary = async () => {
       setIsFetchingAttendance(true);
       try {
         const data = await getAttendanceSummary({
           employee_id: selectedEmployee,
-          start_date: selectedStartDate,
-          end_date: selectedEndDate,
+          start_date: startDate,
+          end_date: endDate,
         });
         setAttendanceData(data || null);
       } catch (error) {
@@ -270,15 +319,155 @@ export function PayrollManagement() {
     };
 
     fetchAttendanceSummary();
-  }, [selectedEmployee, selectedStartDate, selectedEndDate]);
+  }, [selectedEmployee, selectedMonth, selectedYear, selectedPayrollPeriod]);
 
   useEffect(() => {
-    if (!selectedEmployee) return;
+    if (!selectedEmployee) {
+      setModalEmployeeContributions([]);
+      return;
+    }
     const employee = employees.find((item) => item.id === selectedEmployee);
     if (employee?.default_daily_rate) {
       setDailySalary(employee.default_daily_rate);
     }
+    
+    // Fetch employee contributions for the selected employee
+    const fetchEmployeeContributions = async () => {
+      setIsLoadingModalContributions(true);
+      try {
+        const data = await getEmployeeContributions(selectedEmployee);
+        setModalEmployeeContributions(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Failed to load employee contributions:', error);
+        setModalEmployeeContributions([]);
+      } finally {
+        setIsLoadingModalContributions(false);
+      }
+    };
+    
+    fetchEmployeeContributions();
   }, [selectedEmployee, employees]);
+
+  const getContributionTotal = (items = []) => (
+    items.reduce((sum, item) => sum + toNumber(item.amount), 0)
+  );
+
+  const buildInitialPayslipForm = () => {
+    const monthlyDefault = toNumber(selectedEmployeeData?.default_daily_rate) > 0
+      ? toNumber(selectedEmployeeData.default_daily_rate) * 22
+      : 0;
+
+    const effectiveDailyRate = monthlyDefault > 0
+      ? monthlyDefault / 22
+      : toNumber(dailySalary);
+
+    const daysPresent = toNumber(attendanceData?.totalDays);
+    const lateCount = toNumber(attendanceData?.lateCount);
+    const undertimeHours = toNumber(attendanceData?.undertimeHours ?? attendanceData?.undertime);
+
+    const basicSalaryDefault = daysPresent > 0 && effectiveDailyRate > 0
+      ? effectiveDailyRate * daysPresent
+      : monthlyDefault;
+
+    const lateDeduction = effectiveDailyRate > 0
+      ? effectiveDailyRate * 0.1 * lateCount
+      : 0;
+    const undertimeDeduction = effectiveDailyRate > 0
+      ? (effectiveDailyRate / 8) * undertimeHours
+      : 0;
+
+    const lateUndertimeDefault = lateDeduction + undertimeDeduction;
+    const regularOvertimeDefault = 0;
+    const restDayOtDefault = 0;
+    const grossAmountDefault = basicSalaryDefault + regularOvertimeDefault + restDayOtDefault;
+    const payrollTaxDefault = 0;
+    const contributionsTotal = getContributionTotal(modalEmployeeContributions);
+    const totalDeductionsDefault = lateUndertimeDefault + payrollTaxDefault + contributionsTotal;
+    const payrollAllowanceDefault = 0;
+    const companyLoanDefault = 0;
+    const netSalaryDefault = grossAmountDefault + payrollAllowanceDefault - companyLoanDefault - totalDeductionsDefault;
+
+    return {
+      monthly: monthlyDefault.toFixed(2),
+      basicSalary: basicSalaryDefault.toFixed(2),
+      regularOvertime: regularOvertimeDefault.toFixed(2),
+      lateUndertime: lateUndertimeDefault.toFixed(2),
+      restDayOt: restDayOtDefault.toFixed(2),
+      netTaxableSalary: grossAmountDefault.toFixed(2),
+      payrollTax: payrollTaxDefault.toFixed(2),
+      totalDeductions: totalDeductionsDefault.toFixed(2),
+      grossAmount: grossAmountDefault.toFixed(2),
+      payrollAllowance: payrollAllowanceDefault.toFixed(2),
+      companyLoanCashAdvance: companyLoanDefault.toFixed(2),
+      salaryNetPay: netSalaryDefault.toFixed(2),
+    };
+  };
+
+  useEffect(() => {
+    setIsPayslipFormInitialized(false);
+    setIsEditingModalContributions(false);
+    if (!selectedEmployee) {
+      setPayslipForm(createEmptyPayslipForm());
+      return;
+    }
+    setPayslipForm(createEmptyPayslipForm());
+  }, [selectedEmployee, selectedMonth, selectedYear, selectedPayrollPeriod]);
+
+  useEffect(() => {
+    if (!selectedEmployee) return;
+    if (isPayslipFormInitialized) return;
+    if (isFetchingAttendance || isLoadingModalContributions) return;
+
+    const initialValues = buildInitialPayslipForm();
+    setPayslipForm((prev) => ({
+      ...prev,
+      ...initialValues,
+      preparedBy: prev.preparedBy || getStoredUserFullName() || 'Accounting Department',
+    }));
+    setIsPayslipFormInitialized(true);
+  }, [
+    selectedEmployee,
+    selectedEmployeeData,
+    attendanceData,
+    dailySalary,
+    modalEmployeeContributions,
+    isFetchingAttendance,
+    isLoadingModalContributions,
+    isPayslipFormInitialized,
+  ]);
+
+  const handlePayslipFieldChange = (field, value) => {
+    setPayslipForm((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleModalContributionAmountChange = (contributionId, value) => {
+    setModalEmployeeContributions((prev) => prev.map((item) => (
+      item.id === contributionId
+        ? { ...item, amount: value }
+        : item
+    )));
+  };
+
+  const handleSaveModalContributions = async () => {
+    if (!selectedEmployee) return;
+    setIsSavingModalContributions(true);
+    try {
+      await Promise.all(
+        modalEmployeeContributions.map((item) => updateEmployeeContributions(selectedEmployee, {
+          name: item.name,
+          amount: toNumber(item.amount),
+        }))
+      );
+      setIsEditingModalContributions(false);
+    } catch (error) {
+      alert(error.response?.data?.error || 'Failed to update contributions.');
+    } finally {
+      setIsSavingModalContributions(false);
+    }
+  };
 
   // Calculate payroll
   useEffect(() => {
@@ -292,7 +481,7 @@ export function PayrollManagement() {
       // Deductions
       const absenceDeduction = dailyRate * attendanceData.absences;
       const lateDeduction = (dailyRate * 0.1) * attendanceData.lateCount; // 10% per late
-      const leaveDeduction = dailyRate * attendanceData.leaveCount;
+      const undertimeDeduction = dailyRate * (attendanceData.undertime || 0); // Undertime deduction
 
       const configuredDeductionItems = deductions.map((item) => {
         const rate = toNumber(item.rate);
@@ -313,11 +502,28 @@ export function PayrollManagement() {
         .filter((item) => item.category === 'tax')
         .reduce((sum, item) => sum + item.amount, 0);
 
+      // Employee-specific contributions (government deductions)
+      const employeeContributionItems = (modalEmployeeContributions || []).map((contrib) => ({
+        id: contrib.id,
+        name: contrib.name,
+        category: 'contribution',
+        type: 'fixed',
+        amount: Number(toNumber(contrib.amount).toFixed(2)),
+      }));
+      const employeeContributionsTotal = employeeContributionItems.reduce((sum, item) => sum + item.amount, 0);
+
+      // Combine all deduction items
+      const allDeductionItems = [
+        ...configuredDeductionItems,
+        ...employeeContributionItems,
+      ];
+
       const totalDeductions =
         absenceDeduction +
         lateDeduction +
-        leaveDeduction +
-        configuredDeductionsTotal;
+        undertimeDeduction +
+        configuredDeductionsTotal +
+        employeeContributionsTotal;
 
       const netSalary = baseSalary - totalDeductions;
 
@@ -327,44 +533,86 @@ export function PayrollManagement() {
         deductions: {
           absences: absenceDeduction,
           late: lateDeduction,
-          leave: leaveDeduction,
+          undertime: undertimeDeduction,
           tax: taxAmount,
         },
-        deductionItems: configuredDeductionItems,
+        deductionItems: allDeductionItems,
         configuredDeductionsTotal,
+        employeeContributionsTotal,
         totalDeductions,
         netSalary,
       });
     } else {
       setCalculations(null);
     }
-  }, [attendanceData, dailySalary, deductions]);
+  }, [attendanceData, dailySalary, deductions, modalEmployeeContributions]);
 
   const handleProcessPayroll = () => {
     setIsProcessPayrollOpen(true);
   };
 
-  const handleOpenExportReport = () => {
-    const mostRecentCreatedDate = getDateOnly(recentPayrollRecords[0]?.created_at);
-    if (mostRecentCreatedDate) {
-      setSelectedExportStartDate(mostRecentCreatedDate);
-      setSelectedExportEndDate(mostRecentCreatedDate);
-    }
-    setExportReportError('');
-    setIsExportReportOpen(true);
-  };
-
   const handleOpenTaxDeductions = async () => {
     setIsTaxDeductionsOpen(true);
+    setSelectedContributionEmployee('');
+    setEmployeeContributions([]);
+    setContributionError('');
+  };
+
+  const handleSelectContributionEmployee = async (employeeId) => {
+    setSelectedContributionEmployee(employeeId);
+    setIsLoadingEmployeeContributions(true);
+    setContributionError('');
     try {
-      setIsLoadingDeductions(true);
-      setDeductionError('');
-      const data = await getDeductions();
-      setDeductions(Array.isArray(data) ? data : []);
+      const data = await getEmployeeContributions(employeeId);
+      setEmployeeContributions(Array.isArray(data) ? data : []);
     } catch (error) {
-      setDeductionError(error.response?.data?.error || 'Failed to load deductions.');
+      setContributionError(error.response?.data?.error || 'Failed to load employee contributions.');
     } finally {
-      setIsLoadingDeductions(false);
+      setIsLoadingEmployeeContributions(false);
+    }
+  };
+
+  const handleAddEmployeeContribution = async () => {
+    if (!selectedContributionEmployee) {
+      alert('Please select an employee first.');
+      return;
+    }
+    if (!newContributionName.trim() || !newContributionAmount) {
+      alert('Contribution name and amount are required.');
+      return;
+    }
+
+    setIsSavingEmployeeContribution(true);
+    setContributionError('');
+    try {
+      const data = await updateEmployeeContributions(selectedContributionEmployee, {
+        name: newContributionName.trim(),
+        amount: parseFloat(newContributionAmount),
+      });
+      setEmployeeContributions((prev) => [...prev, data]);
+      setNewContributionName('');
+      setNewContributionAmount('');
+    } catch (error) {
+      const message = error.response?.data?.error || 'Failed to save contribution.';
+      setContributionError(message);
+      alert(message);
+    } finally {
+      setIsSavingEmployeeContribution(false);
+    }
+  };
+
+  const handleDeleteEmployeeContribution = async (contributionId) => {
+    if (!selectedContributionEmployee) return;
+    const confirmed = window.confirm('Delete this contribution?');
+    if (!confirmed) return;
+
+    try {
+      await deleteEmployeeContribution(selectedContributionEmployee, contributionId);
+      setEmployeeContributions((prev) => prev.filter((item) => item.id !== contributionId));
+    } catch (error) {
+      const message = error.response?.data?.error || 'Failed to delete contribution.';
+      setContributionError(message);
+      alert(message);
     }
   };
 
@@ -414,40 +662,59 @@ export function PayrollManagement() {
   const handleCloseModal = () => {
     setIsProcessPayrollOpen(false);
     setSelectedEmployee('');
-    setSelectedStartDate(defaultRange.startDate);
-    setSelectedEndDate(defaultRange.endDate);
+    setSelectedMonth(new Date().getMonth() + 1);
+    setSelectedYear(new Date().getFullYear());
+    setSelectedPayrollPeriod('29-13');
     setDailySalary('');
     setAttendanceData(null);
     setCalculations(null);
+    setModalEmployeeContributions([]);
+    setIsEditingModalContributions(false);
+    setPayslipForm(createEmptyPayslipForm());
+    setIsPayslipFormInitialized(false);
   };
 
   const renderPayslipPrintDocument = (printWindow, payload) => {
     if (!printWindow) return;
 
     const slip = payload?.payslip || {};
-    const calc = payload?.calculation || {};
-    const deductionItems = Array.isArray(calc?.deduction_items) ? calc.deduction_items : [];
+    const details = payload?.payslip_details || slip?.payslip_details || {};
 
     const employeeName = slip.employee_name || selectedEmployeeData?.name || 'Employee';
-    const designation = slip.employee_role || selectedEmployeeData?.position || 'Employee';
-    const periodStart = slip.period_start || selectedStartDate;
-    const periodEnd = slip.period_end || selectedEndDate;
-    const frequency = detectFrequencyLabel(periodStart, periodEnd);
+    const designation = details.designation || slip.employee_role || selectedEmployeeData?.position || 'Employee';
+    const periodStart = slip.period_start;
+    const periodEnd = slip.period_end;
+    const frequency = 'Monthly';
 
-    const baseSalary = Number(slip.base_salary ?? calc.base_salary ?? 0);
-    const overtimeAmount = Number(slip.overtime_amount ?? 0);
-    const grossSalary = Number(slip.gross_salary ?? 0);
-    const netSalary = Number(slip.net_salary ?? calc.net_salary ?? 0);
-    const totalDeductions = Number(slip.deductions_total ?? calc.total_deductions ?? 0);
-    const deductionRowsHtml = deductionItems.length
-      ? deductionItems
+    const monthlyAmount = toNumber(details.monthly ?? 0);
+    const basicSalary = toNumber(details.basic_salary ?? slip.base_salary ?? 0);
+    const regularOvertime = toNumber(details.regular_overtime ?? slip.overtime_amount ?? 0);
+    const lateUndertime = toNumber(details.late_undertime ?? 0);
+    const restDayOt = toNumber(details.rest_day_ot ?? slip.bonus ?? 0);
+    const netTaxableSalary = toNumber(details.net_taxable_salary ?? 0);
+    const payrollTax = toNumber(details.payroll_tax ?? slip.tax ?? 0);
+    const totalDeductions = toNumber(details.total_deductions ?? slip.deductions_total ?? 0);
+    const grossAmount = toNumber(details.gross_amount ?? slip.gross_salary ?? 0);
+    const payrollAllowance = toNumber(details.payroll_allowance ?? slip.allowances_total ?? 0);
+    const companyLoanCashAdvance = toNumber(details.company_loan_cash_advance ?? 0);
+    const salaryNetPay = toNumber(details.salary_net_pay ?? slip.net_salary ?? 0);
+
+    const preparedBy = details.prepared_by || payslipForm.preparedBy || 'Accounting Department';
+    const approvedByTopManagement = details.approved_by_top_management || '';
+    const approvedBy = details.approved_by || '';
+
+    const governmentContributions = Array.isArray(details.government_contributions)
+      ? details.government_contributions
+      : [];
+
+    const contributionRowsHtml = governmentContributions.length
+      ? governmentContributions
         .map((item) => {
           const amount = toNumber(item.amount);
-          if (amount <= 0) return '';
-          return `<div class="row"><span>${escapeHtml(item.name || 'Deduction')}</span><span>${escapeHtml(formatCurrency(amount))}</span></div>`;
+          return `<div class="row"><span>${escapeHtml(item.name || 'Contribution')}</span><span>${escapeHtml(formatCurrency(amount))}</span></div>`;
         })
         .join('')
-      : `<div class="row"><span>No configured deductions</span><span>${escapeHtml(formatCurrency(0))}</span></div>`;
+      : `<div class="row"><span>Government Contributions</span><span>${escapeHtml(formatCurrency(0))}</span></div>`;
 
     const logoUrl = `${window.location.origin}/formlogo.png`;
     const payDateText = `${formatDisplayDate(periodStart)} to ${formatDisplayDate(periodEnd)}`;
@@ -553,47 +820,53 @@ export function PayrollManagement() {
             <div class="meta">
               <div class="label">Employee Name:</div>
               <div class="value">${escapeHtml(employeeName)}</div>
-              <div class="label">Pay Frequency:</div>
-              <div class="value">${escapeHtml(frequency)}</div>
+              <div class="label">Monthly:</div>
+              <div class="value">${escapeHtml(formatCurrency(monthlyAmount))}</div>
 
               <div class="label">Designation:</div>
               <div class="value">${escapeHtml(designation)}</div>
-              <div class="label">Net Amount:</div>
-              <div class="value">${escapeHtml(formatCurrency(netSalary))}</div>
+              <div class="label">Pay Frequency:</div>
+              <div class="value">${escapeHtml(frequency)}</div>
             </div>
 
             <div class="section">
               <div>
                 <div class="col-title">Earnings</div>
                 <div class="row"><span>Basic Salary</span><span>${escapeHtml(formatCurrency(baseSalary))}</span></div>
-                <div class="row"><span>Regular Overtime</span><span>${escapeHtml(formatCurrency(overtimeAmount))}</span></div>
-                <div class="row"><span>Late/Undertime</span><span>${escapeHtml(formatCurrency(0))}</span></div>
-                <div class="row"><span>Rest Day</span><span>${escapeHtml(formatCurrency(0))}</span></div>
-                <div class="row"><span>Rest Day OT</span><span>${escapeHtml(formatCurrency(0))}</span></div>
-                <div class="row"><span>Holiday</span><span>${escapeHtml(formatCurrency(0))}</span></div>
-                <div class="row" style="margin-top: 8px;"><strong>GROSS Amount</strong><strong>${escapeHtml(formatCurrency(grossSalary))}</strong></div>
+                <div class="row"><span>Regular Overtime</span><span>${escapeHtml(formatCurrency(regularOvertime))}</span></div>
+                <div class="row"><span>Late/Undertime</span><span>${escapeHtml(formatCurrency(lateUndertime))}</span></div>
+                <div class="row"><span>Rest Day</span><span></span></div>
+                <div class="row"><span>Rest Day OT</span><span>${escapeHtml(formatCurrency(restDayOt))}</span></div>
+                <div class="row"><span>Holiday</span><span></span></div>
+                <div class="row" style="margin-top: 8px;"><strong>GROSS Amount</strong><strong>${escapeHtml(formatCurrency(grossAmount))}</strong></div>
               </div>
 
               <div>
                 <div class="col-title">Deductions</div>
-                ${deductionRowsHtml}
+                ${contributionRowsHtml}
+                <div class="row"><span>NET Taxable Salary</span><span>${escapeHtml(formatCurrency(netTaxableSalary))}</span></div>
+                <div class="row"><span>Payroll Tax</span><span>${escapeHtml(formatCurrency(payrollTax))}</span></div>
                 <div class="row" style="margin-top: 8px;"><strong>Total Deductions</strong><strong>${escapeHtml(formatCurrency(totalDeductions))}</strong></div>
+                <div class="row"><span>Payroll Allowance</span><span>${escapeHtml(formatCurrency(payrollAllowance))}</span></div>
+                <div class="row"><span>Company Loan/Cash Advance</span><span>${escapeHtml(formatCurrency(companyLoanCashAdvance))}</span></div>
               </div>
             </div>
 
-            <div class="bar">SALARY NET PAY ${escapeHtml(formatCurrency(netSalary))}</div>
+            <div class="bar">SALARY NET PAY ${escapeHtml(formatCurrency(salaryNetPay))}</div>
 
             <div class="signatures">
               <div>
-                <div class="prepared">Prepared by:</div>
+                <div class="prepared">Prepared By (Accounting Department):</div>
                 <div class="sig-line">
-                  Accounting Department
+                  ${escapeHtml(preparedBy)}
                 </div>
+                <div class="prepared" style="margin-top: 16px;">Approved By:</div>
+                <div class="sig-line">${escapeHtml(approvedBy)}</div>
               </div>
               <div>
-                <div class="prepared">Approved by:</div>
+                <div class="prepared">Approved By (Top Management):</div>
                 <div class="sig-line">
-                  Top Management
+                  ${escapeHtml(approvedByTopManagement)}
                 </div>
               </div>
             </div>
@@ -613,403 +886,198 @@ export function PayrollManagement() {
   };
 
   const handleGeneratePayslip = async () => {
-    if (!selectedEmployee || !selectedStartDate || !selectedEndDate) {
-      alert('Please select employee, start date, and end date.');
+    if (!selectedEmployee) {
+      alert('Please select an employee.');
       return;
     }
 
-    if (selectedEndDate < selectedStartDate) {
-      alert('End date cannot be earlier than start date.');
-      return;
-    }
+    const { startDate, endDate } = calculatePayrollDates();
 
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Popup blocked. Please allow popups to generate and print payslip.');
-      return;
-    }
-    printWindow.document.write('<html><body style="font-family:Arial,sans-serif;padding:20px;">Preparing payslip...</body></html>');
-    printWindow.document.close();
+    const getFieldValueOrFallback = (value, fallback) => {
+      if (value === '' || value === null || value === undefined) {
+        return fallback;
+      }
+      return toNumber(value);
+    };
+
+    const basicSalary = getFieldValueOrFallback(payslipForm.basicSalary, 0);
+    const regularOvertime = getFieldValueOrFallback(payslipForm.regularOvertime, 0);
+    const lateUndertime = getFieldValueOrFallback(payslipForm.lateUndertime, 0);
+    const restDayOt = getFieldValueOrFallback(payslipForm.restDayOt, 0);
+    const payrollTax = getFieldValueOrFallback(payslipForm.payrollTax, 0);
+    const payrollAllowance = getFieldValueOrFallback(payslipForm.payrollAllowance, 0);
+    const companyLoanCashAdvance = getFieldValueOrFallback(payslipForm.companyLoanCashAdvance, 0);
+    const governmentContributionsTotal = getContributionTotal(modalEmployeeContributions);
+
+    const grossAmountComputed = basicSalary + regularOvertime + restDayOt;
+    const grossAmount = getFieldValueOrFallback(payslipForm.grossAmount, grossAmountComputed);
+    const netTaxableSalary = getFieldValueOrFallback(payslipForm.netTaxableSalary, grossAmount);
+
+    const totalDeductionsComputed = lateUndertime + payrollTax + governmentContributionsTotal;
+    const totalDeductionsAmount = getFieldValueOrFallback(payslipForm.totalDeductions, totalDeductionsComputed);
+
+    const salaryNetPayComputed = grossAmount + payrollAllowance - companyLoanCashAdvance - totalDeductionsAmount;
+    const salaryNetPay = getFieldValueOrFallback(payslipForm.salaryNetPay, salaryNetPayComputed);
+
+    const monthlyAmount = getFieldValueOrFallback(payslipForm.monthly, grossAmount);
+    const attendanceDays = toNumber(attendanceData?.totalDays);
+    const derivedDailySalary = attendanceDays > 0 ? (basicSalary / attendanceDays) : 0;
+    const dailySalaryForPayload = dailySalary || (derivedDailySalary > 0 ? derivedDailySalary.toFixed(2) : null);
+
+    const governmentContributions = modalEmployeeContributions.map((item) => ({
+      id: item.id,
+      name: item.name,
+      amount: toNumber(item.amount),
+    }));
+
+    const payslipFormPayload = {
+      designation: selectedEmployeeData?.position || '',
+      monthly: monthlyAmount,
+      basic_salary: basicSalary,
+      regular_overtime: regularOvertime,
+      late_undertime: lateUndertime,
+      rest_day_ot: restDayOt,
+      net_taxable_salary: netTaxableSalary,
+      payroll_tax: payrollTax,
+      total_deductions: totalDeductionsAmount,
+      gross_amount: grossAmount,
+      payroll_allowance: payrollAllowance,
+      company_loan_cash_advance: companyLoanCashAdvance,
+      salary_net_pay: salaryNetPay,
+      prepared_by: (payslipForm.preparedBy || '').trim(),
+      approved_by_top_management: (payslipForm.approvedByTopManagement || '').trim(),
+      approved_by: (payslipForm.approvedBy || '').trim(),
+      government_contributions: governmentContributions,
+    };
 
     setIsProcessingPayroll(true);
     try {
       const responseData = await processPayroll({
         employee_id: selectedEmployee,
-        period_start: selectedStartDate,
-        period_end: selectedEndDate,
-        daily_salary: dailySalary || null,
+        period_start: startDate,
+        period_end: endDate,
+        daily_salary: dailySalaryForPayload,
+        payslip_form: payslipFormPayload,
       });
 
       const name = responseData?.payslip?.employee_name || selectedEmployeeData?.name || 'Employee';
-      const netSalary = responseData?.payslip?.net_salary || '0.00';
-      renderPayslipPrintDocument(printWindow, responseData);
-      alert(`Payslip generated for ${name}\nNet Salary: ${formatCurrency(netSalary)}\n\nA print-ready payslip has been opened.`);
+      const netSalary = responseData?.payslip?.net_salary || salaryNetPay;
+
+      let whatsappStatusMessage = 'WhatsApp notification was queued successfully.';
+      try {
+        const notifyResponse = await notifyEmployeePayroll(selectedEmployee, {
+          period_start: startDate,
+          period_end: endDate,
+          payslip_preview: {
+            employee_name: name,
+            designation: selectedEmployeeData?.position || '',
+            gross_amount: grossAmount,
+            total_deductions: totalDeductionsAmount,
+            salary_net_pay: salaryNetPay,
+          },
+        });
+
+        if (notifyResponse?.message) {
+          whatsappStatusMessage = notifyResponse.message;
+        }
+      } catch (whatsappError) {
+        console.warn('WhatsApp notification failed:', whatsappError);
+        whatsappStatusMessage = `Payroll saved, but WhatsApp notification failed: ${
+          whatsappError.response?.data?.message || whatsappError.response?.data?.error || whatsappError.message
+        }`;
+      }
+
+      alert(`Payslip processed successfully for ${name}\nNet Salary: ${formatCurrency(netSalary)}\n\n${whatsappStatusMessage}`);
       await fetchPayrollData();
       handleCloseModal();
     } catch (error) {
-      if (printWindow && !printWindow.closed) {
-        printWindow.close();
-      }
       alert(error.response?.data?.error || 'Failed to process payroll.');
     } finally {
       setIsProcessingPayroll(false);
     }
   };
 
-  const handleExportReport = () => {
-    if (!selectedExportStartDate || !selectedExportEndDate) {
-      alert('Please select the payslip created date range to export.');
-      return;
-    }
-
-    if (exportPayrollRecords.length === 0) {
-      alert('No payroll records found for the selected date range.');
-      return;
-    }
-
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    
-    // Prepare data with proper row structure matching the template
-    const excelData = [];
-    
-    // Row 1: Company Name
-    excelData.push(['TRIPLE G ARCHITECTURAL DESIGN STUDIO']);
-    
-    // Row 2: Payroll Cut-off
-    excelData.push([`Payroll Cut-off: ${formatDisplayDate(selectedExportStartDate)} - ${formatDisplayDate(selectedExportEndDate)}`]);
-    
-    // Row 3: Report Title
-    excelData.push(['PAYROLL REPORT']);
-    
-    // Row 4: Empty row
-    excelData.push([]);
-    
-    // Row 5: Category Headers (Deduction, Government Contributions merged headers)
-    excelData.push([
-      '', '', '', '', '', '', '', '',
-      'Deduction', '', '', '',
-      'Government Contributions', '', '',
-      '', '', '', '', ''
-    ]);
-    
-    // Row 6: Individual Column Headers
-    excelData.push([
-      'Employee',
-      'Hourly Rate',
-      'Daily Rate', 
-      'Days Worked',
-      'Basic Salary (Semi Monthly)',
-      'Regular Overtime',
-      'REST DAY',
-      'Special Holiday',
-      'Salary Adjustment Deduction',
-      'Undertime',
-      'Late',
-      'Gross Pay Before Gov\'t Contributions',
-      'Reg - SSS EE',
-      'PHIC EE',
-      'HDMF EE',
-      'Net Taxable Salary',
-      'Withholding Tax',
-      'Net Pay After Tax',
-      'Allowance',
-      'Salary Net pay'
-    ]);
-    
-    // Data rows with calculations
-    exportPayrollRecords.forEach((record) => {
-      const baseSalary = toNumber(record.base_salary);
-      const workingDays = record.working_days || 0;
-      const daysPresent = record.days_present || 0;
-      const overtime = toNumber(record.overtime_amount);
-      const allowances = toNumber(record.allowances_total);
-      
-      // Calculate rates (avoid division by zero)
-      const dailyRate = daysPresent > 0 ? baseSalary / daysPresent : 0;
-      const hourlyRate = dailyRate / 8;
-      
-      // Calculate government contributions (SSS 4.5%, PhilHealth 2%, Pag-IBIG 100)
-      const sssEE = baseSalary * 0.045;
-      const phicEE = baseSalary * 0.02;
-      const hdmfEE = 100;
-      
-      // Calculate other values
-      const grossBeforeGovt = baseSalary + overtime;
-      const govtContributions = sssEE + phicEE + hdmfEE;
-      const netTaxable = grossBeforeGovt - govtContributions;
-      const withholdingTax = toNumber(record.tax);
-      const netPayAfterTax = netTaxable - withholdingTax;
-      const salaryNetPay = netPayAfterTax + allowances;
-      
-      excelData.push([
-        record.employee_name || '',
-        hourlyRate,
-        dailyRate,
-        daysPresent,
-        baseSalary,
-        overtime,
-        0, // REST DAY - placeholder
-        0, // Special Holiday - placeholder
-        0, // Salary Adjustment Deduction - placeholder
-        0, // Undertime - placeholder
-        0, // Late - placeholder
-        grossBeforeGovt,
-        sssEE,
-        phicEE,
-        hdmfEE,
-        netTaxable,
-        withholdingTax,
-        netPayAfterTax,
-        allowances,
-        salaryNetPay
-      ]);
-    });
-    
-    // Empty row before totals
-    excelData.push([]);
-    
-    // Totals row - placeholder values, will add formulas
-    excelData.push([
-      'Total',
-      '', '', '', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    ]);
-    
-    // Create worksheet from data
-    const ws = XLSX.utils.aoa_to_sheet(excelData);
-    
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 25 }, // Employee
-      { wch: 12 }, // Hourly Rate
-      { wch: 12 }, // Daily Rate
-      { wch: 12 }, // Days Worked
-      { wch: 18 }, // Basic Salary
-      { wch: 15 }, // Regular Overtime
-      { wch: 12 }, // REST DAY
-      { wch: 15 }, // Special Holiday
-      { wch: 20 }, // Salary Adjustment Deduction
-      { wch: 12 }, // Undertime
-      { wch: 10 }, // Late
-      { wch: 25 }, // Gross Pay Before Gov't Contributions
-      { wch: 12 }, // Reg - SSS EE
-      { wch: 12 }, // PHIC EE
-      { wch: 12 }, // HDMF EE
-      { wch: 16 }, // Net Taxable Salary
-      { wch: 15 }, // Withholding Tax
-      { wch: 16 }, // Net Pay After Tax
-      { wch: 12 }, // Allowance
-      { wch: 15 }, // Salary Net pay
-    ];
-    
-    const totalRowIndex = 7 + exportPayrollRecords.length + 1; // Row 1-3=Headers, 4=Empty, 5=Categories, 6=Columns, 7=First data
-    const dataRowStart = 7; // First data row after all headers
-    const lastDataRow = totalRowIndex - 2;
-    
-    // Set up merged cells
-    ws['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } }, // Company name spans all 20 columns
-      { s: { r: 1, c: 0 }, e: { r: 1, c: 19 } }, // Payroll Cut-off spans all 20 columns
-      { s: { r: 2, c: 0 }, e: { r: 2, c: 19 } }, // Report title spans all 20 columns
-      { s: { r: 4, c: 8 }, e: { r: 4, c: 10 } }, // "Deduction" spans I5:K5 (Salary Adj, Undertime, Late)
-      { s: { r: 4, c: 12 }, e: { r: 4, c: 14 } }, // "Government Contributions" spans M5:O5 (SSS, PHIC, HDMF)
-    ];
-    
-    // Apply cell styles - Row 1: Company Name (Orange background, merged)
-    ws['A1'] = {
-      v: 'TRIPLE G ARCHITECTURAL DESIGN STUDIO',
-      t: 's',
-      s: {
-        font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
-        fill: { fgColor: { rgb: 'F27229' } },
-        alignment: { horizontal: 'center', vertical: 'center' }
-      }
-    };
-    
-    // Apply cell styles - Row 2: Payroll Cut-off (Light blue background, merged)
-    ws['A2'] = {
-      v: `Payroll Cut-off: ${formatDisplayDate(selectedExportStartDate)} - ${formatDisplayDate(selectedExportEndDate)}`,
-      t: 's',
-      s: {
-        font: { bold: true, sz: 12 },
-        fill: { fgColor: { rgb: 'D6EAF8' } },
-        alignment: { horizontal: 'center', vertical: 'center' }
-      }
-    };
-    
-    // Apply cell styles - Row 3: Report Title (Gray background, merged)
-    ws['A3'] = {
-      v: 'PAYROLL REPORT',
-      t: 's',
-      s: {
-        font: { bold: true, sz: 14 },
-        fill: { fgColor: { rgb: 'E8E8E8' } },
-        alignment: { horizontal: 'center', vertical: 'center' }
-      }
-    };
-    
-    // Apply Row 5: Category headers (green background)
-    const columnHeaders = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
-    
-    // Row 5 category headers - style the merged cells
-    ['I5', 'M5'].forEach(cellRef => {
-      if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
-      ws[cellRef].s = {
-        font: { bold: true, sz: 10 },
-        fill: { fgColor: { rgb: '92D050' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-        border: {
-          top: { style: 'thin', color: { rgb: '000000' } },
-          bottom: { style: 'thin', color: { rgb: '000000' } },
-          left: { style: 'thin', color: { rgb: '000000' } },
-          right: { style: 'thin', color: { rgb: '000000' } }
-        }
-      };
-    });
-    
-    // Set values for category headers
-    ws['I5'].v = 'Deduction';
-    ws['M5'].v = 'Government Contributions';
-    
-    // Style all Row 5 cells with green (even empty ones for consistency)
-    columnHeaders.forEach((col) => {
-      const cellRef = col + '5';
-      if (!ws[cellRef]) ws[cellRef] = { t: 's', v: '' };
-      if (!ws[cellRef].s) {
-        ws[cellRef].s = {
-          fill: { fgColor: { rgb: '92D050' } },
-          border: {
-            top: { style: 'thin', color: { rgb: '000000' } },
-            bottom: { style: 'thin', color: { rgb: '000000' } },
-            left: { style: 'thin', color: { rgb: '000000' } },
-            right: { style: 'thin', color: { rgb: '000000' } }
-          }
-        };
-      }
-    });
-    
-    // Apply Row 6: Individual column headers (Green background)
-    const headerLabels = [
-      'Employee', 'Hourly Rate', 'Daily Rate', 'Days Worked',
-      'Basic Salary (Semi Monthly)', 'Regular Overtime', 'REST DAY', 'Special Holiday',
-      'Salary Adjustment Deduction', 'Undertime', 'Late',
-      'Gross Pay Before Gov\'t Contributions', 'Reg - SSS EE', 'PHIC EE', 'HDMF EE',
-      'Net Taxable Salary', 'Withholding Tax', 'Net Pay After Tax',
-      'Allowance', 'Salary Net pay'
-    ];
-    
-    columnHeaders.forEach((col, idx) => {
-      const cellRef = col + '6';
-      ws[cellRef] = {
-        v: headerLabels[idx],
-        t: 's',
-        s: {
-          font: { bold: true, sz: 10 },
-          fill: { fgColor: { rgb: '92D050' } },
-          alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-          border: {
-            top: { style: 'thin', color: { rgb: '000000' } },
-            bottom: { style: 'thin', color: { rgb: '000000' } },
-            left: { style: 'thin', color: { rgb: '000000' } },
-            right: { style: 'thin', color: { rgb: '000000' } }
-          }
-        }
-      };
-    });
-    
-    // Apply center alignment and borders to all data cells
-    for (let row = dataRowStart; row <= lastDataRow; row++) {
-      columnHeaders.forEach((col) => {
-        const cellRef = col + row;
-        if (ws[cellRef]) {
-          ws[cellRef].s = {
-            alignment: { horizontal: 'center', vertical: 'center' },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          };
-        }
-      });
-    }
-    
-    // Apply TOTAL row styles (Green background) with formulas
-    const numericColumns = ['B', 'C', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T'];
-    columnHeaders.forEach((col) => {
-      const cellRef = col + totalRowIndex;
-      
-      if (numericColumns.includes(col)) {
-        ws[cellRef] = {
-          f: `SUM(${col}${dataRowStart}:${col}${lastDataRow})`,
-          t: 'n',
-          s: {
-            font: { bold: true, sz: 11 },
-            fill: { fgColor: { rgb: '92D050' } },
-            alignment: { horizontal: 'center', vertical: 'center' },
-            border: {
-              top: { style: 'thin', color: { rgb: '000000' } },
-              bottom: { style: 'thin', color: { rgb: '000000' } },
-              left: { style: 'thin', color: { rgb: '000000' } },
-              right: { style: 'thin', color: { rgb: '000000' } }
-            }
-          }
-        };
-      } else if (ws[cellRef]) {
-        ws[cellRef].s = {
-          font: { bold: true, sz: 11 },
-          fill: { fgColor: { rgb: '92D050' } },
-          alignment: { horizontal: 'center', vertical: 'center' },
-          border: {
-            top: { style: 'thin', color: { rgb: '000000' } },
-            bottom: { style: 'thin', color: { rgb: '000000' } },
-            left: { style: 'thin', color: { rgb: '000000' } },
-            right: { style: 'thin', color: { rgb: '000000' } }
-          }
-        };
-      }
-    });
-    
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Payroll');
-    
-    // Generate file name
-    const fileName = `Payroll_Cutoff_${selectedExportStartDate}_${selectedExportEndDate}.xlsx`;
-    
-    // Write file
-    XLSX.writeFile(wb, fileName);
-
-    const totalNetPay = exportPayrollRecords.reduce((sum, r) => {
-      const baseSalary = toNumber(r.base_salary);
-      const allowances = toNumber(r.allowances_total);
-      const tax = toNumber(r.tax);
-      const sss = baseSalary * 0.045;
-      const phic = baseSalary * 0.02;
-      const hdmf = 100;
-      return sum + (baseSalary - sss - phic - hdmf - tax + allowances);
-    }, 0);
-    
-    alert(`Payroll report exported successfully!\n${exportPayrollRecords.length} employees\nTotal Net Pay: ${formatCurrency(totalNetPay)}`);
-    setIsExportReportOpen(false);
-  };
-
-  const selectedEmployeeData = employees.find(e => e.id === selectedEmployee);
-  const totalExportNetSalary = exportPayrollRecords.reduce(
-    (total, record) => total + toNumber(record.net_salary),
-    0,
-  );
+  // Calculate analytics
+  const totalEmployees = employees.length;
+  const totalPayroll = recentPayrollRecords.reduce((sum, record) => sum + toNumber(record.net_salary), 0);
+  const averageSalary = totalEmployees > 0 ? totalPayroll / totalEmployees : 0;
+  const totalDeductions = recentPayrollRecords.reduce((sum, record) => {
+    const baseSalary = toNumber(record.base_salary);
+    const sss = baseSalary * 0.045;
+    const phic = baseSalary * 0.02;
+    const hdmf = 100;
+    const tax = toNumber(record.tax);
+    return sum + (sss + phic + hdmf + tax);
+  }, 0);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
-            <BarChart3 className="w-4 h-4" />
-            Analytics
-          </Button>
-        </div>
+        <h1 className="text-3xl font-bold tracking-tight">Payroll Management</h1>
+      </div>
+
+      {/* Analytics Dashboard */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Employees Card */}
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500/10 to-blue-600/10 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Employees</p>
+                <p className="text-3xl font-bold mt-2">{totalEmployees}</p>
+              </div>
+              <div className="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
+                <BarChart3 className="w-6 h-6 text-blue-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Total Payroll Card */}
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-green-500/10 to-green-600/10 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Payroll</p>
+                <p className="text-3xl font-bold mt-2 text-green-500">{formatCurrency(totalPayroll)}</p>
+              </div>
+              <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-green-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Average Salary Card */}
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500/10 to-purple-600/10 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Average Salary</p>
+                <p className="text-3xl font-bold mt-2 text-purple-500">{formatCurrency(averageSalary)}</p>
+              </div>
+              <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                <CheckCircle className="w-6 h-6 text-purple-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Total Deductions Card */}
+        <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500/10 to-orange-600/10 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Deductions</p>
+                <p className="text-3xl font-bold mt-2 text-orange-500">{formatCurrency(totalDeductions)}</p>
+              </div>
+              <div className="w-12 h-12 rounded-lg bg-orange-500/20 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-orange-500" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Payroll Actions */}
@@ -1037,10 +1105,6 @@ export function PayrollManagement() {
               <Settings className="w-6 h-6" />
               Government Contributions
             </Button>
-            <Button variant="outline" className="h-20 flex-col gap-2" onClick={handleOpenExportReport}>
-              <Download className="w-6 h-6" />
-              Export Reports
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -1048,39 +1112,99 @@ export function PayrollManagement() {
       {/* Recent Payroll Records */}
       <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle>Recent Payroll Records</CardTitle>
+          <CardTitle className="flex items-center justify-between">
+            <span>Recent Payroll Records</span>
+            <span className="text-sm font-normal text-muted-foreground">({filteredPayrollRecords.length})</span>
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Filter Section */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#AEAAAA]">Filter by Employee</Label>
+              <Select value={filterEmployee} onValueChange={setFilterEmployee}>
+                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-[#AEAAAA]">Filter by Period</Label>
+              <Select value={filterPayrollPeriod} onValueChange={setFilterPayrollPeriod}>
+                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Periods</SelectItem>
+                  <SelectItem value="29 - 13">29 - 13</SelectItem>
+                  <SelectItem value="14 - 28">14 - 28</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFilterEmployee('all');
+                  setFilterPayrollPeriod('all');
+                }}
+                className="w-full h-9"
+              >
+                Reset Filters
+              </Button>
+            </div>
+          </div>
+
+          {/* Records Display */}
           {isLoadingPayrollData ? (
             <p className="text-sm text-muted-foreground">Loading payroll records...</p>
           ) : payrollError ? (
             <p className="text-sm text-red-600">{payrollError}</p>
-          ) : recentPayrollRecords.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No payroll records yet. Process payroll to generate records.</p>
+          ) : filteredPayrollRecords.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {recentPayrollRecords.length === 0 ? 'No payroll records yet. Process payroll to generate records.' : 'No records match the selected filters.'}
+            </p>
           ) : (
-            <div className="space-y-3">
-              {recentPayrollRecords.map((record) => (
-                <div key={record.id} className="flex items-center justify-between p-4 rounded-lg border border-border/50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <Avatar>
-                      <AvatarImage src={record.employee_avatar} alt={record.employee_name} />
-                      <AvatarFallback>{(record.employee_name || '?').split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{record.employee_name}</p>
-                      <p className="text-sm text-muted-foreground">{record.employee_role || 'Employee'}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="text-sm font-medium">{formatCurrency(record.net_salary)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {record.period_start} to {record.period_end}
-                      </p>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {filteredPayrollRecords.map((record) => (
+                <div key={record.id} className="flex flex-col p-4 rounded-lg border border-border/50 bg-card/40 hover:bg-card/60 transition-colors cursor-pointer">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-4">
+                      <Avatar>
+                        <AvatarImage src={record.employee_avatar} alt={record.employee_name} />
+                        <AvatarFallback>{(record.employee_name || '?').split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{record.employee_name}</p>
+                        <p className="text-sm text-muted-foreground">{record.employee_role || 'Employee'}</p>
+                      </div>
                     </div>
                     <Badge className="bg-primary/10 text-primary border-primary">
                       {record.status_label || 'Processed'}
                     </Badge>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Period</p>
+                      <p className="font-semibold">{record.period_start} to {record.period_end}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Base Salary</p>
+                      <p className="font-semibold">{formatCurrency(record.base_salary)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Net Salary</p>
+                      <p className="font-semibold text-[#F27229]">{formatCurrency(record.net_salary)}</p>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1091,96 +1215,110 @@ export function PayrollManagement() {
 
       {/* Manage Tax/Deductions Modal */}
       <Dialog open={isTaxDeductionsOpen} onOpenChange={setIsTaxDeductionsOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="w-5 h-5" />
-              Manage Tax/Deductions
+              Manage Employee Contributions
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
-            {/* Add New Deduction */}
-            <div className="p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10">
-              <h3 className="text-sm font-semibold text-white mb-4">Add New Deduction</h3>
-              <div className="space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-[#AEAAAA]">Deduction Name</Label>
-                  <Input
-                    placeholder="e.g., Health Insurance"
-                    value={newDeductionName}
-                    onChange={(e) => setNewDeductionName(e.target.value)}
-                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-[#AEAAAA]">Type</Label>
-                    <Select value={newDeductionType} onValueChange={setNewDeductionType}>
-                      <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percentage">Percentage (%)</SelectItem>
-                        <SelectItem value="fixed">Fixed Amount (₱)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-[#AEAAAA]">Rate/Amount</Label>
-                    <Input
-                      type="number"
-                      placeholder={newDeductionType === 'percentage' ? '0.00' : '0'}
-                      value={newDeductionRate}
-                      onChange={(e) => setNewDeductionRate(e.target.value)}
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9"
-                    />
-                  </div>
-                </div>
-                <Button
-                  className="w-full gap-2 h-9"
-                  onClick={handleAddDeduction}
-                  disabled={isSavingDeduction}
-                >
-                  <Plus className="w-4 h-4" />
-                  {isSavingDeduction ? 'Saving...' : 'Add Deduction'}
-                </Button>
-              </div>
+            {/* Employee Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="contribution-employee">Select Employee</Label>
+              <Select value={selectedContributionEmployee} onValueChange={handleSelectContributionEmployee}>
+                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                  <SelectValue placeholder="Choose an employee to manage contributions" />
+                </SelectTrigger>
+                <SelectContent>
+                  {employees.map(emp => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{emp.name}</span>
+                        <span className="text-xs text-muted-foreground">({emp.employee_id || `ID-${emp.user_id}`})</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Each employee can have different contribution amounts for government benefits like SSS, PhilHealth, and Pag-IBIG.
+              </p>
             </div>
 
-            {/* Existing Deductions */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-white px-1">Current Deductions</h3>
-              {deductionError ? <p className="text-xs text-red-500 px-1">{deductionError}</p> : null}
-              {isLoadingDeductions ? (
-                <p className="text-sm text-muted-foreground px-1">Loading deductions...</p>
-              ) : deductions.length === 0 ? (
-                <p className="text-sm text-muted-foreground px-1">No deductions configured yet.</p>
-              ) : (
-                <div className="space-y-2">
-                  {deductions.map((deduction) => (
-                    <div key={deduction.id} className="p-3 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10 hover:bg-[#021B2C]/50 transition-colors">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-white">{deduction.name}</p>
-                          <p className="text-xs text-[#AEAAAA] mt-1">
-                            {deduction.type === 'percentage' ? `${deduction.rate}%` : `₱${deduction.rate}`}
-                          </p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteDeduction(deduction.id)}
-                          className="text-red-500 hover:text-red-600 hover:bg-red-500/10 h-8 w-8 p-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+            {selectedContributionEmployee && (
+              <>
+                {/* Employee Contributions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Add New Contribution */}
+                  <div className="p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10">
+                    <h3 className="text-sm font-semibold text-white mb-4">Add Contribution</h3>
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-[#AEAAAA]">Contribution Type</Label>
+                        <Input
+                          placeholder="e.g., SSS, PhilHealth, Pag-IBIG"
+                          value={newContributionName}
+                          onChange={(e) => setNewContributionName(e.target.value)}
+                          className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9"
+                        />
                       </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-[#AEAAAA]">Amount (₱)</Label>
+                        <Input
+                          type="number"
+                          placeholder="0.00"
+                          value={newContributionAmount}
+                          onChange={(e) => setNewContributionAmount(e.target.value)}
+                          className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9"
+                          min="0"
+                          step="0.01"
+                        />
+                      </div>
+                      <Button
+                        className="w-full gap-2 h-9"
+                        onClick={handleAddEmployeeContribution}
+                        disabled={isSavingEmployeeContribution}
+                      >
+                        <Plus className="w-4 h-4" />
+                        {isSavingEmployeeContribution ? 'Saving...' : 'Add Contribution'}
+                      </Button>
                     </div>
-                  ))}
+                  </div>
+
+                  {/* Current Contributions */}
+                  <div className="p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10">
+                    <h3 className="text-sm font-semibold text-white mb-4">Current Contributions</h3>
+                    {contributionError && <p className="text-xs text-red-500 mb-3">{contributionError}</p>}
+                    {isLoadingEmployeeContributions ? (
+                      <p className="text-sm text-muted-foreground">Loading contributions...</p>
+                    ) : employeeContributions.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No contributions configured yet.</p>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {employeeContributions.map((contribution) => (
+                          <div key={contribution.id} className="p-2 rounded bg-[#021B2C] flex items-center justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-white truncate">{contribution.name}</p>
+                              <p className="text-xs text-[#AEAAAA]">₱{parseFloat(contribution.amount).toFixed(2)}</p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteEmployeeContribution(contribution.id)}
+                              className="text-red-500 hover:text-red-600 hover:bg-red-500/10 h-8 w-8 p-0 flex-shrink-0"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-4 border-t">
@@ -1191,125 +1329,9 @@ export function PayrollManagement() {
         </DialogContent>
       </Dialog>
 
-      {/* Export Report Modal */}
-      <Dialog open={isExportReportOpen} onOpenChange={setIsExportReportOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Download className="w-5 h-5" />
-              Export Payroll Report
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="export-start-date">Payslip Created From</Label>
-                <Input
-                  id="export-start-date"
-                  type="date"
-                  value={selectedExportStartDate}
-                  onChange={(e) => setSelectedExportStartDate(e.target.value)}
-                  className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="export-end-date">Payslip Created To</Label>
-                <Input
-                  id="export-end-date"
-                  type="date"
-                  value={selectedExportEndDate}
-                  onChange={(e) => setSelectedExportEndDate(e.target.value)}
-                  className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
-                />
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              This loads all payslips created within the selected date range for all employees.
-            </p>
-
-            {isLoadingExportRecords ? (
-              <p className="text-sm text-muted-foreground">Loading payroll records...</p>
-            ) : exportReportError ? (
-              <p className="text-sm text-red-600">{exportReportError}</p>
-            ) : exportPayrollRecords.length === 0 ? (
-              <Card className="bg-[#002035] border-[#AEAAAA]/20">
-                <CardContent className="p-4">
-                  <p className="text-sm text-muted-foreground">
-                    No payroll records found for the selected created date.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                <Card className="bg-[#002035] border-[#AEAAAA]/20">
-                  <CardContent className="p-4 flex items-center justify-between gap-4">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Records Found</p>
-                      <p className="text-lg font-semibold">{exportPayrollRecords.length}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-muted-foreground">Total Net Salary</p>
-                      <p className="text-lg font-semibold text-[#F27229]">{formatCurrency(totalExportNetSalary)}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
-                  {exportPayrollRecords.map((record) => (
-                    <div key={record.id} className="p-3 rounded-lg border border-border/50 bg-card/40">
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium">{record.employee_name || 'Employee'}</p>
-                          <p className="text-xs text-muted-foreground">{record.employee_role || 'Employee'}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Period: {formatDisplayDate(record.period_start)} to {formatDisplayDate(record.period_end)}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Created: {formatDisplayDateTime(record.created_at)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-sm font-semibold">{formatCurrency(record.net_salary)}</p>
-                          <Badge className="bg-primary/10 text-primary border-primary mt-1">
-                            {record.status_label || 'Processed'}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-
-            <Card className="bg-[#002035] border-[#AEAAAA]/20">
-              <CardContent className="p-3">
-                <p className="text-sm text-muted-foreground">
-                  The exported file is a professional Excel (.xlsx) report with formatted headers, totals, and company branding.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={() => setIsExportReportOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleExportReport}
-              className="gap-2"
-              disabled={isLoadingExportRecords || exportPayrollRecords.length === 0 || !selectedExportStartDate || !selectedExportEndDate}
-            >
-              <Download className="w-4 h-4" />
-              Export
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* Process Payroll Modal */}
       <Dialog open={isProcessPayrollOpen} onOpenChange={setIsProcessPayrollOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Calculator className="w-5 h-5" />
@@ -1320,7 +1342,7 @@ export function PayrollManagement() {
           <div className="space-y-6 py-4">
             {/* Employee Selection */}
             <div className="space-y-2">
-              <Label htmlFor="employee">Select Employee</Label>
+              <Label htmlFor="employee">Employee Name</Label>
               <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
                 <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
                   <SelectValue placeholder="Choose an employee" />
@@ -1338,191 +1360,333 @@ export function PayrollManagement() {
               </Select>
             </div>
 
-            {/* Payroll Date Range (15-day cycle) */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Payroll Period Selection */}
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="periodStart">Start Date</Label>
+                <Label htmlFor="monthSelect">Month</Label>
+                <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
+                  <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((month) => (
+                      <SelectItem key={month} value={month.toString()}>
+                        {new Date(2024, month - 1, 1).toLocaleString('default', { month: 'long' })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="yearSelect">Year</Label>
+                <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
+                  <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((year) => (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="periodSelect">Payroll Period</Label>
+                <Select value={selectedPayrollPeriod} onValueChange={setSelectedPayrollPeriod}>
+                  <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="29-13">29 - 13</SelectItem>
+                    <SelectItem value="14-28">14 - 28</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Designation</Label>
                 <Input
-                  id="periodStart"
-                  type="date"
-                  value={selectedStartDate}
-                  onChange={(e) => setSelectedStartDate(e.target.value)}
+                  value={selectedEmployeeData?.position || ''}
+                  readOnly
+                  placeholder="Employee role"
                   className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="periodEnd">End Date</Label>
+                <Label htmlFor="monthlyAmount">Monthly</Label>
                 <Input
-                  id="periodEnd"
-                  type="date"
-                  value={selectedEndDate}
-                  onChange={(e) => setSelectedEndDate(e.target.value)}
+                  id="monthlyAmount"
+                  type="number"
+                  value={payslipForm.monthly}
+                  onChange={(e) => handlePayslipFieldChange('monthly', e.target.value)}
                   className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                  min="0"
+                  step="0.01"
                 />
               </div>
             </div>
 
-            {/* Employee Info Card */}
-            {selectedEmployeeData && (
-              <Card className="border-2 border-[#F27229]/20 bg-[#002035]">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-12 h-12">
-                      <AvatarImage src={selectedEmployeeData.avatar} alt={selectedEmployeeData.name} />
-                      <AvatarFallback>{selectedEmployeeData.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{selectedEmployeeData.name}</p>
-                      <p className="text-sm text-muted-foreground">{selectedEmployeeData.position}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <Card className="border border-[#AEAAAA]/20 bg-[#002035]">
+              <CardHeader>
+                <CardTitle className="text-base">Earnings</CardTitle>
+              </CardHeader>
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="basicSalary">Basic Salary</Label>
+                  <Input
+                    id="basicSalary"
+                    type="number"
+                    value={payslipForm.basicSalary}
+                    onChange={(e) => handlePayslipFieldChange('basicSalary', e.target.value)}
+                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="regularOvertime">Regular Overtime</Label>
+                  <Input
+                    id="regularOvertime"
+                    type="number"
+                    value={payslipForm.regularOvertime}
+                    onChange={(e) => handlePayslipFieldChange('regularOvertime', e.target.value)}
+                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lateUndertime">Late/Undertime</Label>
+                  <Input
+                    id="lateUndertime"
+                    type="number"
+                    value={payslipForm.lateUndertime}
+                    onChange={(e) => handlePayslipFieldChange('lateUndertime', e.target.value)}
+                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    min="0"
+                    step="0.01"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Based on attendance totals: Late {toNumber(attendanceData?.lateCount)} | Undertime Hours {toNumber(attendanceData?.undertimeHours ?? attendanceData?.undertime).toFixed(2)}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Rest Day</Label>
+                  <Input
+                    value=""
+                    readOnly
+                    placeholder=""
+                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="restDayOt">Rest Day OT</Label>
+                  <Input
+                    id="restDayOt"
+                    type="number"
+                    value={payslipForm.restDayOt}
+                    onChange={(e) => handlePayslipFieldChange('restDayOt', e.target.value)}
+                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Holiday</Label>
+                  <Input
+                    value=""
+                    readOnly
+                    placeholder=""
+                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* Attendance Summary */}
-            {isFetchingAttendance ? (
-              <Card className="bg-[#002035] border-[#AEAAAA]/20">
-                <CardContent className="p-4">
-                  <p className="text-sm text-muted-foreground">Loading attendance summary...</p>
-                </CardContent>
-              </Card>
-            ) : attendanceData ? (
-              <Card className="bg-[#002035] border-[#AEAAAA]/20">
-                <CardHeader>
-                  <CardTitle className="text-base">Attendance Summary</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Total Days Worked</p>
-                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.totalDays}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Total Hours</p>
-                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.totalHours}h</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Late Count</p>
-                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.lateCount}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Leave Days</p>
-                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.leaveCount}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Absences</p>
-                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.absences}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Working Days</p>
-                      <p className="text-xl font-medium text-[#F27229]">{attendanceData.working_days}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : selectedEmployee && selectedStartDate && selectedEndDate ? (
-              <Card className="bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
-                    <AlertCircle className="w-5 h-5" />
-                    <p className="text-sm">
-                      {selectedEndDate < selectedStartDate
-                        ? 'End date cannot be earlier than start date.'
-                        : 'No attendance data available for this period.'}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : null}
-
-            {/* Salary Input */}
-            <div className="space-y-2">
-              <Label htmlFor="dailySalary">Daily Salary Rate (₱)</Label>
-              <Input
-                id="dailySalary"
-                type="number"
-                placeholder="Enter daily salary rate"
-                value={dailySalary}
-                onChange={(e) => setDailySalary(e.target.value)}
-                min="0"
-                className="bg-[#021B2C] border-[#AEAAAA]/20 text-white [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the employee's daily salary rate for calculation
-              </p>
-            </div>
-
-            {/* Salary Calculation */}
-            {calculations && (
-              <Card className="border-2 border-[#F27229]/20 bg-[#002035]">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                    Salary Breakdown
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Base Salary */}
-                  <div className="flex justify-between items-center pb-3 border-b">
-                    <span className="font-medium">Base Salary</span>
-                    <span className="text-lg font-semibold">₱{calculations.baseSalary.toFixed(2)}</span>
-                  </div>
-
-                  {/* Deductions */}
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">Deductions:</p>
-
-                    {calculations.deductions.absences > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Absences</span>
-                        <span className="text-red-600">- ₱{calculations.deductions.absences.toFixed(2)}</span>
-                      </div>
-                    )}
-
-                    {calculations.deductions.late > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Late Deductions</span>
-                        <span className="text-red-600">- ₱{calculations.deductions.late.toFixed(2)}</span>
-                      </div>
-                    )}
-
-                    {calculations.deductions.leave > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Unpaid Leave</span>
-                        <span className="text-red-600">- ₱{calculations.deductions.leave.toFixed(2)}</span>
-                      </div>
-                    )}
-                    {calculations.deductionItems.length > 0 ? (
-                      calculations.deductionItems.map((item) => (
-                        <div key={item.id || item.name} className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">{item.name}</span>
-                          <span className="text-red-600">- ₱{toNumber(item.amount).toFixed(2)}</span>
+            <Card className="border border-[#AEAAAA]/20 bg-[#002035]">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between gap-3">
+                  <CardTitle className="text-base">Deductions</CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (isEditingModalContributions) {
+                        handleSaveModalContributions();
+                        return;
+                      }
+                      setIsEditingModalContributions(true);
+                    }}
+                    disabled={!selectedEmployee || isLoadingModalContributions || isSavingModalContributions}
+                  >
+                    {isEditingModalContributions
+                      ? (isSavingModalContributions ? 'Saving...' : 'Save')
+                      : 'Edit'}
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Government Contributions</Label>
+                  {isLoadingModalContributions ? (
+                    <p className="text-sm text-muted-foreground">Loading government contributions...</p>
+                  ) : modalEmployeeContributions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No government contributions configured for this employee.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {modalEmployeeContributions.map((item) => (
+                        <div key={item.id} className="grid grid-cols-2 gap-3 items-center">
+                          <p className="text-sm text-muted-foreground">{item.name}</p>
+                          {isEditingModalContributions ? (
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.amount}
+                              onChange={(e) => handleModalContributionAmountChange(item.id, e.target.value)}
+                              className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9"
+                            />
+                          ) : (
+                            <p className="text-sm font-medium text-right">₱{toNumber(item.amount).toFixed(2)}</p>
+                          )}
                         </div>
-                      ))
-                    ) : (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Configured Deductions</span>
-                        <span className="text-red-600">- ₱0.00</span>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between text-sm font-medium pt-2 border-t">
-                      <span className="text-muted-foreground">Total Deductions</span>
-                      <span className="text-red-600">- ₱{calculations.totalDeductions.toFixed(2)}</span>
+                      ))}
                     </div>
-                  </div>
+                  )}
+                </div>
 
-                  {/* Net Salary */}
-                  <div className="flex justify-between items-center pt-3 border-t-2 border-green-300 dark:border-green-700">
-                    <span className="text-lg font-semibold">Net Salary</span>
-                    <span className="text-2xl font-bold text-[#F27229]">
-                      ₱{calculations.netSalary.toFixed(2)}
-                    </span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="netTaxableSalary">NET Taxable Salary</Label>
+                    <Input
+                      id="netTaxableSalary"
+                      type="number"
+                      value={payslipForm.netTaxableSalary}
+                      onChange={(e) => handlePayslipFieldChange('netTaxableSalary', e.target.value)}
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      min="0"
+                      step="0.01"
+                    />
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  <div className="space-y-2">
+                    <Label htmlFor="payrollTax">Payroll Tax</Label>
+                    <Input
+                      id="payrollTax"
+                      type="number"
+                      value={payslipForm.payrollTax}
+                      onChange={(e) => handlePayslipFieldChange('payrollTax', e.target.value)}
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="totalDeductions">Total Deductions</Label>
+                    <Input
+                      id="totalDeductions"
+                      type="number"
+                      value={payslipForm.totalDeductions}
+                      onChange={(e) => handlePayslipFieldChange('totalDeductions', e.target.value)}
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-[#AEAAAA]/20 bg-[#002035]">
+              <CardContent className="pt-6 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="grossAmount">GROSS Amount</Label>
+                    <Input
+                      id="grossAmount"
+                      type="number"
+                      value={payslipForm.grossAmount}
+                      onChange={(e) => handlePayslipFieldChange('grossAmount', e.target.value)}
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="payrollAllowance">Payroll Allowance</Label>
+                    <Input
+                      id="payrollAllowance"
+                      type="number"
+                      value={payslipForm.payrollAllowance}
+                      onChange={(e) => handlePayslipFieldChange('payrollAllowance', e.target.value)}
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="companyLoanCashAdvance">Company Loan/Cash Advance</Label>
+                    <Input
+                      id="companyLoanCashAdvance"
+                      type="number"
+                      value={payslipForm.companyLoanCashAdvance}
+                      onChange={(e) => handlePayslipFieldChange('companyLoanCashAdvance', e.target.value)}
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      min="0"
+                      step="0.01"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="salaryNetPay" className="text-[#F27229] font-semibold">SALARY NET PAY</Label>
+                  <Input
+                    id="salaryNetPay"
+                    type="number"
+                    value={payslipForm.salaryNetPay}
+                    onChange={(e) => handlePayslipFieldChange('salaryNetPay', e.target.value)}
+                    className="bg-[#021B2C] border-[#F27229]/40 text-[#F27229] font-semibold"
+                    min="0"
+                    step="0.01"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="preparedBy">Prepared By (Accounting Department)</Label>
+                    <Input
+                      id="preparedBy"
+                      value={payslipForm.preparedBy}
+                      readOnly
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="approvedByTopManagement">Approved By (Top Management)</Label>
+                    <Input
+                      id="approvedByTopManagement"
+                      value={payslipForm.approvedByTopManagement}
+                      onChange={(e) => handlePayslipFieldChange('approvedByTopManagement', e.target.value)}
+                      placeholder=""
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="approvedBy">Approved By</Label>
+                    <Input
+                      id="approvedBy"
+                      value={payslipForm.approvedBy}
+                      onChange={(e) => handlePayslipFieldChange('approvedBy', e.target.value)}
+                      placeholder=""
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Action Buttons */}
@@ -1532,11 +1696,11 @@ export function PayrollManagement() {
             </Button>
             <Button
               onClick={handleGeneratePayslip}
-              disabled={!selectedEmployee || !selectedStartDate || !selectedEndDate || selectedEndDate < selectedStartDate || isProcessingPayroll}
+              disabled={!selectedEmployee || isProcessingPayroll}
               className="gap-2"
             >
               <CheckCircle className="w-4 h-4" />
-              {isProcessingPayroll ? 'Processing...' : 'Generate Payslip'}
+              {isProcessingPayroll ? 'Processing...' : 'Process Payroll'}
             </Button>
           </div>
         </DialogContent>

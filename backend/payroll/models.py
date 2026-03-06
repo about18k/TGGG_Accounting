@@ -87,6 +87,23 @@ class Allowance(models.Model):
         return f"{self.employee.email} - {self.get_allowance_type_display()}"
 
 
+class EmployeeContribution(models.Model):
+    """Employee-specific government contributions (SSS, PhilHealth, Pag-IBIG, etc.)"""
+    employee = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='contributions')
+    name = models.CharField(max_length=100)  # SSS, PhilHealth, Pag-IBIG, etc.
+    amount = models.DecimalField(max_digits=10, decimal_places=2)  # Fixed amount to be deducted
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+        unique_together = ('employee', 'name')
+
+    def __str__(self):
+        return f"{self.employee.email} - {self.name}: ₱{self.amount}"
+
+
 class PaySlip(models.Model):
     STATUS_CHOICES = [
         ('draft', 'Draft'),

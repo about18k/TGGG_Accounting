@@ -3,7 +3,7 @@ import { Calendar, CheckSquare, Clock, LogOut, User } from 'lucide-react';
 
 const MENU_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Clock },
-  { id: 'overtime', label: 'Overtime & Leave', icon: Calendar },
+  { id: 'overtime', label: 'Overtime Requests', icon: Calendar },
   { id: 'todo', label: 'Tasks & Todo', icon: CheckSquare },
   { id: 'profile', label: 'Profile', icon: User },
 ];

@@ -9,6 +9,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
 from .models import CustomUser, Department, ROLE_CHOICES
 from .serializers import CustomUserSerializer, PendingUserSerializer
+from payroll.whatsapp_utils import normalize_phone_to_e164
 import uuid
 from supabase import create_client, Client
 from django.db import transaction
@@ -422,6 +423,7 @@ def accounting_employees(request):
                 'name': f"{user.first_name} {user.last_name}".strip(),
                 'email': user.email,
                 'phone': user.phone_number or '',
+                'whatsapp_account': user.phone_number or '',
                 'department': user.department.name if user.department else 'Unassigned',
                 'position': user.get_role_display() if user.role else 'Unassigned',
                 'status': status_text,
@@ -439,7 +441,10 @@ def accounting_employees(request):
         email = (request.data.get('email') or '').strip().lower()
         first_name = (request.data.get('first_name') or '').strip()
         last_name = (request.data.get('last_name') or '').strip()
+        whatsapp_account = request.data.get('whatsapp_account')
         phone = (request.data.get('phone') or '').strip()
+        if whatsapp_account is not None:
+            phone = str(whatsapp_account).strip()
         department_name = request.data.get('department')
         position_role = (request.data.get('position') or '').strip()
         temporary_password = (request.data.get('temporary_password') or '').strip()
@@ -453,6 +458,13 @@ def accounting_employees(request):
 
         if CustomUser.objects.filter(email=email).exists():
             return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate phone number format if provided
+        if phone:
+            try:
+                phone = normalize_phone_to_e164(phone)
+            except ValueError as e:
+                return Response({'error': f'Invalid phone number format: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             with transaction.atomic():
@@ -565,6 +577,7 @@ def accounting_employee_detail(request, user_id):
                 last_name = request.data.get('last_name')
                 email = request.data.get('email')
                 phone = request.data.get('phone')
+                whatsapp_account = request.data.get('whatsapp_account')
                 department_name = request.data.get('department')
                 position_role = request.data.get('position')
                 salary_amount = request.data.get('salary')
@@ -583,8 +596,22 @@ def accounting_employee_detail(request, user_id):
                     if existing:
                         return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
                     user.email = normalized_email
-                if phone is not None:
-                    user.phone_number = str(phone).strip()
+                if whatsapp_account is not None:
+                    phone_value = str(whatsapp_account).strip()
+                    if phone_value:
+                        try:
+                            phone_value = normalize_phone_to_e164(phone_value)
+                        except ValueError as e:
+                            return Response({'error': f'Invalid phone number format: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+                    user.phone_number = phone_value
+                elif phone is not None:
+                    phone_value = str(phone).strip()
+                    if phone_value:
+                        try:
+                            phone_value = normalize_phone_to_e164(phone_value)
+                        except ValueError as e:
+                            return Response({'error': f'Invalid phone number format: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+                    user.phone_number = phone_value
                 if start_date is not None:
                     user.date_hired = start_date
 

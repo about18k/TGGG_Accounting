@@ -37,3 +37,26 @@ export async function processPayroll(payload) {
     const { data } = await api.post('/payroll/process/', payload);
     return data;
 }
+
+export async function getEmployeeContributions(employeeId) {
+    const { data } = await api.get(`/payroll/employees/${employeeId}/contributions/`);
+    return data;
+}
+
+export async function updateEmployeeContributions(employeeId, payload) {
+    const { data } = await api.post(`/payroll/employees/${employeeId}/contributions/`, payload);
+    return data;
+}
+
+export async function deleteEmployeeContribution(employeeId, contributionId) {
+    const { data } = await api.delete(`/payroll/employees/${employeeId}/contributions/${contributionId}/`);
+    return data;
+}
+
+export async function notifyEmployeePayroll(employeeId, payload = {}) {
+    const { data } = await api.post('/payroll/notify-employee/', {
+        employee_id: employeeId,
+        ...payload,
+    });
+    return data;
+}

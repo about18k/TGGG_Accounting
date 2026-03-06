@@ -33,8 +33,8 @@ const tabMeta = {
     description: 'Manage employee records and profile information.',
   },
   attendance: {
-    title: 'Attendance & Leave',
-    description: 'Track attendance logs, absences, and leave requests.',
+    title: 'Attendance',
+    description: 'Track attendance logs and absences.',
   },
   payroll: {
     title: 'Payroll Management',
@@ -52,8 +52,8 @@ const sectionMeta = {
     description: 'Review personal attendance logs and leave activity.',
   },
   overtime: {
-    title: 'Overtime & Leave Requests',
-    description: 'Submit and track overtime and leave requests.',
+    title: 'Overtime Requests',
+    description: 'Submit and track overtime requests.',
   },
 };
 

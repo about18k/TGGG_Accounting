@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
@@ -10,7 +11,8 @@ from rest_framework.response import Response
 
 from accounts.models import CustomUser
 from attendance.models import Attendance
-from .models import DeductionType, PaySlip, PayrollProcessing
+from .models import DeductionType, PaySlip, PayrollProcessing, EmployeeContribution
+from .whatsapp_utils import normalize_phone_to_e164, send_whatsapp_notification
 
 # Create your views here.
 
@@ -37,6 +39,28 @@ def _safe_money(value):
     return Decimal(value).quantize(Decimal('0.01'))
 
 
+def _parse_money_input(value, field_name, default=Decimal('0')):
+    if value in [None, '']:
+        return _safe_money(default)
+    try:
+        amount = _safe_money(Decimal(str(value)))
+    except (InvalidOperation, TypeError):
+        raise ValueError(f'{field_name} must be numeric.')
+    if amount < 0:
+        raise ValueError(f'{field_name} must be non-negative.')
+    return amount
+
+
+def _parse_payslip_notes(notes_value):
+    if not notes_value:
+        return {}
+    try:
+        parsed = json.loads(notes_value)
+        return parsed if isinstance(parsed, dict) else {}
+    except Exception:
+        return {}
+
+
 def _count_weekdays(start_date, end_date):
     count = 0
     current = start_date
@@ -49,6 +73,7 @@ def _count_weekdays(start_date, end_date):
 
 def _serialize_payslip(payslip):
     employee = payslip.employee
+    payslip_details = _parse_payslip_notes(payslip.notes)
     return {
         'id': payslip.id,
         'employee_id': employee.id,
@@ -59,6 +84,9 @@ def _serialize_payslip(payslip):
         'period_start': payslip.period_start,
         'period_end': payslip.period_end,
         'base_salary': str(payslip.base_salary),
+        'allowances_total': str(payslip.allowances_total),
+        'overtime_amount': str(payslip.overtime_amount),
+        'bonus': str(payslip.bonus),
         'gross_salary': str(payslip.gross_salary),
         'deductions_total': str(payslip.deductions_total),
         'tax': str(payslip.tax),
@@ -69,6 +97,9 @@ def _serialize_payslip(payslip):
         'days_on_leave': payslip.days_on_leave,
         'status': payslip.status,
         'status_label': payslip.get_status_display(),
+        'payment_date': payslip.payment_date,
+        'notes': payslip.notes,
+        'payslip_details': payslip_details,
         'created_at': payslip.created_at,
         'updated_at': payslip.updated_at,
     }
@@ -161,6 +192,10 @@ def _attendance_summary(employee, period_start, period_end):
         hours = Decimal((end_dt - start_dt).total_seconds()) / Decimal('3600')
         total_hours += hours
 
+    expected_hours = Decimal(days_present) * Decimal('8')
+    undertime_hours = max(Decimal('0'), expected_hours - total_hours)
+    undertime_hours = undertime_hours.quantize(Decimal('0.01'))
+
     return {
         'working_days': working_days,
         'days_present': days_present,
@@ -169,11 +204,14 @@ def _attendance_summary(employee, period_start, period_end):
         'late_count': late_count,
         'total_records': total_logs,
         'total_hours': float(total_hours.quantize(Decimal('0.01'))),
+        'undertime_hours': float(undertime_hours),
         # Backward-friendly keys for frontend display
         'totalDays': days_present,
         'leaveCount': days_on_leave,
         'absences': days_absent,
         'lateCount': late_count,
+        'undertimeHours': float(undertime_hours),
+        'undertime': float(undertime_hours),
     }
 
 
@@ -264,6 +302,9 @@ def process_payroll(request):
     period_start_raw = request.data.get('period_start')
     period_end_raw = request.data.get('period_end')
     daily_salary_raw = request.data.get('daily_salary')
+    payslip_form = request.data.get('payslip_form') or {}
+    if not isinstance(payslip_form, dict):
+        return Response({'error': 'payslip_form must be an object.'}, status=status.HTTP_400_BAD_REQUEST)
 
     if not employee_id or not period_start_raw or not period_end_raw:
         return Response({'error': 'employee_id, period_start, and period_end are required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -304,44 +345,221 @@ def process_payroll(request):
         return Response({'error': 'No daily salary provided and no salary structure found for employee.'}, status=status.HTTP_400_BAD_REQUEST)
 
     summary = _attendance_summary(employee, period_start, period_end)
-    base_salary = _safe_money(daily_rate * Decimal(summary['days_present']))
-    gross_salary = base_salary
+    computed_base_salary = _safe_money(daily_rate * Decimal(summary['days_present']))
+    undertime_hours = _safe_money(Decimal(str(summary.get('undertime_hours', 0))))
+    computed_late_deduction = _safe_money(daily_rate * Decimal('0.10') * Decimal(summary['late_count']))
+    computed_undertime_deduction = _safe_money((daily_rate / Decimal('8')) * undertime_hours)
 
-    absence_deduction = _safe_money(daily_rate * Decimal(summary['days_absent']))
-    late_deduction = _safe_money(daily_rate * Decimal('0.10') * Decimal(summary['late_count']))
-    leave_deduction = _safe_money(daily_rate * Decimal(summary['days_on_leave']))
-    configured = _calculate_configured_deductions(base_salary)
-    configured_total = configured['total']
-    tax_amount = configured['tax_total']
+    submitted_contributions = payslip_form.get('government_contributions')
+    contribution_items = []
+    if isinstance(submitted_contributions, list) and submitted_contributions:
+        for index, entry in enumerate(submitted_contributions):
+            if not isinstance(entry, dict):
+                return Response({'error': f'government_contributions[{index}] must be an object.'}, status=status.HTTP_400_BAD_REQUEST)
+            name = (entry.get('name') or '').strip() or f'Contribution {index + 1}'
+            try:
+                amount = _parse_money_input(entry.get('amount'), f'government_contributions[{index}].amount')
+            except ValueError as exc:
+                return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+            contribution_items.append({
+                'id': entry.get('id'),
+                'name': name,
+                'category': 'contribution',
+                'type': 'fixed',
+                'rate': str(amount),
+                'amount': str(amount),
+            })
+    else:
+        employee_contributions = EmployeeContribution.objects.filter(employee=employee, is_active=True).order_by('name')
+        contribution_items = [{
+            'id': row.id,
+            'name': row.name,
+            'category': 'contribution',
+            'type': 'fixed',
+            'rate': str(_safe_money(row.amount)),
+            'amount': str(_safe_money(row.amount)),
+        } for row in employee_contributions]
 
-    deductions_total = _safe_money(
-        absence_deduction +
-        late_deduction +
-        leave_deduction +
-        configured_total
-    )
-    net_salary = _safe_money(max(Decimal('0'), gross_salary - deductions_total))
+    contribution_total = _safe_money(sum(Decimal(item['amount']) for item in contribution_items) if contribution_items else Decimal('0'))
 
-    configured_items = configured['items']
+    manual_mode = bool(payslip_form)
+
+    if manual_mode:
+        try:
+            monthly_amount = _parse_money_input(payslip_form.get('monthly'), 'monthly', computed_base_salary)
+            basic_salary = _parse_money_input(payslip_form.get('basic_salary'), 'basic_salary', computed_base_salary)
+            regular_overtime = _parse_money_input(payslip_form.get('regular_overtime'), 'regular_overtime')
+            late_undertime = _parse_money_input(
+                payslip_form.get('late_undertime'),
+                'late_undertime',
+                _safe_money(computed_late_deduction + computed_undertime_deduction),
+            )
+            rest_day_ot = _parse_money_input(payslip_form.get('rest_day_ot'), 'rest_day_ot')
+            gross_salary = _parse_money_input(
+                payslip_form.get('gross_amount'),
+                'gross_amount',
+                _safe_money(basic_salary + regular_overtime + rest_day_ot),
+            )
+            net_taxable_salary = _parse_money_input(
+                payslip_form.get('net_taxable_salary'),
+                'net_taxable_salary',
+                gross_salary,
+            )
+            payroll_tax = _parse_money_input(payslip_form.get('payroll_tax'), 'payroll_tax')
+            total_deductions_input = _parse_money_input(
+                payslip_form.get('total_deductions'),
+                'total_deductions',
+                _safe_money(late_undertime + payroll_tax + contribution_total),
+            )
+            payroll_allowance = _parse_money_input(payslip_form.get('payroll_allowance'), 'payroll_allowance')
+            company_loan_cash_advance = _parse_money_input(
+                payslip_form.get('company_loan_cash_advance'),
+                'company_loan_cash_advance',
+            )
+            salary_net_pay = _parse_money_input(
+                payslip_form.get('salary_net_pay'),
+                'salary_net_pay',
+                _safe_money(gross_salary + payroll_allowance - company_loan_cash_advance - total_deductions_input),
+            )
+        except ValueError as exc:
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        deductions_total = total_deductions_input
+        tax_amount = payroll_tax
+        allowances_total = payroll_allowance
+        overtime_amount = regular_overtime
+        bonus_amount = rest_day_ot
+        net_salary = _safe_money(max(Decimal('0'), salary_net_pay))
+
+        base_deduction_sum = _safe_money(late_undertime + payroll_tax + contribution_total)
+        manual_adjustment = _safe_money(max(Decimal('0'), deductions_total - base_deduction_sum))
+
+        deduction_items = []
+        if late_undertime > 0:
+            deduction_items.append({
+                'name': 'Late/Undertime',
+                'category': 'attendance',
+                'type': 'fixed',
+                'rate': str(late_undertime),
+                'amount': str(late_undertime),
+            })
+        deduction_items.extend(contribution_items)
+        if payroll_tax > 0:
+            deduction_items.append({
+                'name': 'Payroll Tax',
+                'category': 'tax',
+                'type': 'fixed',
+                'rate': str(payroll_tax),
+                'amount': str(payroll_tax),
+            })
+        if manual_adjustment > 0:
+            deduction_items.append({
+                'name': 'Manual Deduction Adjustment',
+                'category': 'other',
+                'type': 'fixed',
+                'rate': str(manual_adjustment),
+                'amount': str(manual_adjustment),
+            })
+
+        prepared_by_name = (payslip_form.get('prepared_by') or '').strip()
+        if not prepared_by_name:
+            prepared_by_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.email
+
+        payslip_details = {
+            'designation': payslip_form.get('designation') or (employee.get_role_display() if employee.role else ''),
+            'monthly': str(monthly_amount),
+            'basic_salary': str(basic_salary),
+            'regular_overtime': str(regular_overtime),
+            'late_undertime': str(late_undertime),
+            'rest_day': '',
+            'rest_day_ot': str(rest_day_ot),
+            'holiday': '',
+            'government_contributions': [
+                {'name': item['name'], 'amount': item['amount']}
+                for item in contribution_items
+            ],
+            'net_taxable_salary': str(net_taxable_salary),
+            'payroll_tax': str(payroll_tax),
+            'total_deductions': str(deductions_total),
+            'gross_amount': str(gross_salary),
+            'payroll_allowance': str(payroll_allowance),
+            'company_loan_cash_advance': str(company_loan_cash_advance),
+            'salary_net_pay': str(net_salary),
+            'prepared_by': prepared_by_name,
+            'approved_by_top_management': (payslip_form.get('approved_by_top_management') or '').strip(),
+            'approved_by': (payslip_form.get('approved_by') or '').strip(),
+        }
+    else:
+        configured = _calculate_configured_deductions(computed_base_salary)
+        configured_items = configured['items']
+        configured_total = configured['total']
+        tax_amount = configured['tax_total']
+
+        absence_deduction = _safe_money(daily_rate * Decimal(summary['days_absent']))
+        leave_deduction = _safe_money(daily_rate * Decimal(summary['days_on_leave']))
+        late_undertime_total = _safe_money(computed_late_deduction + computed_undertime_deduction)
+
+        basic_salary = computed_base_salary
+        overtime_amount = _safe_money(Decimal('0'))
+        bonus_amount = _safe_money(Decimal('0'))
+        allowances_total = _safe_money(Decimal('0'))
+        gross_salary = basic_salary
+        deductions_total = _safe_money(
+            absence_deduction +
+            leave_deduction +
+            late_undertime_total +
+            configured_total +
+            contribution_total
+        )
+        net_salary = _safe_money(max(Decimal('0'), gross_salary - deductions_total))
+
+        deduction_items = [
+            {'name': 'Absences', 'category': 'attendance', 'type': 'computed', 'rate': None, 'amount': str(absence_deduction)},
+            {'name': 'Unpaid Leave', 'category': 'attendance', 'type': 'computed', 'rate': None, 'amount': str(leave_deduction)},
+            {'name': 'Late/Undertime', 'category': 'attendance', 'type': 'computed', 'rate': None, 'amount': str(late_undertime_total)},
+            *contribution_items,
+            *configured_items,
+        ]
+
+        payslip_details = {
+            'designation': employee.get_role_display() if employee.role else '',
+            'monthly': str(_safe_money(daily_rate * Decimal('22'))),
+            'basic_salary': str(basic_salary),
+            'regular_overtime': str(_safe_money(Decimal('0'))),
+            'late_undertime': str(late_undertime_total),
+            'rest_day': '',
+            'rest_day_ot': str(_safe_money(Decimal('0'))),
+            'holiday': '',
+            'government_contributions': [
+                {'name': item['name'], 'amount': item['amount']}
+                for item in contribution_items
+            ],
+            'net_taxable_salary': str(gross_salary),
+            'payroll_tax': str(tax_amount),
+            'total_deductions': str(deductions_total),
+            'gross_amount': str(gross_salary),
+            'payroll_allowance': str(allowances_total),
+            'company_loan_cash_advance': str(_safe_money(Decimal('0'))),
+            'salary_net_pay': str(net_salary),
+            'prepared_by': f"{request.user.first_name} {request.user.last_name}".strip() or request.user.email,
+            'approved_by_top_management': '',
+            'approved_by': '',
+        }
+
+    notes_payload = json.dumps(payslip_details)
+
     sss_amount = _safe_money(sum(
-        Decimal(item['amount']) for item in configured_items
+        Decimal(item['amount']) for item in contribution_items
         if 'sss' in (item.get('name') or '').lower()
     ))
     philhealth_amount = _safe_money(sum(
-        Decimal(item['amount']) for item in configured_items
+        Decimal(item['amount']) for item in contribution_items
         if 'philhealth' in (item.get('name') or '').lower()
     ))
     pagibig_amount = _safe_money(sum(
-        Decimal(item['amount']) for item in configured_items
+        Decimal(item['amount']) for item in contribution_items
         if 'pag-ibig' in (item.get('name') or '').lower() or 'pag ibig' in (item.get('name') or '').lower()
     ))
-
-    deduction_items = [
-        {'name': 'Absences', 'category': 'attendance', 'type': 'computed', 'rate': None, 'amount': str(absence_deduction)},
-        {'name': 'Late Deductions', 'category': 'attendance', 'type': 'computed', 'rate': None, 'amount': str(late_deduction)},
-        {'name': 'Unpaid Leave', 'category': 'attendance', 'type': 'computed', 'rate': None, 'amount': str(leave_deduction)},
-        *configured_items,
-    ]
 
     with transaction.atomic():
         payslip, _created = PaySlip.objects.update_or_create(
@@ -350,9 +568,9 @@ def process_payroll(request):
             period_end=period_end,
             defaults={
                 'base_salary': base_salary,
-                'allowances_total': _safe_money(Decimal('0')),
-                'overtime_amount': _safe_money(Decimal('0')),
-                'bonus': _safe_money(Decimal('0')),
+                'allowances_total': allowances_total,
+                'overtime_amount': overtime_amount,
+                'bonus': bonus_amount,
                 'gross_salary': gross_salary,
                 'tax': tax_amount,
                 'deductions_total': deductions_total,
@@ -361,6 +579,7 @@ def process_payroll(request):
                 'days_present': summary['days_present'],
                 'days_absent': summary['days_absent'],
                 'days_on_leave': summary['days_on_leave'],
+                'notes': notes_payload,
                 'status': 'generated',
             }
         )
@@ -384,19 +603,21 @@ def process_payroll(request):
             'daily_rate': str(daily_rate),
             'base_salary': str(base_salary),
             'deductions': {
-                'absences': str(absence_deduction),
-                'late': str(late_deduction),
-                'leave': str(leave_deduction),
+                'late_undertime': payslip_details.get('late_undertime', '0.00'),
                 'sss': str(sss_amount),
                 'philHealth': str(philhealth_amount),
                 'pagIbig': str(pagibig_amount),
                 'tax': str(tax_amount),
             },
             'deduction_items': deduction_items,
-            'configured_deductions_total': str(configured_total),
+            'configured_deductions_total': str(deductions_total),
+            'government_contributions_total': str(contribution_total),
             'total_deductions': str(deductions_total),
+            'gross_amount': str(gross_salary),
+            'payroll_allowance': str(allowances_total),
             'net_salary': str(net_salary),
         },
+        'payslip_details': payslip_details,
         'attendance_summary': summary,
     }, status=status.HTTP_201_CREATED)
 
@@ -521,3 +742,173 @@ def recent_payroll_records(request):
 
     records = records[:limit]
     return Response([_serialize_payslip(record) for record in records])
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def employee_contributions(request, employee_id):
+    """Get or create employee-specific contributions (SSS, PhilHealth, Pag-IBIG, etc.)"""
+    if not _can_manage_payroll(request.user):
+        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        employee = CustomUser.objects.get(id=employee_id, is_active=True)
+    except CustomUser.DoesNotExist:
+        return Response({'error': 'Employee not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'GET':
+        contributions = EmployeeContribution.objects.filter(employee=employee, is_active=True).order_by('name')
+        return Response([{
+            'id': c.id,
+            'name': c.name,
+            'amount': str(c.amount),
+        } for c in contributions])
+
+    # POST: Create new contribution
+    name = (request.data.get('name') or '').strip()
+    amount_raw = request.data.get('amount')
+
+    if not name or amount_raw in [None, '']:
+        return Response({'error': 'name and amount are required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        amount = _safe_money(Decimal(str(amount_raw)))
+        if amount < 0:
+            return Response({'error': 'amount must be non-negative.'}, status=status.HTTP_400_BAD_REQUEST)
+    except (InvalidOperation, TypeError):
+        return Response({'error': 'amount must be numeric.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Check if contribution type already exists for this employee
+    existing = EmployeeContribution.objects.filter(employee=employee, name__iexact=name).first()
+    if existing:
+        # Update existing
+        existing.amount = amount
+        existing.is_active = True
+        existing.save()
+        return Response({
+            'id': existing.id,
+            'name': existing.name,
+            'amount': str(existing.amount),
+        }, status=status.HTTP_200_OK)
+
+    # Create new
+    contribution = EmployeeContribution.objects.create(
+        employee=employee,
+        name=name,
+        amount=amount,
+    )
+
+    return Response({
+        'id': contribution.id,
+        'name': contribution.name,
+        'amount': str(contribution.amount),
+    }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def employee_contribution_detail(request, employee_id, contribution_id):
+    """Delete employee contribution"""
+    if not _can_manage_payroll(request.user):
+        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+    try:
+        employee = CustomUser.objects.get(id=employee_id, is_active=True)
+    except CustomUser.DoesNotExist:
+        return Response({'error': 'Employee not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    contribution = EmployeeContribution.objects.filter(id=contribution_id, employee=employee).first()
+    if not contribution:
+        return Response({'error': 'Contribution not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    contribution.delete()
+    return Response({'success': True})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def notify_employee_payroll(request):
+    """Send WhatsApp notification to employee about payroll"""
+    if not _can_manage_payroll(request.user):
+        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+    employee_id = request.data.get('employee_id')
+    payslip_preview = request.data.get('payslip_preview') or {}
+    period_start = request.data.get('period_start')
+    period_end = request.data.get('period_end')
+
+    if payslip_preview and not isinstance(payslip_preview, dict):
+        return Response({'error': 'payslip_preview must be an object.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not employee_id:
+        return Response({'error': 'employee_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        employee = CustomUser.objects.get(id=employee_id, is_active=True)
+    except CustomUser.DoesNotExist:
+        return Response({'error': 'Employee not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not employee.phone_number:
+        return Response({
+            'success': False,
+            'message': 'Employee does not have a phone number configured.',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Normalize phone number to E.164 format
+    try:
+        phone_e164 = normalize_phone_to_e164(employee.phone_number)
+    except ValueError as e:
+        return Response({
+            'success': False,
+            'message': f'Invalid phone number format: {str(e)}',
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+    # Construct WhatsApp message
+    employee_name = f"{employee.first_name} {employee.last_name}".strip() or employee.email
+    
+    message_lines = [
+        f"Hello {employee.first_name or 'there'}!",
+        "",
+        "Your payroll has been processed. Here are the details:",
+    ]
+    
+    if payslip_preview:
+        net_pay = payslip_preview.get('salary_net_pay')
+        gross_amount = payslip_preview.get('gross_amount')
+        deduction_total = payslip_preview.get('total_deductions')
+        
+        if gross_amount:
+            message_lines.append(f"• Gross Amount: {gross_amount}")
+        if deduction_total:
+            message_lines.append(f"• Total Deductions: {deduction_total}")
+        if net_pay:
+            message_lines.append(f"• Net Salary: {net_pay}")
+        
+        if period_start and period_end:
+            message_lines.append(f"• Period: {period_start} to {period_end}")
+    
+    message_lines.extend([
+        "",
+        "You can view your complete payslip in the TGGG Accounting system.",
+        "Please contact the Accounting Department if you have any questions.",
+        "",
+        "Thank you!"
+    ])
+    
+    message_body = "\n".join(message_lines)
+
+    # Send WhatsApp notification via Twilio
+    result = send_whatsapp_notification(phone_e164, message_body)
+    
+    if result['success']:
+        return Response({
+            'success': True,
+            'message': result['message'],
+            'payslip_preview': payslip_preview,
+        })
+    else:
+        return Response({
+            'success': False,
+            'message': result['message'],
+            'error': result.get('error', 'Unknown error'),
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

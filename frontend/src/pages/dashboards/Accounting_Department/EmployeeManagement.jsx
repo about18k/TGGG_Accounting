@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getAccountingEmployees, addAccountingEmployee, updateAccountingEmployee } from '../../../services/adminService';
+import { validateAndNormalizePhone, getPhoneValidationError } from '../../../utils/phoneValidation';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
@@ -62,7 +63,7 @@ export function EmployeeManagement() {
     first_name: '',
     last_name: '',
     email: '',
-    phone: '',
+    whatsapp_account: '',
     startDate: '',
     status: 'Active',
   });
@@ -77,7 +78,7 @@ export function EmployeeManagement() {
     first_name: '',
     last_name: '',
     email: '',
-    phone: '',
+    whatsapp_account: '',
     startDate: '',
     temporary_password: '',
   });
@@ -108,6 +109,7 @@ export function EmployeeManagement() {
     const firstName = formData.first_name.trim();
     const lastName = formData.last_name.trim();
     const email = formData.email.trim();
+    const whatsappAccount = formData.whatsapp_account.trim();
     const temporaryPassword = formData.temporary_password;
 
     if (!firstName || !lastName || !email) {
@@ -118,6 +120,14 @@ export function EmployeeManagement() {
     if (!temporaryPassword || temporaryPassword.length < 8) {
       alert('Temporary password is required and must be at least 8 characters.');
       return;
+    }
+
+    if (whatsappAccount) {
+      const phoneValidation = validateAndNormalizePhone(whatsappAccount);
+      if (!phoneValidation.isValid) {
+        alert(`Invalid WhatsApp phone number: ${phoneValidation.error}`);
+        return;
+      }
     }
 
     const confirmed = window.confirm(
@@ -131,7 +141,8 @@ export function EmployeeManagement() {
         first_name: firstName,
         last_name: lastName,
         email,
-        phone: formData.phone,
+        phone: whatsappAccount,
+        whatsapp_account: whatsappAccount,
         startDate: formData.startDate,
         temporary_password: temporaryPassword,
       });
@@ -140,7 +151,7 @@ export function EmployeeManagement() {
         first_name: '',
         last_name: '',
         email: '',
-        phone: '',
+        whatsapp_account: '',
         startDate: '',
         temporary_password: '',
       });
@@ -229,7 +240,7 @@ export function EmployeeManagement() {
       first_name: firstName,
       last_name: lastName,
       email: selectedEmployee.email || '',
-      phone: selectedEmployee.phone || '',
+      whatsapp_account: selectedEmployee.whatsapp_account || selectedEmployee.phone || '',
       startDate: selectedEmployee.joinDate || '',
       status: selectedEmployee.status || 'Active',
     });
@@ -253,13 +264,23 @@ export function EmployeeManagement() {
       return;
     }
 
+    const whatsappAccount = editFormData.whatsapp_account.trim();
+    if (whatsappAccount) {
+      const phoneValidation = validateAndNormalizePhone(whatsappAccount);
+      if (!phoneValidation.isValid) {
+        alert(`Invalid WhatsApp phone number: ${phoneValidation.error}`);
+        return;
+      }
+    }
+
     setIsUpdatingEmployee(true);
     try {
       await updateAccountingEmployee(selectedEmployee.id, {
         first_name: firstName,
         last_name: lastName,
         email,
-        phone: editFormData.phone,
+        phone: whatsappAccount,
+        whatsapp_account: whatsappAccount,
         startDate: editFormData.startDate || null,
         status: editFormData.status,
       });
@@ -346,8 +367,13 @@ export function EmployeeManagement() {
                   <Input id="email" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} placeholder="Enter email address" />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="Enter phone number" />
+                  <Label htmlFor="whatsappAccount">WhatsApp Account</Label>
+                  <Input
+                    id="whatsappAccount"
+                    value={formData.whatsapp_account}
+                    onChange={e => setFormData({ ...formData, whatsapp_account: e.target.value })}
+                    placeholder="Enter WhatsApp number"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="startDate">Start Date</Label>
@@ -554,7 +580,7 @@ export function EmployeeManagement() {
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <Phone className="w-4 h-4 text-muted-foreground" />
-                          {selectedEmployee.phone || '---'}
+                          WhatsApp: {selectedEmployee.whatsapp_account || selectedEmployee.phone || '---'}
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                           <MapPin className="w-4 h-4 text-muted-foreground" />
@@ -627,11 +653,11 @@ export function EmployeeManagement() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="editPhone">Phone</Label>
+                    <Label htmlFor="editWhatsappAccount">WhatsApp Account</Label>
                     <Input
-                      id="editPhone"
-                      value={editFormData.phone}
-                      onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                      id="editWhatsappAccount"
+                      value={editFormData.whatsapp_account}
+                      onChange={(e) => setEditFormData({ ...editFormData, whatsapp_account: e.target.value })}
                     />
                   </div>
                   <div className="space-y-2">
