@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as notifService from '../../../services/notificationService';
-import { Bell, User, Home, Clock, CheckSquare, FolderKanban, ArrowUpDown, Check, UserCheck, Users, FileText, GitMerge, Calendar, Menu } from 'lucide-react';
+import { Bell, User, Home, Clock, CheckSquare, FolderKanban, ArrowUpDown, Check } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/accounting-ui';
 
@@ -9,12 +9,10 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
     user?.role === 'bim_specialist' ||
     user?.role === 'junior_architect' ||
     user?.role === 'site_engineer' ||
-    user?.role === 'site_coordinator' ||
-    user?.role === 'studio_head';
+    user?.role === 'site_coordinator';
   const [notificationFilter, setNotificationFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
   const [notifications, setNotifications] = useState([]);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
 
   const fetchNotifications = useCallback(async () => {
@@ -338,64 +336,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                   <span>{label}</span>
                 </button>
               ))}
-            </div>
-          )}
-          {user?.role === 'studio_head' && (
-            <div className="flex lg:hidden">
-              <Popover open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-                <PopoverTrigger asChild>
-                  <button
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[#FF7120] text-[#FF7120] hover:bg-[#FF7120]/10 transition"
-                  >
-                    <Menu className="h-4 w-4" />
-                    <span className="text-sm font-medium">Menu</span>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-48 bg-[#001f35] border border-white/10 shadow-xl p-2 rounded-xl mt-2" align="start">
-                  <div className="flex flex-col gap-1">
-                    {[
-                      { id: 'attendance', label: 'Attendance', icon: Calendar },
-                      { id: 'overtime', label: 'OT', icon: Clock },
-                      { id: 'studio-head?tab=approvals', label: 'Approvals', icon: UserCheck },
-                      { id: 'studio-head?tab=users', label: 'Users', icon: Users },
-                      { id: 'studio-head?tab=reviews', label: 'Reviews', icon: FileText },
-                      { id: 'studio-head?tab=coordination', label: 'Coordination', icon: GitMerge },
-                      { id: 'events', label: 'Events', icon: Calendar },
-                    ].map(({ id, label, icon: Icon }) => {
-                      const currentSearch = typeof window !== 'undefined' ? window.location.search : '';
-                      const currentTabParam = new URLSearchParams(currentSearch).get('tab');
-
-                      let isActive = false;
-                      if (id.startsWith('studio-head?tab=')) {
-                        const targetTab = id.split('tab=')[1];
-                        isActive = currentPage === 'studio-head' && currentTabParam === targetTab;
-                      } else if (id === 'studio-head') {
-                        isActive = currentPage === 'studio-head' && (!currentTabParam || currentTabParam === 'overview');
-                      } else {
-                        isActive = currentPage === id;
-                      }
-
-                      return (
-                        <button
-                          key={id}
-                          onClick={() => {
-                            onNavigate(id);
-                            setMobileMenuOpen(false);
-                          }}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-lg w-full transition text-left"
-                          style={{
-                            background: isActive ? '#FF7120' : 'transparent',
-                            color: isActive ? 'white' : 'rgba(255,255,255,0.7)'
-                          }}
-                        >
-                          <Icon className="h-4 w-4" />
-                          <span className="text-sm font-medium">{label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </PopoverContent>
-              </Popover>
             </div>
           )}
           <div className="hidden sm:flex items-center gap-2 sm:gap-4">

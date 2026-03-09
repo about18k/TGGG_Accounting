@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getEvents, createEvent } from '../../../../services/attendanceService';
-import { CalendarDays, Plus, AlertCircle, Calendar } from 'lucide-react';
-import { Button, Input, Label, Textarea, Switch } from '../../../../components/ui/accounting-ui';
-import { CardSkeleton } from '../../../../components/SkeletonLoader';
+import { CalendarDays, Plus, AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Textarea, Switch } from '../../../../components/ui/accounting-ui';
 
 export default function EventsPanel() {
   const [events, setEvents] = useState([]);
@@ -54,20 +53,16 @@ export default function EventsPanel() {
     }
   };
 
-  const cardClass = "bg-[#00273C]/60 rounded-xl border border-white/10";
-
   return (
     <div className="space-y-6">
-      <div className={`${cardClass} p-6`}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 shrink-0 rounded-full border border-[#FF7120]/30 bg-[#FF7120]/10 flex items-center justify-center">
-            <CalendarDays className="h-5 w-5 text-[#FF7120]" />
-          </div>
-          <h2 className="text-white font-semibold tracking-tight text-xl">
-            Add Event / Holiday
-          </h2>
-        </div>
-        <div className="space-y-4 text-white">
+      <Card className="border-0 bg-white/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-white">
+            <CalendarDays className="w-5 h-5 text-primary" />
+            Calendar / Events
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-white">
           <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4">
             <div>
               <Label className="text-white/80">Title</Label>
@@ -75,7 +70,6 @@ export default function EventsPanel() {
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
                 placeholder="Event name"
-                className="bg-[#00273C] border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 w-full mt-1"
                 required
               />
             </div>
@@ -85,14 +79,13 @@ export default function EventsPanel() {
                 type="date"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className="bg-[#00273C] border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 w-full mt-1 [color-scheme:dark]"
                 required
               />
             </div>
             <div>
               <Label className="text-white/80">Type</Label>
               <select
-                className="w-full bg-[#00273C] border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 mt-1 cursor-pointer appearance-none"
+                className="w-full bg-transparent border border-white/20 rounded-lg px-3 py-2"
                 value={form.event_type}
                 onChange={(e) => setForm({ ...form, event_type: e.target.value })}
               >
@@ -115,7 +108,6 @@ export default function EventsPanel() {
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="Optional notes"
-                className="bg-[#00273C] border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 w-full mt-1 min-h-[80px]"
                 rows={3}
               />
             </div>
@@ -132,46 +124,35 @@ export default function EventsPanel() {
               </div>
             )}
           </form>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
-      <div className={`${cardClass} p-6`}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="h-10 w-10 shrink-0 rounded-full border border-[#FF7120]/30 bg-[#FF7120]/10 flex items-center justify-center">
-            <Calendar className="h-5 w-5 text-[#FF7120]" />
-          </div>
-          <h2 className="text-white font-semibold tracking-tight text-xl">
-            Upcoming Events & Holidays
-          </h2>
-        </div>
-        <div className="space-y-3">
-          {loading && (
-            <>
-              <CardSkeleton />
-              <CardSkeleton />
-              <CardSkeleton />
-            </>
-          )}
+      <Card className="border-0 bg-white/5">
+        <CardHeader>
+          <CardTitle className="text-white">Upcoming Events & Holidays</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading && <p className="text-white/60 text-sm">Loading events…</p>}
           {!loading && events.length === 0 && (
             <p className="text-white/60 text-sm">No events scheduled.</p>
           )}
           {events.map((ev) => (
-            <div key={ev.id} className="bg-[#001f35] rounded-xl border border-white/5 p-4 flex items-start gap-4 hover:bg-white/5 transition">
-              <div className="w-12 h-12 rounded-full border border-[#FF7120]/30 bg-[#FF7120]/10 flex items-center justify-center text-[#FF7120] font-bold text-lg shrink-0">
+            <div key={ev.id} className="flex items-start gap-3 p-3 rounded-lg border border-white/10">
+              <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center text-primary font-semibold">
                 {new Date(ev.date).getDate()}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-white font-bold text-base truncate">{ev.title}</p>
-                <p className="text-[#9CA3AF] text-sm mt-0.5">{ev.date}</p>
-                {ev.description && <p className="text-[#9CA3AF] text-sm mt-2">{ev.description}</p>}
+              <div className="flex-1">
+                <p className="text-white font-medium">{ev.title}</p>
+                <p className="text-white/60 text-sm">{ev.date}</p>
+                {ev.description && <p className="text-white/60 text-xs mt-1">{ev.description}</p>}
               </div>
               {ev.is_holiday && (
-                <span className="text-xs text-rose-300 border border-rose-300/30 bg-rose-500/10 rounded-lg px-2.5 py-1 font-semibold shrink-0">Holiday</span>
+                <span className="text-xs text-rose-300 border border-rose-300/50 rounded-full px-2 py-1">Holiday</span>
               )}
             </div>
           ))}
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

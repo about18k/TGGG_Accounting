@@ -1,9 +1,10 @@
 import { Home, Calendar, Clock, User, UserCheck, Users, FileText, GitMerge } from 'lucide-react';
 
 const PRIMARY_LINKS = [
+  { id: 'studio-head', label: 'Dashboard', icon: Home, page: 'studio-head' },
   { id: 'attendance', label: 'Attendance', icon: Calendar, page: 'attendance' },
   { id: 'overtime', label: 'Overtime & Leave', icon: Clock, page: 'overtime' },
-  { id: 'events', label: 'Calendar / Events', icon: Calendar, page: 'events' },
+  { id: 'events', label: 'Calendar / Events', icon: Calendar, page: 'studio-head?tab=events' },
 ];
 
 const DASHBOARD_LINKS = [
@@ -34,22 +35,15 @@ export default function StudioHeadSidebar({
       <nav className="space-y-2">
         {PRIMARY_LINKS.map((item) => {
           const Icon = item.icon;
-          // Dashboard link should only be active if we are on the 'studio-head' page AND the activeTab is either 'overview' or undefined.
-          let isActive = false;
-          if (item.id === 'studio-head') {
-            isActive = currentPage === 'studio-head' && (!activeTab || activeTab === 'approvals');
-          } else {
-            isActive = currentPage === item.id;
-          }
-
+          const isActive = currentPage === item.id;
           return (
             <button
               key={item.id}
               type="button"
               onClick={() => onNavigate?.(item.page)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive
-                ? "bg-[#FF7120] text-white"
-                : "text-white/70 hover:text-white hover:bg-white/5"
+                  ? "bg-[#FF7120] text-white"
+                  : "text-white/70 hover:text-white hover:bg-white/5"
                 }`}
             >
               <Icon className="h-5 w-5" />
@@ -68,8 +62,8 @@ export default function StudioHeadSidebar({
               type="button"
               onClick={() => goToDashboardTab(tab.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive
-                ? "bg-[#FF7120] text-white"
-                : "text-white/70 hover:text-white hover:bg-white/5"
+                  ? "bg-[#FF7120] text-white"
+                  : "text-white/70 hover:text-white hover:bg-white/5"
                 }`}
             >
               <Icon className="h-5 w-5" />

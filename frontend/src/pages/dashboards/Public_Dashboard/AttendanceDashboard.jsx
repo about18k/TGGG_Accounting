@@ -66,6 +66,64 @@ const AttendanceDashboard = ({
     fetchEventsData();
   }, [selectedDate]);
 
+  const computeHours = (record) => {
+    if (!record?.time_in || !record?.time_out) return "-";
+    const [inH, inM] = record.time_in.split(":").map(Number);
+    const [outH, outM] = record.time_out.split(":").map(Number);
+    if ([inH, inM, outH, outM].some((v) => Number.isNaN(v))) return "-";
+    const minutes = outH * 60 + outM - (inH * 60 + inM);
+    if (minutes <= 0) return "-";
+    const hrs = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hrs}h ${mins}m`;
+  };
+
+  const stats = useMemo(() => {
+    const isToday = latest?.date === todayIso;
+    const hasIn = isToday && latest?.time_in;
+    const hasOut = isToday && latest?.time_out;
+    const todayStatus = attendanceLoading
+      ? "Loading..."
+      : isHoliday
+        ? "Holiday / No Work"
+        : hasOut
+          ? "Completed"
+          : hasIn
+            ? "Timed In"
+            : locationReady
+              ? "Ready to Time In"
+              : "Location Required";
+    const todayTone = isHoliday
+      ? "neutral"
+      : hasOut || hasIn || locationReady
+        ? "good"
+        : "warn";
+
+    const lateTone = latest?.status === "late" ? "warn" : "good";
+    const lateLabel = latest?.status === "late" ? "Late" : latest?.status_label || "On time";
+
+    return [
+      {
+        label: "Today's Status",
+        value: todayStatus,
+        icon: MapPin,
+        tone: todayTone,
+      },
+      {
+        label: "Latest Status",
+        value: lateLabel,
+        icon: Clock,
+        tone: lateTone,
+      },
+      {
+        label: "Total Hours (Latest)",
+        value: computeHours(latest),
+        icon: FileText,
+        tone: "neutral",
+      },
+    ];
+  }, [attendanceLoading, isHoliday, latest, locationReady, todayIso]);
+
   const cardClass =
     "rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]";
 
@@ -94,9 +152,7 @@ const AttendanceDashboard = ({
     <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
       {/* Soft background glow */}
       <div className="pointer-events-none absolute inset-0">
-        {user?.role !== 'studio_head' && (
-          <div className="absolute -top-32 -left-32 h-[420px] w-[420px] rounded-full bg-[#FF7120]/20 blur-[80px]" />
-        )}
+        <div className="absolute -top-32 -left-32 h-[420px] w-[420px] rounded-full bg-[#FF7120]/20 blur-[80px]" />
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
         <div className="absolute bottom-[-200px] left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-white/5 blur-[110px]" />
       </div>
@@ -111,13 +167,13 @@ const AttendanceDashboard = ({
       <div className={`relative ${topSpacingClass} px-3 sm:px-6 pb-10 w-full`}>
         <div className={containerClass}>
           {hasCustomSidebar && (
-            <aside className="w-full lg:w-64 shrink-0 hidden lg:block">
+            <aside className="w-full lg:w-64 shrink-0">
               {sidebarComponent}
             </aside>
           )}
 
           {showStudioHeadSidebar && (
-            <aside className="w-full lg:w-64 shrink-0 hidden lg:block">
+            <aside className="w-full lg:w-64 shrink-0">
               <StudioHeadSidebar currentPage="attendance" onNavigate={onNavigate} />
             </aside>
           )}
@@ -160,41 +216,64 @@ const AttendanceDashboard = ({
                     </Badge>
                   </div>
 
-                  {user?.role !== 'studio_head' && (
-                    <p className="mt-3 text-white/50 text-sm leading-relaxed">
-                      Keep your attendance and daily accomplishments accurate — this helps compute hours,
-                      late minutes, and overtime cleanly.
-                    </p>
-                  )}
+                  <p className="mt-3 text-white/50 text-sm leading-relaxed">
+                    Keep your attendance and daily accomplishments accurate — this helps compute hours,
+                    late minutes, and overtime cleanly.
+                  </p>
                 </div>
 
-                {user?.role !== 'studio_head' && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => alert("Add a policy modal / route here.")}
-                      className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition text-sm font-semibold"
-                    >
-                      View Policy
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                      className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition text-sm font-semibold"
-                    >
-                      Back to Top
-                    </button>
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => alert("Add a policy modal / route here.")}
+                    className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition text-sm font-semibold"
+                  >
+                    View Policy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                    className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition text-sm font-semibold"
+                  >
+                    Back to Top
+                  </button>
+                </div>
               </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              {attendanceLoading ? (
+                <>
+                  <CardSkeleton />
+                  <CardSkeleton />
+                  <CardSkeleton />
+                </>
+              ) : (
+                stats.map((s, i) => {
+                  const Icon = s.icon;
+                  return (
+                    <div key={i} className={`${cardClass} p-4`}>
+                      <div className="flex items-center justify-between">
+                        <p className="text-white/60 text-sm font-medium">{s.label}</p>
+                        <Icon className="h-4 w-4 text-white/40" />
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <p className="text-white text-lg font-semibold tracking-tight">{s.value}</p>
+                        {s.tone !== "neutral" && (
+                          <Badge tone={s.tone}>{s.tone === "good" ? "OK" : "Attention"}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             {/* Forms */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
               <div className={`${cardClass} p-4 sm:p-6`}>
-                {!events ? (
-                  <CardSkeleton />
-                ) : isHoliday ? (
+                {isHoliday ? (
                   <div className="space-y-3 text-white">
                     <h3 className="text-xl font-semibold text-white">Today is marked as a holiday / no work day.</h3>
                     <p className="text-white/70 text-sm">

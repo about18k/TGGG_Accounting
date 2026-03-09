@@ -1,3 +1,4 @@
+import { styles } from '../studioHeadStyles';
 
 export default function UserRow({
   user,
@@ -31,42 +32,72 @@ export default function UserRow({
 
   return (
     <div
-      className="bg-[#001f35] rounded-xl border border-white/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition hover:bg-white/5"
+      style={{
+        ...styles.panel2,
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        gap: '12px',
+      }}
     >
-      <div className="flex items-center gap-4 w-full sm:w-auto">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {user.profile_picture ? (
           <img
             src={user.profile_picture}
             alt={user.first_name || user.email}
-            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border border-[#FF7120]/30 shrink-0"
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '1px solid rgba(6, 182, 212, 0.3)',
+            }}
           />
         ) : (
           <div
-            className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#FF7120]/10 flex items-center justify-center text-[#FF7120] font-bold text-sm sm:text-base border border-[#FF7120]/30 shrink-0"
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              backgroundColor: 'rgba(8, 145, 178, 0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#22d3ee',
+              fontWeight: 700,
+              fontSize: '14px',
+              border: '1px solid rgba(6, 182, 212, 0.3)',
+              flexShrink: 0,
+            }}
           >
             {user.first_name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
           </div>
         )}
-        <div className="min-w-0">
-          <div className="font-bold text-white truncate text-sm sm:text-base">
+        <div>
+          <div style={{ fontWeight: 700 }}>
             {user.first_name} {user.last_name}
           </div>
-          <div className="text-[#9CA3AF] text-xs sm:text-sm truncate">{user.email}</div>
-          <div className="text-[#9CA3AF] text-xs mt-0.5 truncate flex items-center gap-1.5 flex-wrap">
-            <span className="px-1.5 py-0.5 bg-white/5 rounded-md">{user.role_name || user.role || 'No role'}</span>
-            <span className="px-1.5 py-0.5 bg-white/5 rounded-md">{user.department_name || 'No department'}</span>
-            <span className={`px-1.5 py-0.5 rounded-md ${user.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-              {user.is_active ? 'Active' : 'Suspended'}
-            </span>
+          <div style={{ color: '#9CA3AF', fontSize: '12px' }}>{user.email}</div>
+          <div style={{ color: '#9CA3AF', fontSize: '12px' }}>
+            {user.role_name || user.role || 'No role'} • {user.department_name || 'No department'} •{' '}
+            {user.is_active ? 'Active' : 'Suspended'}
           </div>
         </div>
       </div>
 
-      <div className="flex flex-wrap sm:flex-nowrap gap-2 w-full sm:w-auto">
+      <div style={{ display: 'flex', gap: '8px' }}>
         <button
           onClick={handleEdit}
           disabled={loading}
-          className="flex-1 sm:flex-none px-3 py-1.5 bg-[#1f3b53] border border-[#2c4d66] text-white text-xs sm:text-sm rounded-lg hover:bg-[#2c4d66] transition disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{
+            padding: '6px 10px',
+            backgroundColor: '#1f3b53',
+            border: '1px solid #2c4d66',
+            color: 'white',
+            borderRadius: '8px',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+          }}
         >
           Edit
         </button>
@@ -74,10 +105,15 @@ export default function UserRow({
         <button
           onClick={handleToggleStatus}
           disabled={loading}
-          className={`flex-1 sm:flex-none px-3 py-1.5 text-xs sm:text-sm rounded-lg border transition disabled:opacity-60 disabled:cursor-not-allowed ${user.is_active
-            ? 'bg-[#263a34] border-[#2f5c4f] text-[#d1fae5] hover:bg-[#2f5c4f]'
-            : 'bg-[#1f3b53] border-[#2c4d66] text-[#dbeafe] hover:bg-[#2c4d66]'
-            }`}
+          style={{
+            padding: '6px 10px',
+            backgroundColor: user.is_active ? '#263a34' : '#1f3b53',
+            border: user.is_active ? '1px solid #2f5c4f' : '1px solid #2c4d66',
+            color: user.is_active ? '#d1fae5' : '#dbeafe',
+            borderRadius: '8px',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+          }}
         >
           {user.is_active ? 'Suspend' : 'Activate'}
         </button>
@@ -85,7 +121,15 @@ export default function UserRow({
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="flex-1 sm:flex-none px-3 py-1.5 bg-[#3b1f24] border border-[#5f2a33] text-[#fecaca] text-xs sm:text-sm rounded-lg hover:bg-[#5f2a33] transition disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{
+            padding: '6px 10px',
+            backgroundColor: '#3b1f24',
+            border: '1px solid #5f2a33',
+            color: '#fecaca',
+            borderRadius: '8px',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.6 : 1,
+          }}
         >
           Delete
         </button>

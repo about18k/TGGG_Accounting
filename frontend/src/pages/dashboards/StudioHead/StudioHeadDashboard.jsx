@@ -9,20 +9,19 @@ import CoordinatorPanel from './components/CoordinatorPanel';
 import MessageBanner from './components/MessageBanner';
 import StudioHeadSidebar from './components/StudioHeadSidebar';
 import { useStudioHeadDashboard } from './hooks/useStudioHeadDashboard';
-import { CardSkeleton } from '../../../components/SkeletonLoader';
+import EventsPanel from './components/EventsPanel';
 
 const TABS = [
+  { id: 'overview', label: 'Overview', icon: Home },
   { id: 'approvals', label: 'User Approvals', icon: UserCheck },
   { id: 'users', label: 'Manage Users', icon: Users },
   { id: 'reviews', label: 'Design Reviews', icon: FileText },
   { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge },
+  { id: 'events', label: 'Calendar / Events', icon: Calendar },
 ];
 
 export default function StudioHeadDashboard({ user, onLogout, onNavigate }) {
   const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const initialTab = params.get('tab') || 'approvals';
-
   const {
     activeTab,
     setActiveTab,
@@ -50,7 +49,7 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate }) {
     handleRemoveLeader,
     handleCreateGroup,
     handleDisbandGroup,
-  } = useStudioHeadDashboard(initialTab);
+  } = useStudioHeadDashboard();
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -71,13 +70,13 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate }) {
 
       <PublicNavigation onNavigate={onNavigate} currentPage="studio-head" user={user} />
 
-      <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
+      <div className="relative pt-28 px-6 pb-10">
         <div className="max-w-[1600px] mx-auto">
           <MessageBanner message={message} onClose={() => setMessage('')} />
 
           <div className="flex gap-6">
             {/* Sidebar Navigation */}
-            <aside className="w-64 shrink-0 hidden lg:block">
+            <aside className="w-64 shrink-0">
               <StudioHeadSidebar
                 currentPage="studio-head"
                 onNavigate={onNavigate}
@@ -99,6 +98,10 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate }) {
 
                 {/* Tab Content */}
                 <div className="p-6">
+                  {activeTab === 'overview' && (
+                    <OverviewPanel pendingCount={pendingUsers.length} />
+                  )}
+
                   {activeTab === 'approvals' && (
                     <PendingApprovalsPanel
                       pendingUsers={pendingUsers}
@@ -126,8 +129,11 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate }) {
                   )}
 
                   {activeTab === 'reviews' && (
-                    <div className="rounded-xl border border-white/10 bg-[#00273C]/60 p-6 space-y-4">
-                      <CardSkeleton />
+                    <div className="rounded-xl border border-white/10 bg-[#00273C]/60 p-6">
+                      <h2 className="text-white font-semibold text-xl mb-2">Design Reviews</h2>
+                      <p className="text-white/60 text-sm">
+                        Queue for drawings, presentations, and documentation review (connect your projects module here).
+                      </p>
                     </div>
                   )}
 
@@ -141,6 +147,10 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate }) {
                       onDisbandGroup={handleDisbandGroup}
                       loadingAction={userActionById}
                     />
+                  )}
+
+                  {activeTab === 'events' && (
+                    <EventsPanel user={user} />
                   )}
                 </div>
               </div>

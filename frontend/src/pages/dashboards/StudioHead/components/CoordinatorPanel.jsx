@@ -60,7 +60,7 @@ export default function CoordinatorPanel({
     return (
         <div className="flex flex-col gap-6">
             {/* Top Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4">
                 <StatCard title="Leaders" value={totalLeaders} icon={Users} />
                 <StatCard title="Groups" value={totalGroups} icon={LayoutTemplate} />
                 <StatCard title="Active Tasks" value={activeTasks} icon={SquareCheckBig} />
@@ -68,43 +68,43 @@ export default function CoordinatorPanel({
 
             {/* Assign Leaders Section */}
             <div className="bg-[#00273C]/60 rounded-xl border border-white/10 p-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                    <h2 className="text-white font-semibold text-lg flex items-center gap-2 shrink-0">
-                        <Users size={20} className="text-[#FF7120]" />
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-white font-semibold text-lg flex items-center gap-2">
+                        <Users size={20} className="text-gray-400" />
                         Assign Leaders
                     </h2>
-                    <div className="relative w-full sm:w-auto">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#FF7120]" size={16} />
+                    <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
                         <input
                             type="text"
                             placeholder="Search users..."
                             value={searchLeaderTerm}
                             onChange={(e) => setSearchLeaderTerm(e.target.value)}
-                            className="bg-[#001f35] border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 w-full sm:w-64"
+                            className="bg-[#001f35] border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-cyan-500 w-64"
                         />
                     </div>
                 </div>
 
                 <div className="flex flex-col gap-2 max-h-80 overflow-y-auto pr-2 custom-scrollbar">
                     {assignableUsers.map((u) => (
-                        <div key={u.id} className="bg-[#001f35] rounded-xl border border-white/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div className="flex items-center gap-4 min-w-0 w-full sm:w-auto">
+                        <div key={u.id} className="bg-[#001f35] rounded-xl border border-white/5 p-4 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
                                 {u.profile_picture ? (
                                     <img
                                         src={u.profile_picture}
                                         alt={u.first_name || u.email}
-                                        className="h-10 w-10 sm:w-12 sm:h-12 shrink-0 rounded-full object-cover border border-[#FF7120]/30"
+                                        className="h-10 w-10 rounded-full object-cover border border-cyan-500/30"
                                     />
                                 ) : (
-                                    <div className="h-10 w-10 sm:w-12 sm:h-12 shrink-0 rounded-full bg-[#FF7120]/10 flex items-center justify-center text-[#FF7120] font-bold text-sm sm:text-base border border-[#FF7120]/30">
+                                    <div className="h-10 w-10 rounded-full bg-cyan-900/50 flex items-center justify-center text-cyan-400 font-bold border border-cyan-500/30">
                                         {u.first_name?.[0] || u.email[0].toUpperCase()}
                                     </div>
                                 )}
-                                <div className="min-w-0">
-                                    <div className="text-white font-medium text-sm truncate">
+                                <div>
+                                    <div className="text-white font-medium text-sm">
                                         {u.first_name || u.last_name ? `${u.first_name} ${u.last_name}` : u.email}
                                     </div>
-                                    <div className="text-gray-400 text-xs mt-0.5 flex flex-wrap items-center gap-2">
+                                    <div className="text-gray-400 text-xs mt-0.5 flex items-center gap-2">
                                         <span className="capitalize">{u.role?.replace('_', ' ')}</span>
                                         {u.is_leader && (
                                             <span className="flex items-center gap-1 text-orange-400 bg-orange-400/10 px-2 py-0.5 rounded text-[10px] font-semibold">
@@ -112,8 +112,8 @@ export default function CoordinatorPanel({
                                             </span>
                                         )}
                                         {u.department_name && (
-                                            <span className="flex items-center gap-1 text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded text-[10px] truncate max-w-[120px]">
-                                                <UsersRound size={10} /> <span className="truncate">{u.department_name}</span>
+                                            <span className="flex items-center gap-1 text-blue-400 bg-blue-400/10 px-2 py-0.5 rounded text-[10px]">
+                                                <UsersRound size={10} /> {u.department_name}
                                             </span>
                                         )}
                                     </div>
@@ -122,7 +122,7 @@ export default function CoordinatorPanel({
                             <button
                                 onClick={() => u.is_leader ? onRemoveLeader(u.id) : onMakeLeader(u.id)}
                                 disabled={loadingAction === u.id}
-                                className={`w-full sm:w-auto px-4 py-1.5 rounded-lg text-sm font-medium transition-colors border shrink-0 ${u.is_leader
+                                className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors border ${u.is_leader
                                     ? 'border-red-500/30 text-red-400 hover:bg-red-500/10'
                                     : 'border-green-500/30 text-green-400 hover:bg-green-500/10'
                                     } disabled:opacity-50`}
@@ -139,14 +139,14 @@ export default function CoordinatorPanel({
 
             {/* Groups Overview Section */}
             <div className="bg-[#00273C]/60 rounded-xl border border-white/10 p-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                <div className="flex justify-between items-center mb-4">
                     <h2 className="text-white font-semibold text-lg flex items-center gap-2">
-                        <Users size={20} className="text-[#FF7120]" />
+                        <Users size={20} className="text-gray-400" />
                         Groups Overview
                     </h2>
                     <button
                         onClick={() => setShowCreateGroup(true)}
-                        className="w-full sm:w-auto flex justify-center items-center gap-2 bg-[#FF7120] hover:bg-[#ff853e] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        className="flex items-center gap-2 bg-[#FF7120] hover:bg-[#ff853e] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                     >
                         <Plus size={16} />
                         Create Group
@@ -156,14 +156,14 @@ export default function CoordinatorPanel({
                 <div className="flex flex-col gap-4">
                     {groups.map((g) => (
                         <div key={g.id} className="bg-[#001f35] rounded-xl border border-white/5 p-5">
-                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                                <div className="min-w-0 w-full sm:w-auto">
-                                    <h3 className="text-white font-semibold text-lg truncate">{g.name}</h3>
-                                    <div className="flex flex-wrap items-center gap-3 mt-2">
-                                        <span className="text-orange-400 text-xs font-medium shrink-0">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="text-white font-semibold text-lg">{g.name}</h3>
+                                    <div className="flex items-center gap-3 mt-2">
+                                        <span className="text-orange-400 text-xs font-medium">
                                             {g.members?.length || 0} members
                                         </span>
-                                        <span className="text-green-400 text-xs font-medium px-2 py-0.5 rounded bg-green-400/10 shrink-0">
+                                        <span className="text-green-400 text-xs font-medium px-2 py-0.5 rounded bg-green-400/10">
                                             {g.todos?.length || 0} tasks
                                         </span>
                                     </div>
@@ -171,7 +171,7 @@ export default function CoordinatorPanel({
                                 <button
                                     onClick={() => onDisbandGroup(g.id)}
                                     disabled={loadingAction === `disband-${g.id}`}
-                                    className="w-full sm:w-auto justify-center px-3 py-1.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-sm hover:bg-red-500/20 transition-colors flex items-center gap-2 disabled:opacity-50 shrink-0"
+                                    className="px-3 py-1.5 rounded bg-red-500/10 text-red-400 border border-red-500/20 text-sm hover:bg-red-500/20 transition-colors flex items-center gap-2 disabled:opacity-50"
                                 >
                                     <Trash2 size={14} /> Disband
                                 </button>
@@ -216,7 +216,7 @@ export default function CoordinatorPanel({
                                     required
                                     value={newGroupName}
                                     onChange={(e) => setNewGroupName(e.target.value)}
-                                    className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#FF7120]/60"
+                                    className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-cyan-500"
                                     placeholder="e.g. Team Payroll"
                                 />
                             </div>
@@ -226,7 +226,7 @@ export default function CoordinatorPanel({
                                 <select
                                     value={newGroupLeaderId}
                                     onChange={(e) => setNewGroupLeaderId(e.target.value)}
-                                    className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#FF7120]/60 appearance-none"
+                                    className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-cyan-500 appearance-none"
                                 >
                                     <option value="">-- No Leader (Assign Later) --</option>
                                     {users.filter(u => u.is_leader).map(u => (

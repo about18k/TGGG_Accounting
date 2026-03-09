@@ -59,7 +59,7 @@ const OvertimePage = ({ user, token, onLogout, onNavigate }) => {
       <div className="pt-40 sm:pt-28 px-3 sm:px-6 pb-6 w-full">
         <div className={useSidebarLayout ? "max-w-[1600px] mx-auto flex gap-6" : "max-w-[1400px] mx-auto px-2 sm:px-10 space-y-4 sm:space-y-8"}>
           {isStudioHeadMode && (
-            <aside className="w-64 shrink-0 hidden lg:block">
+            <aside className="w-64 shrink-0">
               <StudioHeadSidebar currentPage="overtime" onNavigate={onNavigate} />
             </aside>
           )}
@@ -70,27 +70,27 @@ const OvertimePage = ({ user, token, onLogout, onNavigate }) => {
           )}
 
           <div className={useSidebarLayout ? "flex-1 min-w-0 space-y-4 sm:space-y-8" : ""}>
-            {/* Tab Navigation */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              {renderTabButton('ot-form', 'Request Overtime')}
-              {renderTabButton('ot-status', 'OT Status')}
-              {renderTabButton('leave-form', 'Request Leave')}
-              {renderTabButton('leave-status', 'Leave Status')}
-            </div>
+          {/* Tab Navigation */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+            {renderTabButton('ot-form', 'Request Overtime')}
+            {renderTabButton('ot-status', 'OT Status')}
+            {renderTabButton('leave-form', 'Request Leave')}
+            {renderTabButton('leave-status', 'Leave Status')}
+          </div>
 
-            {/* Content */}
-            {activeTab === 'ot-form' && (
-              <OvertimeForm token={token} />
-            )}
-            {activeTab === 'ot-status' && (
-              <OvertimeStatus token={token} />
-            )}
-            {activeTab === 'leave-form' && (
-              <LeaveForm token={token} />
-            )}
-            {activeTab === 'leave-status' && (
-              <LeaveStatus token={token} />
-            )}
+          {/* Content */}
+          {activeTab === 'ot-form' && (
+            <OvertimeForm token={token} />
+          )}
+          {activeTab === 'ot-status' && (
+            <OvertimeStatus token={token} />
+          )}
+          {activeTab === 'leave-form' && (
+            <LeaveForm token={token} />
+          )}
+          {activeTab === 'leave-status' && (
+            <LeaveStatus token={token} />
+          )}
           </div>
         </div>
       </div>
