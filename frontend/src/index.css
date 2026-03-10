@@ -24,6 +24,23 @@ body {
   color: var(--color-foreground);
 }
 
+/* Sileo toast overrides — match project theme */
+[data-sileo-viewport] {
+  z-index: 99999 !important;
+}
+
+[data-sileo-toast] {
+  --sileo-width: 380px;
+  --sileo-state-success: #F27229;
+  --sileo-state-error: #d4183d;
+  --sileo-state-warning: #F27229;
+  --sileo-state-info: #F27229;
+}
+
+[data-sileo-description] {
+  color: #F27229 !important;
+}
+
 /* Hide scrollbars globally */
 * {
   scrollbar-width: none;

@@ -10,19 +10,37 @@ class Attendance(models.Model):
         ('on_leave', 'On Leave'),
         ('excused', 'Excused Absence'),
     ]
+
+    SESSION_TYPES = [
+        ('morning', 'Morning'),
+        ('afternoon', 'Afternoon'),
+        ('overtime', 'Overtime'),
+    ]
     
     employee = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='attendance_records')
     date = models.DateField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='absent')
     time_in = models.TimeField(null=True, blank=True)
     time_out = models.TimeField(null=True, blank=True)
+    session_type = models.CharField(max_length=20, choices=SESSION_TYPES, blank=True, null=True)
+    is_late = models.BooleanField(default=False)
+    late_deduction_hours = models.DecimalField(max_digits=4, decimal_places=2, default=0)
+    clock_in_address = models.TextField(blank=True, null=True)
+    clock_out_address = models.TextField(blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
+    
+    # Work Documentation Fields
+    work_doc_note = models.TextField(blank=True, null=True, help_text="Documentation note about work completed (required if files uploaded)")
+    work_doc_file_paths = models.JSONField(default=list, blank=True, help_text="List of file paths in Supabase bucket")
+    work_doc_uploaded_at = models.DateTimeField(null=True, blank=True, help_text="Timestamp when first file was uploaded")
+    work_doc_uploaded_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True, related_name='uploaded_work_docs')
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['-date']
-        unique_together = ('employee', 'date')
+        unique_together = ('employee', 'date', 'session_type')
 
     def __str__(self):
         return f"{self.employee.email} - {self.date} ({self.status})"

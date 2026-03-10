@@ -39,10 +39,11 @@ const CustomToolbar = ({ id, onAttach }) => (
 export default function WorkDocCard({
     value = '',
     onChange,
+    attachments = [],
+    onAttachmentsChange,
     cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]',
     placeholder = 'Example: Completed database design, attended team meeting, fixed bug #123...',
 }) {
-    const [attachments, setAttachments] = useState([]);
     const [isEditing, setIsEditing] = useState(false);
     const fileInputRef = useRef(null);
     const toolbarId = useMemo(() => `toolbar-${Math.random().toString(36).substr(2, 9)}`, []);
@@ -67,9 +68,9 @@ export default function WorkDocCard({
         e.preventDefault();
         const files = Array.from(e.dataTransfer?.files || e.target?.files || []);
 
-        if (files.length) {
-            setAttachments((prev) => {
-                const combined = [...prev, ...files];
+        if (files.length && onAttachmentsChange) {
+            onAttachmentsChange((prev) => {
+                const combined = [...(prev || []), ...files];
                 if (combined.length > 3) {
                     alert("Maximum 3 attachments allowed.");
                     return combined.slice(0, 3);
@@ -85,7 +86,9 @@ export default function WorkDocCard({
     };
 
     const removeAttachment = (index) => {
-        setAttachments((prev) => prev.filter((_, i) => i !== index));
+        if (onAttachmentsChange) {
+            onAttachmentsChange((prev) => (prev || []).filter((_, i) => i !== index));
+        }
     };
 
     const getFilePreview = (file) => {
@@ -138,7 +141,7 @@ export default function WorkDocCard({
                 <div className="mt-5 space-y-4 flex-1 flex flex-col animate-[fadeIn_0.2s_ease-out]">
                     <label className="block text-white/60 text-sm font-semibold">
                         What did you accomplish today?{' '}
-                        <span className="font-normal text-white/40">(Optional for morning)</span>
+                        <span className="font-normal text-white/40">(Required for Time Out)</span>
                     </label>
 
                     {/* Rich Text Editor */}

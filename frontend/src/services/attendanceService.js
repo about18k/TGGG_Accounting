@@ -42,3 +42,20 @@ export async function getOvertimeRecords() {
     const { data } = await api.get('/attendance/overtime/');
     return data;
 }
+
+export async function uploadWorkDocFile(attendanceId, file, note) {
+    const formData = new FormData();
+    if (file) {
+        formData.append('file', file);
+    }
+    if (note) {
+        formData.append('work_doc_note', note);
+    }
+
+    const { data } = await api.post(`/attendance/${attendanceId}/work-docs/upload/`, formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return data;
+}

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import LocationAttendance from "../../../components/attendance/LocationAttendance";
 import WorkDocCard from "../../../components/attendance/WorkDocCard";
+import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';
 import useMyAttendance from "../../../hooks/useMyAttendance";
 import { getEvents } from "../../../services/attendanceService";
 import { TableSkeleton, CardSkeleton } from "../../../components/SkeletonLoader";
@@ -34,6 +35,7 @@ const AttendanceDashboard = ({
     new Date().toISOString().split("T")[0]
   );
   const [workDoc, setWorkDoc] = useState("");
+  const [workDocAttachments, setWorkDocAttachments] = useState([]);
   const [locationReady, setLocationReady] = useState(false);
   const [isHoliday, setIsHoliday] = useState(false);
   const [events, setEvents] = useState([]);
@@ -286,112 +288,29 @@ const AttendanceDashboard = ({
                     className="p-0"
                     onStatusChange={({ ready }) => setLocationReady(ready)}
                     onRecordSaved={refreshAttendance}
+                    workDoc={workDoc}
+                    workDocAttachments={workDocAttachments}
                   />
                 )}
               </div>
 
-              <WorkDocCard value={workDoc} onChange={setWorkDoc} cardClass={cardClass} />
+              <WorkDocCard
+                value={workDoc}
+                onChange={setWorkDoc}
+                attachments={workDocAttachments}
+                onAttachmentsChange={setWorkDocAttachments}
+                cardClass={cardClass}
+              />
             </div>
 
             {/* History */}
-            <div className={cardClass}>
-              <div className="p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-white/10">
-                <div>
-                  <h3 className={sectionTitle}>My Attendance History</h3>
-                  <p className="mt-1 text-white/50 text-sm">
-                    Review your logs, late minutes, and work notes.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#00273C]/60 px-3 py-2">
-                    <Calendar className="h-4 w-4 text-white/40" />
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => setSelectedDate(e.target.value)}
-                      className="bg-transparent text-white/80 text-sm outline-none"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {attendanceError && (
-                <div className="px-6 pb-3 text-sm text-red-200">
-                  {attendanceError}
-                </div>
-              )}
-
-              <div className="max-h-[520px] overflow-auto">
-                <table className="w-full min-w-[720px] border-collapse">
-                  <thead className="sticky top-0 z-10">
-                    <tr className="bg-[#001a2b] border-b border-white/10">
-                      {["Date", "Time In", "Time Out", "Status", "Location", "Notes", "Hours"].map((h) => (
-                        <th
-                          key={h}
-                          className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/60 whitespace-nowrap"
-                        >
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {attendanceLoading && (
-                      <tr>
-                        <td colSpan={7} className="px-6 py-4">
-                          <TableSkeleton />
-                        </td>
-                      </tr>
-                    )}
-                    {!attendanceLoading && attendanceData.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="px-6 py-4 text-white/60 text-sm">
-                          No attendance records yet.
-                        </td>
-                      </tr>
-                    )}
-                    {attendanceData.map((record, index) => {
-                      const isLate = record?.status === "late";
-                      const hours = computeHours(record);
-                      return (
-                        <tr
-                          key={record.id || index}
-                          className={[
-                            "border-b border-white/5",
-                            index % 2 === 0 ? "bg-black/10" : "bg-transparent",
-                            "hover:bg-[#FF7120]/5 transition",
-                          ].join(" ")}
-                        >
-                          <td className="px-6 py-4 text-white/90 text-sm whitespace-nowrap">
-                            {record.date}
-                          </td>
-                          <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                            {record.time_in || "-"}
-                          </td>
-                          <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                            {record.time_out || "-"}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <Badge tone={isLate ? "warn" : "good"}>{record.status_label || record.status}</Badge>
-                          </td>
-                          <td className="px-6 py-4 text-white/70 text-sm whitespace-nowrap">
-                            {record.location || "—"}
-                          </td>
-                          <td className="px-6 py-4 text-white/85 text-sm">
-                            {record.notes || "—"}
-                          </td>
-                          <td className="px-6 py-4 text-emerald-300 text-sm font-semibold whitespace-nowrap">
-                            {hours}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            <AttendanceHistoryTable
+              records={attendanceData}
+              loading={attendanceLoading}
+              error={attendanceError}
+              selectedDate={selectedDate}
+              onDateChange={setSelectedDate}
+            />
 
             {/* Footer note */}
             <p className="text-center text-white/35 text-xs pb-4">

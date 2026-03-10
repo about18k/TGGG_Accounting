@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
-import { clockIn, clockOut, getTodayAttendance } from "../../services/attendanceService";
+import { clockIn, clockOut, getTodayAttendance, uploadWorkDocFile } from "../../services/attendanceService";
+import { useToast } from "@inspectph/react-toast-sileo";
 import {
   CheckCircle,
   MapPin,
@@ -78,6 +79,8 @@ const StatusChip = ({ success, primaryText, secondaryText }) => {
 
 const LocationAttendance = ({
   role,
+  workDoc = '', // Work documentation note from parent
+  workDocAttachments = [], // File attachments
   className = "rounded-2xl border border-white/10 bg-[#001f35]/70 p-4 sm:p-6 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]",
   title = "Attendance",
   description = "Select your work mode, then capture your location to enable Time In / Out.",
@@ -93,6 +96,7 @@ const LocationAttendance = ({
   const [processing, setProcessing] = useState("");
   const [todayRecord, setTodayRecord] = useState(null);
   const [banner, setBanner] = useState(null);
+  const toast = useToast();
   const [loadingToday, setLoadingToday] = useState(false);
 
   const officeConfig = attendanceLocations.mainOffice || {
@@ -164,8 +168,38 @@ const LocationAttendance = ({
   const inRangeIn = mode === "office" ? officeDistanceIn != null && officeDistanceIn <= officeConfig.radius : true;
   const inRangeOut = modeOut === "office" ? officeDistanceOut != null && officeDistanceOut <= officeConfig.radius : true;
 
+  // ── Early timeout prevention: map session types to their end times ──
+  const SESSION_END_TIMES = {
+    morning: { hour: 12, minute: 0, label: "12:00 PM" },
+    afternoon: { hour: 17, minute: 0, label: "5:00 PM" },
+  };
+
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 30_000); // update every 30s
+    return () => clearInterval(id);
+  }, []);
+
+  const sessionEndInfo = SESSION_END_TIMES[todayRecord?.session_type] || null;
+  const isBeforeSessionEnd = sessionEndInfo
+    ? now.getHours() < sessionEndInfo.hour ||
+    (now.getHours() === sessionEndInfo.hour && now.getMinutes() < sessionEndInfo.minute)
+    : false;
+
+  // Compute remaining time string
+  const earlyTimeoutMessage = (() => {
+    if (!sessionEndInfo || !isBeforeSessionEnd) return null;
+    const endMinutes = sessionEndInfo.hour * 60 + sessionEndInfo.minute;
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const diff = endMinutes - nowMinutes;
+    const h = Math.floor(diff / 60);
+    const m = diff % 60;
+    const remaining = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    return `Time out available at ${sessionEndInfo.label} (${remaining} remaining)`;
+  })();
+
   const canTimeIn = Boolean(locationIn) && inRangeIn && !hasClockedIn;
-  const canTimeOut = Boolean(locationOut) && inRangeOut && !hasClockedOut;
+  const canTimeOut = Boolean(locationOut) && inRangeOut && !hasClockedOut && !isBeforeSessionEnd;
 
   useEffect(() => {
     onStatusChange?.({ ready: canTimeIn || canTimeOut, locationIn, locationOut });
@@ -216,6 +250,18 @@ const LocationAttendance = ({
     const location = isTimeIn ? locationIn : locationOut;
     const modeValue = isTimeIn ? mode : modeOut;
 
+    // Validate work documentation on clock-out
+    if (!isTimeIn) {
+      const plainText = workDoc.replace(/<[^>]*>/g, '').trim();
+      if (!plainText) {
+        toast.error({
+          title: "Work Documentation Required",
+          description: "Please add a work documentation note before clocking out. Click 'Add Work Documentation' to document your work.",
+        });
+        return;
+      }
+    }
+
     setProcessing(type);
     setBanner(null);
 
@@ -227,16 +273,51 @@ const LocationAttendance = ({
         accuracy: location?.accuracy,
       };
 
+      // Include work documentation on clock-out
+      if (!isTimeIn && workDoc) {
+        // Extract plain text from HTML/rich text editor
+        const plainText = workDoc.replace(/<[^>]*>/g, '').trim();
+        if (plainText) {
+          payload.work_doc_note = plainText;
+        }
+      }
+
       const endpoint = isTimeIn ? clockIn : clockOut;
       const data = await endpoint(payload);
 
       const attendance = data?.attendance || null;
       setTodayRecord(attendance);
-      setBanner({ tone: "success", text: `Time ${isTimeIn ? "in" : "out"} recorded.` });
+
+      if (!isTimeIn && attendance?.id && workDocAttachments?.length > 0) {
+        setBanner({ tone: "info", text: "Uploading attachments..." });
+        let uploadErrors = 0;
+        for (const file of workDocAttachments) {
+          try {
+            await uploadWorkDocFile(attendance.id, file);
+          } catch (uploadErr) {
+            console.error("Failed to upload file", file.name, uploadErr);
+            uploadErrors++;
+          }
+        }
+        if (uploadErrors > 0) {
+          toast.error({
+            title: "Upload Warning",
+            description: `${uploadErrors} attachment(s) failed to upload.`,
+          });
+        }
+      }
+
+      toast.success({
+        title: `Time ${isTimeIn ? "In" : "Out"} Recorded`,
+        description: `Your time ${isTimeIn ? "in" : "out"} has been saved successfully.`,
+      });
       onRecordSaved?.(attendance);
     } catch (error) {
       const message = error.response?.data?.error || "Unable to save attendance.";
-      setBanner({ tone: "error", text: message });
+      toast.error({
+        title: "Attendance Error",
+        description: message,
+      });
     } finally {
       setProcessing("");
     }
@@ -322,34 +403,6 @@ const LocationAttendance = ({
         </div>
       </div>
 
-
-      {banner && (
-        <div
-          className={`mt-3 rounded-xl border px-4 py-3 text-sm ${banner.tone === "success"
-            ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200"
-            : "border-red-500/40 bg-red-500/10 text-red-200"
-            }`}
-        >
-          {banner.text}
-        </div>
-      )}
-
-      {(hasClockedIn || hasClockedOut) && (
-        <div className="mt-3 grid gap-1.5 text-xs text-white/70">
-          {hasClockedIn && (
-            <p className="flex items-center gap-2">
-              <LogIn className="h-3.5 w-3.5 text-emerald-300" />
-              Time in recorded at {todayRecord?.time_in || "—"}
-            </p>
-          )}
-          {hasClockedOut && (
-            <p className="flex items-center gap-2">
-              <LogOut className="h-3.5 w-3.5 text-emerald-300" />
-              Time out recorded at {todayRecord?.time_out || "—"}
-            </p>
-          )}
-        </div>
-      )}
 
       {/* ── Mode selector ── */}
       <div className="mt-5">
@@ -495,6 +548,12 @@ const LocationAttendance = ({
             >
               {processing === "out" ? "Processing..." : "Time Out"}
             </button>
+            {earlyTimeoutMessage && !hasClockedOut && (
+              <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                <Clock className="h-3.5 w-3.5 shrink-0" />
+                <span>{earlyTimeoutMessage}</span>
+              </div>
+            )}
           </div>
 
           {/* Footer info for Time Out */}

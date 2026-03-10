@@ -9,6 +9,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import Attendance, CalendarEvent, Leave, OvertimeRequest, TimeLog
+from .geocoding_service import reverse_geocode
+from .services.supabase_storage import SupabaseStorageManager
+from .session_service import (
+    determine_session,
+    is_late_for_session,
+    calculate_late_deduction,
+    calculate_session_hours,
+    get_net_session_hours,
+    SESSION_END_BASELINES,
+)
 
 # Create your views here.
 
@@ -74,6 +84,16 @@ def _serialize_leave(leave):
 def _serialize_attendance(record):
     employee = record.employee
     latest_log = record.logs.order_by('-timestamp').first()
+    
+    # Get attachment URL and filename from the first file in work_doc_file_paths
+    attachment_url = None
+    attachment_filename = None
+    if record.work_doc_file_paths and len(record.work_doc_file_paths) > 0:
+        first_file_path = record.work_doc_file_paths[0]
+        attachment_url = SupabaseStorageManager.get_public_url(first_file_path)
+        # Extract filename from path (last part after /)
+        attachment_filename = first_file_path.split('/')[-1] if '/' in first_file_path else first_file_path
+    
     return {
         'id': record.id,
         'employee_id': employee.id,
@@ -87,7 +107,19 @@ def _serialize_attendance(record):
         'time_in': record.time_in.strftime('%H:%M') if record.time_in else None,
         'time_out': record.time_out.strftime('%H:%M') if record.time_out else None,
         'location': latest_log.location if latest_log and latest_log.location else None,
+        'session_type': record.session_type,
+        'session_end_time': SESSION_END_BASELINES.get(record.session_type, None),
+        'is_late': record.is_late,
+        'late_deduction_hours': str(record.late_deduction_hours),
+        'clock_in_address': record.clock_in_address,
+        'clock_out_address': record.clock_out_address,
         'notes': record.notes,
+        'work_doc_note': record.work_doc_note,
+        'work_doc_file_paths': record.work_doc_file_paths,
+        'work_doc_uploaded_at': record.work_doc_uploaded_at,
+        'work_doc_uploaded_by_id': record.work_doc_uploaded_by_id,
+        'attachment_url': attachment_url,
+        'attachment_filename': attachment_filename,
         'created_at': record.created_at,
         'updated_at': record.updated_at,
     }
@@ -234,18 +266,20 @@ def all_attendance_records(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def my_attendance_today(request):
-    """Return today's attendance record for the logged-in user, if it exists."""
+    """Return today's open session for the logged-in user, if any."""
     today = timezone.localdate()
-    record = (
+    # Find an open session (clocked in but not clocked out)
+    open_record = (
         Attendance.objects
         .select_related('employee', 'employee__department')
         .prefetch_related('logs')
-        .filter(employee=request.user, date=today)
+        .filter(employee=request.user, date=today, time_in__isnull=False, time_out__isnull=True)
         .first()
     )
-    if not record:
-        return Response({'record': None})
-    return Response({'record': _serialize_attendance(record)})
+    if open_record:
+        return Response({'record': _serialize_attendance(open_record)})
+    # No open session — return None so the user can start a new one
+    return Response({'record': None})
 
 
 def _apply_status_override(record, requested_status: str | None):
@@ -268,27 +302,70 @@ def _append_notes(record, notes_text: str | None):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def clock_in(request):
-    """Record time in for the authenticated user for today's date."""
+    """Record time in for the authenticated user. Creates one record per session."""
     now = timezone.localtime()
     today = now.date()
 
-    with transaction.atomic():
-        record, _created = Attendance.objects.select_for_update().get_or_create(
-            employee=request.user,
-            date=today,
-            defaults={'status': 'present'},
+    # Determine which session window the current time falls into
+    session = determine_session(now)
+    if not session:
+        return Response(
+            {'error': 'Clock-in is not available at this time. Check the session schedule.'},
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
-        if record.time_in:
+    with transaction.atomic():
+        # Reject if there is an open session (clocked in but not out)
+        open_record = (
+            Attendance.objects.select_for_update()
+            .filter(employee=request.user, date=today, time_in__isnull=False, time_out__isnull=True)
+            .first()
+        )
+        if open_record:
             return Response(
-                {'error': 'You already timed in today.', 'attendance': _serialize_attendance(record)},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': f'You have an open {open_record.get_session_type_display() or ""} session. Please clock out first.',
+                 'attendance': _serialize_attendance(open_record)},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        record.time_in = now.time()
-        _apply_status_override(record, request.data.get('status'))
+        # Reject if already clocked in for this session today
+        existing = (
+            Attendance.objects.select_for_update()
+            .filter(employee=request.user, date=today, session_type=session)
+            .first()
+        )
+        if existing and existing.time_in:
+            return Response(
+                {'error': f'You already clocked in for the {session} session today.',
+                 'attendance': _serialize_attendance(existing)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create new record for this session
+        record = Attendance(
+            employee=request.user,
+            date=today,
+            session_type=session,
+            time_in=now.time(),
+        )
+
+        # Late detection
+        late = is_late_for_session(session, now)
+        record.is_late = late
+        if late:
+            record.late_deduction_hours = calculate_late_deduction(session, now)
+            record.status = 'late'
+        else:
+            record.status = 'present'
+
+        # Reverse geocode clock-in location
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        if latitude is not None and longitude is not None:
+            record.clock_in_address = reverse_geocode(latitude, longitude)
+
         _append_notes(record, request.data.get('notes'))
-        record.save(update_fields=['time_in', 'status', 'notes', 'updated_at'])
+        record.save()
 
         TimeLog.objects.create(
             employee=request.user,
@@ -303,33 +380,61 @@ def clock_in(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def clock_out(request):
-    """Record time out for the authenticated user for today's date."""
+    """Record time out for the user's currently open session."""
     now = timezone.localtime()
     today = now.date()
 
     with transaction.atomic():
-        record, _created = Attendance.objects.select_for_update().get_or_create(
-            employee=request.user,
-            date=today,
-            defaults={'status': 'present'},
+        # Find the open session (clocked in, not yet clocked out)
+        record = (
+            Attendance.objects.select_for_update()
+            .filter(employee=request.user, date=today, time_in__isnull=False, time_out__isnull=True)
+            .first()
         )
 
-        if record.time_out:
+        if not record:
             return Response(
-                {'error': 'You already timed out today.', 'attendance': _serialize_attendance(record)},
-                status=status.HTTP_400_BAD_REQUEST
+                {'error': 'No open session to clock out from.'},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if record.time_in and now.time() < record.time_in:
-            return Response(
-                {'error': 'Time out cannot be earlier than time in.', 'attendance': _serialize_attendance(record)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Prohibit early timeout for morning and afternoon sessions
+        if record.session_type in ('morning', 'afternoon'):
+            session_end = SESSION_END_BASELINES.get(record.session_type)
+            if session_end and now.time() < session_end:
+                label = 'Morning' if record.session_type == 'morning' else 'Afternoon'
+                end_fmt = session_end.strftime('%I:%M %p')
+                return Response(
+                    {'error': f'Early timeout is not allowed. {label} session ends at {end_fmt}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         record.time_out = now.time()
-        _apply_status_override(record, request.data.get('status'))
+
+        # Reverse geocode clock-out location
+        latitude = request.data.get('latitude')
+        longitude = request.data.get('longitude')
+        if latitude is not None and longitude is not None:
+            record.clock_out_address = reverse_geocode(latitude, longitude)
+
         _append_notes(record, request.data.get('notes'))
-        record.save(update_fields=['time_out', 'status', 'notes', 'updated_at'])
+        
+        # Save work documentation note if provided
+        work_doc_note = (request.data.get('work_doc_note') or '').strip()
+        if work_doc_note:
+            record.work_doc_note = work_doc_note
+            record.work_doc_uploaded_by = request.user
+            record.work_doc_uploaded_at = timezone.now()
+        
+        update_fields = [
+            'time_out', 'notes', 'clock_out_address', 'updated_at',
+        ]
+        
+        # Include work_doc fields in update if provided
+        if work_doc_note:
+            update_fields.extend(['work_doc_note', 'work_doc_uploaded_by', 'work_doc_uploaded_at'])
+        
+        record.save(update_fields=update_fields)
 
         TimeLog.objects.create(
             employee=request.user,
@@ -511,3 +616,201 @@ def approve_overtime_request(request, request_id):
     fields_to_update.append('updated_at')
     overtime_request.save(update_fields=fields_to_update)
     return Response(_serialize_overtime_request(overtime_request))
+
+
+# ============================================================================
+# WORK DOCUMENTATION ENDPOINTS
+# ============================================================================
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_work_documentation(request, attendance_id):
+    """
+    Upload work documentation files for an attendance record.
+    Files are uploaded directly to Supabase bucket.
+    Only the work_doc_note is saved in Django.
+    
+    Expected POST data:
+    - file: File object (optional)
+    - work_doc_note: Text note about work completed (optional but at least one required)
+    """
+    try:
+        record = Attendance.objects.get(id=attendance_id, employee=request.user)
+    except Attendance.DoesNotExist:
+        return Response({'error': 'Attendance record not found.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Check if note or file is provided
+    work_doc_note = (request.data.get('work_doc_note') or '').strip()
+    has_file = 'file' in request.FILES
+    
+    if not work_doc_note and not has_file:
+        return Response(
+            {'error': 'Either a work documentation note or file is required.'}, 
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Save note to record if provided
+    if work_doc_note:
+        record.work_doc_note = work_doc_note
+    
+    # Handle file upload if present
+    uploaded_file_info = None
+    if has_file:
+        uploaded_file = request.FILES['file']
+        
+        # Upload to Supabase
+        result = SupabaseStorageManager.upload_work_documentation(
+            file_obj=uploaded_file,
+            user_id=request.user.id,
+            date_str=str(record.date),
+            employee_id=record.employee_id
+        )
+        
+        if not result.get('success'):
+            return Response({'error': result.get('error')}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # File uploaded successfully - we don't save metadata to DB
+        # Files will be queried directly from Supabase bucket when needed
+        uploaded_file_info = {
+            'filename': result['filename'],
+            'file_url': result['file_url'],
+        }
+    
+    # Update timestamps only if we have doc content
+    if work_doc_note or has_file:
+        record.work_doc_uploaded_at = timezone.now()
+        record.work_doc_uploaded_by = request.user
+    
+    # Save record (only note, not file metadata)
+    record.save()
+    
+    return Response({
+        'success': True,
+        'message': 'Work documentation saved successfully',
+        'work_doc_note': record.work_doc_note,
+        'uploaded_file': uploaded_file_info,
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_work_documentation_files(request, attendance_id):
+    """
+    List all work documentation files from Supabase for an attendance record.
+    Files are queried directly from the bucket, not from database.
+    """
+    try:
+        record = Attendance.objects.get(id=attendance_id)
+    except Attendance.DoesNotExist:
+        return Response({'error': 'Attendance record not found.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Check authorization - user can view own docs, admins can view all
+    is_admin = request.user.is_staff or request.user.is_superuser
+    is_owner = record.employee_id == request.user.id
+    
+    if not (is_admin or is_owner):
+        return Response({'error': 'Not authorized to view this documentation.'}, status=status.HTTP_403_FORBIDDEN)
+    
+    # List files from Supabase bucket
+    result = SupabaseStorageManager.list_work_documentation_files(
+        employee_id=record.employee_id,
+        date_str=str(record.date)
+    )
+    
+    if not result.get('success'):
+        return Response({
+            'id': record.id,
+            'files': [],
+            'work_doc_note': record.work_doc_note,
+            'error': result.get('error')
+        }, status=status.HTTP_200_OK)
+    
+    return Response({
+        'id': record.id,
+        'employee_id': record.employee_id,
+        'date': record.date,
+        'work_doc_note': record.work_doc_note,
+        'files': result.get('files', []),
+        'file_count': len(result.get('files', []))
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_work_documentation(request, attendance_id):
+    """
+    Retrieve work documentation note for an attendance record.
+    (Legacy endpoint - kept for compatibility)
+    """
+    try:
+        record = Attendance.objects.get(id=attendance_id)
+    except Attendance.DoesNotExist:
+        return Response({'error': 'Attendance record not found.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Check authorization - user can view own docs, admins can view all
+    is_admin = request.user.is_staff or request.user.is_superuser
+    is_owner = record.employee_id == request.user.id
+    
+    if not (is_admin or is_owner):
+        return Response({'error': 'Not authorized to view this documentation.'}, status=status.HTTP_403_FORBIDDEN)
+    
+    return Response({
+        'id': record.id,
+        'employee_id': record.employee_id,
+        'date': record.date,
+        'work_doc_note': record.work_doc_note,
+        'work_doc_file_paths': record.work_doc_file_paths,
+        'work_doc_uploaded_at': record.work_doc_uploaded_at,
+        'work_doc_uploaded_by_id': record.work_doc_uploaded_by_id,
+        'file_count': len(record.work_doc_file_paths)
+    }, status=status.HTTP_200_OK)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_work_documentation_file(request, attendance_id, file_index):
+    """
+    Delete a specific work documentation file.
+    """
+    try:
+        record = Attendance.objects.get(id=attendance_id)
+    except Attendance.DoesNotExist:
+        return Response({'error': 'Attendance record not found.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Check authorization
+    is_admin = request.user.is_staff or request.user.is_superuser
+    is_owner = record.employee_id == request.user.id
+    
+    if not (is_admin or is_owner):
+        return Response({'error': 'Not authorized.'}, status=status.HTTP_403_FORBIDDEN)
+    
+    # Check if file index is valid
+    try:
+        file_index = int(file_index)
+        if file_index < 0 or file_index >= len(record.work_doc_file_paths):
+            return Response({'error': 'Invalid file index.'}, status=status.HTTP_400_BAD_REQUEST)
+    except (ValueError, TypeError):
+        return Response({'error': 'Invalid file index.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Get file data before deletion
+    file_data = record.work_doc_file_paths[file_index]
+    
+    # Delete from Supabase
+    result = SupabaseStorageManager.delete_work_documentation(
+        file_path=file_data['file_path'],
+        user_id=request.user.id,
+        employee_id=record.employee_id
+    )
+    
+    if not result.get('success'):
+        return Response({'error': result.get('error')}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Remove from list
+    record.work_doc_file_paths.pop(file_index)
+    record.save(update_fields=['work_doc_file_paths', 'updated_at'])
+    
+    return Response({
+        'success': True,
+        'message': 'File deleted successfully',
+        'file_count': len(record.work_doc_file_paths)
+    }, status=status.HTTP_200_OK)

@@ -11,6 +11,7 @@
     "start:win": "concurrently \"npm run dev\" \"cd ../backend && ..\\.venv\\Scripts\\python manage.py runserver\" --kill-others"
   },
   "dependencies": {
+    "@inspectph/react-toast-sileo": "^0.0.2",
     "@radix-ui/react-accordion": "^1.2.3",
     "@radix-ui/react-alert-dialog": "^1.1.6",
     "@radix-ui/react-aspect-ratio": "^1.1.2",
@@ -56,6 +57,7 @@
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^7.13.0",
     "recharts": "^2.15.2",
+    "sileo": "^0.1.5",
     "sonner": "^2.0.3",
     "tailwind-merge": "^2.5.5",
     "vaul": "^1.1.2"
