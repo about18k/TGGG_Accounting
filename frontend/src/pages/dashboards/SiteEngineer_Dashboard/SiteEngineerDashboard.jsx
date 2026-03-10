@@ -8,14 +8,13 @@ import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import SiteEngineerSidebar from './components/SiteEngineerSidebar';
 import LocationAttendance from '../../../components/attendance/LocationAttendance';
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
+import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';
 import useMyAttendance from '../../../hooks/useMyAttendance';
-import { TableSkeleton } from '../../../components/SkeletonLoader';
 
 export default function SiteEngineerDashboard({ user, onNavigate }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [workDoc, setWorkDoc] = useState('');
   const [attendanceReady, setAttendanceReady] = useState(false);
-  const [expandedWorkIdx, setExpandedWorkIdx] = useState(null);
   const {
     records: attendanceRows,
     loading: attendanceLoading,
@@ -58,176 +57,13 @@ export default function SiteEngineerDashboard({ user, onNavigate }) {
         <WorkDocCard value={workDoc} onChange={setWorkDoc} cardClass={cardClass} />
       </div>
 
-      <div className={cardClass}>
-        <div className="p-4 sm:p-6 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-white font-semibold flex-1 min-w-[200px] text-lg tracking-tight">My Attendance History</h3>
-          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#001a2b] px-3 py-2 w-full sm:w-auto">
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="bg-transparent text-white/80 text-sm outline-none w-full cursor-pointer [&::-webkit-calendar-picker-indicator]:invert-[0.6]"
-            />
-          </div>
-        </div>
-        <div className="max-h-[520px] overflow-auto">
-          <table className="w-full min-w-[1200px] border-collapse">
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-[#001a2b] border-b border-white/10">
-                {[
-                  "DATE",
-                  "AM IN",
-                  "AM OUT",
-                  "PM IN",
-                  "PM OUT",
-                  "OT IN",
-                  "OT OUT",
-                  "TOTAL HOURS",
-                  "LATE (MIN)",
-                  "WORK DONE",
-                  "ATTACHMENTS",
-                  "PHOTO",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/50 whitespace-nowrap"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {attendanceLoading && (
-                <tr>
-                  <td colSpan={12} className="px-6 py-4">
-                    <TableSkeleton />
-                  </td>
-                </tr>
-              )}
-              {!attendanceLoading && attendanceRows.length === 0 && (
-                <tr>
-                  <td colSpan={12} className="px-6 py-4 text-white/60 text-sm text-center">
-                    No attendance records yet.
-                  </td>
-                </tr>
-              )}
-              {attendanceRows.map((row, index) => {
-                const isLate = row?.status === "late";
-
-                const hours = (() => {
-                  if (!row.time_in || !row.time_out) return '-';
-                  const [inH, inM] = row.time_in.split(':').map(Number);
-                  const [outH, outM] = row.time_out.split(':').map(Number);
-                  if ([inH, inM, outH, outM].some((v) => Number.isNaN(v))) return '-';
-                  const mins = outH * 60 + outM - (inH * 60 + inM);
-                  if (mins <= 0) return '-';
-                  return `${Math.floor(mins / 60)}h ${mins % 60}m`;
-                })();
-
-                // Formatting times
-                const [inH, inM] = row.time_in ? row.time_in.split(':') : [];
-                let formattedAmIn = '-'; let formattedPmOut = '-';
-                if (inH) formattedAmIn = `${inH > 12 ? inH - 12 : inH}:${inM} ${inH >= 12 ? 'PM' : 'AM'}`;
-                const [outH, outM] = row.time_out ? row.time_out.split(':') : [];
-                if (outH) formattedPmOut = `${outH > 12 ? outH - 12 : outH}:${outM} ${outH >= 12 ? 'PM' : 'AM'}`;
-
-                // Fallbacks
-                const amOut = row.time_in && row.time_out ? '12:00 PM' : '-';
-                const pmIn = row.time_in && row.time_out ? '01:00 PM' : '-';
-
-                return (
-                  <React.Fragment key={row.id || index}>
-                    <tr
-                      className={[
-                        "border-b border-white/5",
-                        index % 2 === 0 ? "bg-[#00273C]" : "bg-[#001f35]",
-                        "hover:bg-[#FF7120]/5 transition",
-                      ].join(" ")}
-                    >
-                      <td className="px-6 py-4 text-white/90 text-sm whitespace-nowrap">
-                        {row.date}
-                      </td>
-                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                        {formattedAmIn}
-                      </td>
-                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                        {amOut}
-                      </td>
-                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                        {pmIn}
-                      </td>
-                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                        {formattedPmOut}
-                      </td>
-                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                        -
-                      </td>
-                      <td className="px-6 py-4 text-white/85 text-sm whitespace-nowrap">
-                        -
-                      </td>
-                      <td className="px-6 py-4 text-emerald-400 text-sm font-semibold whitespace-nowrap">
-                        {hours}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold">
-                        {isLate ? (
-                          <div className="flex flex-col gap-1 text-[#FF7120]">
-                            <span>M: Late</span>
-                            <span>Total: Late</span>
-                          </div>
-                        ) : (
-                          <span className="text-white/85">-</span>
-                        )}
-                      </td>
-
-                      <td className="px-6 py-4 text-white/85 text-sm max-w-[200px]">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate">{row.notes || '-'}</span>
-                          {row.notes && (
-                            <button
-                              className="shrink-0 p-1 px-2 text-[10px] rounded bg-[#FF7120] text-white hover:bg-[#e0611b] transition"
-                              onClick={() =>
-                                setExpandedWorkIdx((v) => (v === index ? null : index))
-                              }
-                              type="button"
-                              aria-label="Toggle work done details"
-                            >
-                              ...
-                            </button>
-                          )}
-                        </div>
-                      </td>
-
-                      <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
-                        -
-                      </td>
-                      <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
-                        -
-                      </td>
-                    </tr>
-
-                    {expandedWorkIdx === index && (
-                      <tr className="border-b border-white/5 bg-[#001a2b]">
-                        <td colSpan={12} className="px-6 py-4">
-                          <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                            <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">
-                              WORK DONE (FULL)
-                            </p>
-                            <p className="mt-2 text-white/90 text-sm leading-relaxed">
-                              {row.notes}
-                            </p>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-          {attendanceError && <p className="mt-3 text-xs text-red-200">{attendanceError}</p>}
-        </div>
-      </div>
+      <AttendanceHistoryTable
+        records={attendanceRows}
+        loading={attendanceLoading}
+        error={attendanceError}
+        selectedDate={selectedDate}
+        onDateChange={setSelectedDate}
+      />
     </div>
   );
 

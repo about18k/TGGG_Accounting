@@ -11,8 +11,7 @@ import {
   ChevronDownIcon,
 } from "lucide-react";
 import LocationAttendance from "../../../components/attendance/LocationAttendance";
-import WorkDocCard from "../../../components/attendance/WorkDocCard";
-import useMyAttendance from "../../../hooks/useMyAttendance";
+import WorkDocCard from "../../../components/attendance/WorkDocCard";import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';import useMyAttendance from "../../../hooks/useMyAttendance";
 import { getEvents } from "../../../services/attendanceService";
 import { TableSkeleton, CardSkeleton } from "../../../components/SkeletonLoader";
 const formatTime12 = (t) => {
@@ -369,7 +368,7 @@ const AttendanceDashboard = ({
                 <table className="w-full min-w-[1200px] border-collapse">
                   <thead className="sticky top-0 z-10">
                     <tr className="bg-[#001a2b] border-b border-white/10">
-                      {["DATE", "AM IN", "AM OUT", "PM IN", "PM OUT", "OT IN", "OT OUT", "TOTAL HOURS", "LATE DEDUCTION", "LOCATION", "NOTES"].map((h) => (
+                      {["DATE", "AM IN", "AM OUT", "PM IN", "PM OUT", "OT IN", "OT OUT", "TOTAL HOURS", "LATE DEDUCTION", "LOCATION", "NOTES", "ATTACHMENTS"].map((h) => (
                         <th
                           key={h}
                           className="px-4 py-4 text-left text-xs font-semibold uppercase tracking-wider text-white/60 whitespace-nowrap"
@@ -383,14 +382,14 @@ const AttendanceDashboard = ({
                   <tbody>
                     {attendanceLoading && (
                       <tr>
-                        <td colSpan={11} className="px-6 py-4">
+                        <td colSpan={12} className="px-6 py-4">
                           <TableSkeleton />
                         </td>
                       </tr>
                     )}
                     {!attendanceLoading && attendanceData.length === 0 && (
                       <tr>
-                        <td colSpan={11} className="px-6 py-4 text-white/60 text-sm">
+                        <td colSpan={12} className="px-6 py-4 text-white/60 text-sm">
                           No attendance records yet.
                         </td>
                       </tr>
@@ -451,6 +450,33 @@ const AttendanceDashboard = ({
                             </td>
                             <td className="px-4 py-4 text-white/85 text-sm">
                               {allNotes || '—'}
+                            </td>
+                            <td className="px-4 py-4 text-sm whitespace-nowrap">
+                              {am?.attachment_url || pm?.attachment_url || ot?.attachment_url ? (
+                                <a
+                                  href={am?.attachment_url || pm?.attachment_url || ot?.attachment_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                                >
+                                  <svg
+                                    className="w-4 h-4"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    />
+                                  </svg>
+                                  {am?.attachment_filename || pm?.attachment_filename || ot?.attachment_filename || 'Download'}
+                                </a>
+                              ) : (
+                                <span className="text-white/40">—</span>
+                              )}
                             </td>
                           </tr>
                         );

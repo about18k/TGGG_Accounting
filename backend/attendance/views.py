@@ -84,6 +84,16 @@ def _serialize_leave(leave):
 def _serialize_attendance(record):
     employee = record.employee
     latest_log = record.logs.order_by('-timestamp').first()
+    
+    # Get attachment URL and filename from the first file in work_doc_file_paths
+    attachment_url = None
+    attachment_filename = None
+    if record.work_doc_file_paths and len(record.work_doc_file_paths) > 0:
+        first_file_path = record.work_doc_file_paths[0]
+        attachment_url = SupabaseStorageManager.get_public_url(first_file_path)
+        # Extract filename from path (last part after /)
+        attachment_filename = first_file_path.split('/')[-1] if '/' in first_file_path else first_file_path
+    
     return {
         'id': record.id,
         'employee_id': employee.id,
@@ -108,6 +118,8 @@ def _serialize_attendance(record):
         'work_doc_file_paths': record.work_doc_file_paths,
         'work_doc_uploaded_at': record.work_doc_uploaded_at,
         'work_doc_uploaded_by_id': record.work_doc_uploaded_by_id,
+        'attachment_url': attachment_url,
+        'attachment_filename': attachment_filename,
         'created_at': record.created_at,
         'updated_at': record.updated_at,
     }

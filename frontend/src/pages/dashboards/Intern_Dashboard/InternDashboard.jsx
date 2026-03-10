@@ -164,6 +164,7 @@ export default function InternDashboard({ user, onNavigate }) {
                   "LATE DEDUCTION",
                   "LOCATION",
                   "WORK DONE",
+                  "ATTACHMENTS",
                 ].map((h) => (
                   <th
                     key={h}
@@ -177,14 +178,14 @@ export default function InternDashboard({ user, onNavigate }) {
             <tbody>
               {attendanceLoading && (
                 <tr>
-                  <td colSpan={11} className="px-6 py-4">
+                  <td colSpan={12} className="px-6 py-4">
                     <TableSkeleton />
                   </td>
                 </tr>
               )}
               {!attendanceLoading && attendanceRows.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-6 py-4 text-white/60 text-sm text-center">
+                  <td colSpan={12} className="px-6 py-4 text-white/60 text-sm text-center">
                     No attendance records yet.
                   </td>
                 </tr>
@@ -258,11 +259,34 @@ export default function InternDashboard({ user, onNavigate }) {
                             )}
                           </div>
                         </td>
+                        <td className="px-4 py-4 text-white/85 text-sm max-w-[200px]">
+                          {(am?.work_doc_file_paths?.length > 0 || pm?.work_doc_file_paths?.length > 0 || ot?.work_doc_file_paths?.length > 0) ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {[...(am?.work_doc_file_paths || []), ...(pm?.work_doc_file_paths || []), ...(ot?.work_doc_file_paths || [])].map((filePath, idx) => {
+                                const fileName = filePath.split('/').pop() || 'file';
+                                return (
+                                  <a
+                                    key={idx}
+                                    href={filePath}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[#FF7120] hover:text-[#FF7120]/80 text-xs underline rounded px-1.5 py-0.5 hover:bg-[#FF7120]/5 transition"
+                                    title={fileName}
+                                  >
+                                    📎 <span className="truncate max-w-[120px]">{fileName}</span>
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-white/60">-</span>
+                          )}
+                        </td>
                       </tr>
 
                       {expandedWorkIdx === index && (
                         <tr className="border-b border-white/5 bg-[#001a2b]">
-                          <td colSpan={11} className="px-6 py-4">
+                          <td colSpan={12} className="px-6 py-4">
                             <div className="rounded-xl border border-white/10 bg-black/20 p-4">
                               <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">WORK DONE (FULL)</p>
                               <p className="mt-2 text-white/90 text-sm leading-relaxed whitespace-pre-line">{allNotes}</p>

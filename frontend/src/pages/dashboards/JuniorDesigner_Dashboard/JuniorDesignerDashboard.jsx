@@ -8,14 +8,13 @@ import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import JuniorDesignerSidebar from './components/JuniorDesignerSidebar';
 import LocationAttendance from '../../../components/attendance/LocationAttendance';
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
+import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';
 import useMyAttendance from '../../../hooks/useMyAttendance';
-import { TableSkeleton } from '../../../components/SkeletonLoader';
 
 export default function JuniorDesignerDashboard({ user, onNavigate }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [workDoc, setWorkDoc] = useState('');
   const [attendanceReady, setAttendanceReady] = useState(false);
-  const [expandedWorkIdx, setExpandedWorkIdx] = useState(null);
   const {
     records: attendanceRows,
     loading: attendanceLoading,
@@ -194,11 +193,35 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
                         </div>
                       </td>
 
-                      <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
-                        -
+                      <td className="px-6 py-4 text-sm whitespace-nowrap">
+                        {row.attachment_url ? (
+                          <a
+                            href={row.attachment_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                              />
+                            </svg>
+                            {row.attachment_filename || 'Download'}
+                          </a>
+                        ) : (
+                          <span className="text-white/40">—</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-white/60 text-sm whitespace-nowrap">
-                        -
+                        —
                       </td>
                     </tr>
 
