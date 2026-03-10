@@ -24,11 +24,80 @@ export const formatTime12 = (t) => {
  */
 export const calcMinutes = (timeIn, timeOut) => {
   if (!timeIn || !timeOut) return 0;
-  const [inH, inM] = timeIn.split(':').map(Number);
-  const [outH, outM] = timeOut.split(':').map(Number);
-  if ([inH, inM, outH, outM].some((v) => Number.isNaN(v))) return 0;
-  const m = outH * 60 + outM - (inH * 60 + inM);
+  const inMins = parseMinutes(timeIn);
+  const outMins = parseMinutes(timeOut);
+  if (inMins === null || outMins === null) return 0;
+  const m = outMins - inMins;
   return m > 0 ? m : 0;
+};
+
+/**
+ * Parse time string to total minutes
+ */
+export const parseMinutes = (timeStr) => {
+  if (!timeStr) return null;
+  const parts = timeStr.trim().split(' ');
+  if (parts.length === 2) {
+    const [time, meridiem] = parts;
+    let [h, m] = time.split(':').map(Number);
+    if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12;
+    if (meridiem.toUpperCase() === 'AM' && h === 12) h = 0;
+    return h * 60 + m;
+  }
+  const [hRaw, mRaw] = timeStr.split(':');
+  const h = Number(hRaw);
+  const m = Number(mRaw);
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+};
+
+/**
+ * Calculate session validity minutes matching backend session_service.py policy
+ * Gross hours minus late deductions
+ */
+export const calcSessionMinutes = (record) => {
+  if (!record || !record.time_out || !record.session_type) return 0;
+
+  const outMinutes = parseMinutes(record.time_out);
+  if (outMinutes === null) return 0;
+
+  const SESSION_BASELINES = {
+    morning: 8 * 60,
+    afternoon: 13 * 60,
+    overtime: 19 * 60
+  };
+  const SESSION_END_BASELINES = {
+    morning: 12 * 60,
+    afternoon: 17 * 60,
+    overtime: 22 * 60
+  };
+  const SESSION_MAX_HOURS = {
+    morning: 4 * 60,
+    afternoon: 4 * 60,
+    overtime: 3 * 60
+  };
+
+  const baselineStart = SESSION_BASELINES[record.session_type];
+  const baselineEnd = SESSION_END_BASELINES[record.session_type];
+  const maxMins = SESSION_MAX_HOURS[record.session_type];
+
+  if (baselineStart === undefined || baselineEnd === undefined || maxMins === undefined) return 0;
+
+  if (outMinutes <= baselineStart) return 0;
+
+  // Cap checkout at session end
+  const effectiveEnd = Math.min(outMinutes, baselineEnd);
+
+  // Calculate gross minutes from baseline start
+  let grossMins = effectiveEnd - baselineStart;
+  if (grossMins <= 0) return 0;
+  if (grossMins > maxMins) grossMins = maxMins;
+
+  // Subtract the strict late deduction already calculated by the backend
+  const lateDeductionMins = Math.round(parseFloat(record.late_deduction_hours || 0) * 60);
+
+  const netMins = grossMins - lateDeductionMins;
+  return Math.max(0, netMins);
 };
 
 /**
@@ -87,9 +156,9 @@ export const groupByDate = (rows) => {
  */
 export const calculateTotalHours = (am, pm, ot) => {
   const totalMins =
-    calcMinutes(am?.time_in, am?.time_out) +
-    calcMinutes(pm?.time_in, pm?.time_out) +
-    calcMinutes(ot?.time_in, ot?.time_out);
+    calcSessionMinutes(am) +
+    calcSessionMinutes(pm) +
+    calcSessionMinutes(ot);
   return totalMins > 0 ? `${Math.floor(totalMins / 60)}h ${totalMins % 60}m` : '-';
 };
 

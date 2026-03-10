@@ -42,7 +42,7 @@ export default function AttendanceHistoryTable({
     records.forEach((record) => {
       if (!filesByAttendanceId[record.id] && !filesLoading[record.id]) {
         setFilesLoading((prev) => ({ ...prev, [record.id]: true }));
-        
+
         workDocumentationService.getWorkDocumentationFiles(record.id)
           .then((result) => {
             if (result.success) {
@@ -143,11 +143,11 @@ export default function AttendanceHistoryTable({
                   const anyLate = am?.is_late || pm?.is_late || ot?.is_late;
                   const address = getPrimaryLocation(am, pm, ot);
                   const allNotes = getCombinedNotes(am, pm, ot);
-                  
+
                   // Get files from Supabase (first occurrence found via iterate through records)
                   const attendanceRecord = records.find(r => r.date === day.date);
                   const supabaseFiles = attendanceRecord ? filesByAttendanceId[attendanceRecord.id] || [] : [];
-                  const attachment = supabaseFiles.length > 0 
+                  const attachment = supabaseFiles.length > 0
                     ? { filename: supabaseFiles[0].filename, url: supabaseFiles[0].file_url }
                     : null;
 
@@ -231,7 +231,7 @@ export default function AttendanceHistoryTable({
                               className="text-blue-400 hover:text-blue-300 underline flex items-center gap-1"
                             >
                               <svg
-                                className="w-4 h-4"
+                                className="w-4 h-4 shrink-0"
                                 fill="none"
                                 stroke="currentColor"
                                 viewBox="0 0 24 24"
@@ -243,7 +243,9 @@ export default function AttendanceHistoryTable({
                                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                                 />
                               </svg>
-                              {attachment.filename}
+                              <span className="truncate max-w-[150px] inline-block" title={attachment.filename}>
+                                {attachment.filename}
+                              </span>
                             </a>
                           ) : (
                             <span className="text-white/40">—</span>

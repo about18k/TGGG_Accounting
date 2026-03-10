@@ -3,6 +3,7 @@ import Alert from '../../../components/Alert.jsx';
 import { CardSkeleton } from '../../../components/SkeletonLoader.jsx';
 import { getMyAttendance } from '../../../services/attendanceService';
 import * as profileService from '../../../services/profileService';
+import { calcSessionMinutes } from '../../../utils/attendanceFormatters';
 
 function Profile({ token, user, onLogout }) {
   const [profile, setProfile] = useState({ full_name: '', email: '' });
@@ -30,63 +31,13 @@ function Profile({ token, user, onLogout }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const parseMinutes = (timeStr) => {
-    if (!timeStr) return null;
-    const parts = timeStr.trim().split(' ');
-    if (parts.length === 2) {
-      const [time, meridiem] = parts;
-      let [h, m] = time.split(':').map(Number);
-      if (meridiem.toUpperCase() === 'PM' && h !== 12) h += 12;
-      if (meridiem.toUpperCase() === 'AM' && h === 12) h = 0;
-      return h * 60 + m;
-    }
-    const [hRaw, mRaw] = timeStr.split(':');
-    const h = Number(hRaw);
-    const m = Number(mRaw);
-    if (Number.isNaN(h) || Number.isNaN(m)) return null;
-    return h * 60 + m;
-  };
-
   const fetchAttendanceHours = async () => {
     try {
       const data = await getMyAttendance();
       let totalMinutes = 0;
 
       data.forEach(a => {
-        if (a.time_in && a.time_out) {
-          const inMinutes = parseMinutes(a.time_in);
-          const outMinutes = parseMinutes(a.time_out);
-
-          if (inMinutes !== null && outMinutes !== null) {
-            const morningBaseline = 8 * 60; // 8:00 AM
-            const afternoonBaseline = 13 * 60; // 1:00 PM
-            const overtimeBaseline = 19 * 60; // 7:00 PM
-            const morningGrace = 8 * 60 + 5; // 8:05 AM
-            const afternoonGrace = 13 * 60 + 5; // 1:05 PM
-            const overtimeGrace = 19 * 60 + 5; // 7:05 PM
-            const morningEnd = 12 * 60; // 12:00 PM
-            const afternoonEnd = 17 * 60; // 5:00 PM
-            const overtimeEnd = 22 * 60; // 10:00 PM
-
-            // Determine session based on check-in time
-            if (inMinutes < 12 * 60) {
-              // Morning session: if within grace (<=8:05 AM), count from 8 AM
-              const effectiveStart = inMinutes <= morningGrace ? morningBaseline : inMinutes;
-              const effectiveEnd = Math.min(outMinutes, morningEnd);
-              totalMinutes += Math.max(0, effectiveEnd - effectiveStart);
-            } else if (inMinutes >= 12 * 60 && inMinutes < 18 * 60) {
-              // Afternoon session: if within grace (<=1:05 PM), count from 1 PM
-              const effectiveStart = inMinutes <= afternoonGrace ? afternoonBaseline : inMinutes;
-              const effectiveEnd = Math.min(outMinutes, afternoonEnd);
-              totalMinutes += Math.max(0, effectiveEnd - effectiveStart);
-            } else {
-              // Overtime session (>= 6:00 PM): if within grace (<=7:05 PM), count from 7 PM
-              const effectiveStart = inMinutes <= overtimeGrace ? overtimeBaseline : inMinutes;
-              const effectiveEnd = Math.min(outMinutes, overtimeEnd);
-              totalMinutes += Math.max(0, effectiveEnd - effectiveStart);
-            }
-          }
-        }
+        totalMinutes += calcSessionMinutes(a);
       });
 
       setTotalHours(totalMinutes);

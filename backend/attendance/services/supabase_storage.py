@@ -134,8 +134,8 @@ class SupabaseStorageManager:
             try:
                 response = client.storage.from_("work_attachments").upload(
                     path=file_path,
-                    file=(file_obj.name, file_content, file_obj.content_type),
-                    file_options={"cacheControl": "3600", "upsert": False}
+                    file=file_content,
+                    file_options={"content-type": file_obj.content_type, "cacheControl": "3600", "upsert": "false"}
                 )
                 logger.info(f"Supabase upload successful: {file_path}")
             except Exception as upload_error:
