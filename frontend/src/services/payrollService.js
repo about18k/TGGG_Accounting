@@ -52,11 +52,3 @@ export async function deleteEmployeeContribution(employeeId, contributionId) {
     const { data } = await api.delete(`/payroll/employees/${employeeId}/contributions/${contributionId}/`);
     return data;
 }
-
-export async function notifyEmployeePayroll(employeeId, payload = {}) {
-    const { data } = await api.post('/payroll/notify-employee/', {
-        employee_id: employeeId,
-        ...payload,
-    });
-    return data;
-}
