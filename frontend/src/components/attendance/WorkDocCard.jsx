@@ -3,6 +3,7 @@ import { FileText, Paperclip, PenLine, Plus, X } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import './WorkDocEditor.css';
+import { toast } from 'sonner';
 
 /**
  * Shared Work Documentation card with rich text editing + attachments.
@@ -41,10 +42,11 @@ export default function WorkDocCard({
     onChange,
     attachments = [],
     onAttachmentsChange,
+    defaultOpen = false,
     cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]',
     placeholder = 'Example: Completed database design, attended team meeting, fixed bug #123...',
 }) {
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditing, setIsEditing] = useState(defaultOpen);
     const fileInputRef = useRef(null);
     const toolbarId = useMemo(() => `toolbar-${Math.random().toString(36).substr(2, 9)}`, []);
 
@@ -56,7 +58,9 @@ export default function WorkDocCard({
 
     const handleAttachClick = () => {
         if (attachments.length >= 3) {
-            alert("You can only upload a maximum of 3 attachments.");
+            toast.warning('Maximum Attachments Reached', {
+                description: 'You can only upload a maximum of 3 attachments.',
+            });
             return;
         }
         fileInputRef.current?.click();
@@ -72,7 +76,9 @@ export default function WorkDocCard({
             onAttachmentsChange((prev) => {
                 const combined = [...(prev || []), ...files];
                 if (combined.length > 3) {
-                    alert("Maximum 3 attachments allowed.");
+                    toast.warning('Maximum Attachments Reached', {
+                        description: 'Maximum 3 attachments allowed.',
+                    });
                     return combined.slice(0, 3);
                 }
                 return combined;

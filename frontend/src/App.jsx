@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
 
 // Extracted modules
 import { isTokenExpired, getPageFromPath } from './utils/authUtils';
@@ -131,7 +132,29 @@ export default function App() {
   const defaultDashboardPath = `/dashboard/${currentPage || 'attendance'}`;
 
   return (
-    <Routes>
+    <>
+      <Toaster
+        theme="dark"
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#001f35',
+            border: '1px solid rgba(255,255,255,0.1)',
+            color: '#fff',
+          },
+          classNames: {
+            title: 'text-white font-semibold text-sm',
+            description: 'text-[#F27229] text-xs',
+            error: 'border-[#d4183d]/30 bg-[#001f35]',
+            success: 'border-[#F27229]/30 bg-[#001f35]',
+          },
+        }}
+        richColors={false}
+        expand={false}
+        closeButton
+        style={{ zIndex: 99999 }}
+      />
+      <Routes>
       <Route
         path="/login"
         element={user ? <Navigate to={defaultDashboardPath} replace /> : <Login onLoginSuccess={handleLoginSuccess} />}
@@ -151,6 +174,7 @@ export default function App() {
         path="*"
         element={<Navigate to={user ? defaultDashboardPath : '/login'} replace />}
       />
-    </Routes>
+      </Routes>
+    </>
   );
 }

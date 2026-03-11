@@ -84,6 +84,7 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
                 onChange={setWorkDoc}
                 attachments={workDocAttachments}
                 onAttachmentsChange={setWorkDocAttachments}
+                defaultOpen={showTimeOut}
                 cardClass={cardClass}
               />
             </div>

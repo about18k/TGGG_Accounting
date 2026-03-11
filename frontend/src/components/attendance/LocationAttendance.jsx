@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { clockIn, clockOut, getTodayAttendance, uploadWorkDocFile } from "../../services/attendanceService";
-import { useToast } from "@inspectph/react-toast-sileo";
+import { toast } from "sonner";
 import {
   CheckCircle,
   MapPin,
@@ -113,7 +113,6 @@ const LocationAttendance = ({
   const [processing, setProcessing] = useState("");
   const [todayRecord, setTodayRecord] = useState(null);
   const [banner, setBanner] = useState(null);
-  const toast = useToast();
   const [loadingToday, setLoadingToday] = useState(false);
 
   const officeConfig = attendanceLocations.mainOffice || {
@@ -271,9 +270,8 @@ const LocationAttendance = ({
     if (!isTimeIn) {
       const plainText = workDoc.replace(/<[^>]*>/g, '').trim();
       if (!plainText) {
-        toast.error({
-          title: "Work Documentation Required",
-          description: "Please add a work documentation note before clocking out. Click 'Add Work Documentation' to document your work.",
+        toast.error("Work Documentation Required", {
+          description: "Please add a work documentation note before clocking out.",
         });
         return;
       }
@@ -317,22 +315,19 @@ const LocationAttendance = ({
           }
         }
         if (uploadErrors > 0) {
-          toast.error({
-            title: "Upload Warning",
+          toast.error("Upload Warning", {
             description: `${uploadErrors} attachment(s) failed to upload.`,
           });
         }
       }
 
-      toast.success({
-        title: `Time ${isTimeIn ? "In" : "Out"} Recorded`,
+      toast.success(`Time ${isTimeIn ? "In" : "Out"} Recorded`, {
         description: `Your time ${isTimeIn ? "in" : "out"} has been saved successfully.`,
       });
       onRecordSaved?.(attendance);
     } catch (error) {
       const message = error.response?.data?.error || "Unable to save attendance.";
-      toast.error({
-        title: "Attendance Error",
+      toast.error("Attendance Error", {
         description: message,
       });
     } finally {
