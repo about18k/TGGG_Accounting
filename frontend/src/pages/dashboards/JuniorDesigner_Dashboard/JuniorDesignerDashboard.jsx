@@ -17,6 +17,7 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
   const [workDocAttachments, setWorkDocAttachments] = useState([]);
   const [attendanceReady, setAttendanceReady] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
+  const [lockMessage, setLockMessage] = useState(null);
   const {
     records: attendanceRows,
     loading: attendanceLoading,
@@ -70,9 +71,10 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
                 className={`${cardClass} p-4 sm:p-6`}
                 workDoc={workDoc}
                 workDocAttachments={workDocAttachments}
-                onStatusChange={({ ready, isBeforeSessionEnd }) => {
+                onStatusChange={({ ready, isBeforeSessionEnd, earlyTimeoutMessage }) => {
                     setAttendanceReady(ready);
                     setIsLocked(!!isBeforeSessionEnd);
+                    setLockMessage(earlyTimeoutMessage || null);
                   }}
                 onRecordSaved={(attendance) => {
                   // Clear work documentation after successful clock-out (documentation saved)
@@ -92,7 +94,7 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
                 onAttachmentsChange={setWorkDocAttachments}
                 defaultOpen={false}
                 disabled={isLocked}
-                disabledMessage={isLocked ? 'You can document your work once time out is available.' : null}
+                disabledMessage={lockMessage}
                 cardClass={cardClass}
               />
             </div>

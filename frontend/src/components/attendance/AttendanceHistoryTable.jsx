@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { TableSkeleton } from '../SkeletonLoader';
-import workDocumentationService from '../../services/workDocumentationService';
 import {
   formatTime12,
   groupByDate,
@@ -9,7 +8,6 @@ import {
   buildLateBreakdown,
   getPrimaryLocation,
   getCombinedNotes,
-  getPrimaryAttachment,
   formatLateDeduction,
 } from '../../utils/attendanceFormatters';
 
@@ -23,6 +21,9 @@ import {
  * - error: String error message if any
  * - selectedDate: Currently selected date for filtering
  * - onDateChange: Callback when date is changed
+ *
+ * Attachment data comes directly from each record's attachment_url / attachment_filename
+ * fields serialized by the backend — no extra per-row API calls needed.
  */
 export default function AttendanceHistoryTable({
   records = [],
@@ -32,40 +33,6 @@ export default function AttendanceHistoryTable({
   onDateChange = () => { },
 }) {
   const [expandedWorkIdx, setExpandedWorkIdx] = useState(null);
-  const [filesByAttendanceId, setFilesByAttendanceId] = useState({});
-  const [filesLoading, setFilesLoading] = useState({});
-
-  // Fetch work documentation files from Supabase for each attendance record
-  useEffect(() => {
-    if (!records || records.length === 0) return;
-
-    records.forEach((record) => {
-      if (!filesByAttendanceId[record.id] && !filesLoading[record.id]) {
-        setFilesLoading((prev) => ({ ...prev, [record.id]: true }));
-
-        workDocumentationService.getWorkDocumentationFiles(record.id)
-          .then((result) => {
-            if (result.success) {
-              setFilesByAttendanceId((prev) => ({
-                ...prev,
-                [record.id]: result.data.files || [],
-              }));
-            } else {
-              setFilesByAttendanceId((prev) => ({
-                ...prev,
-                [record.id]: [],
-              }));
-            }
-          })
-          .finally(() => {
-            setFilesLoading((prev) => ({
-              ...prev,
-              [record.id]: false,
-            }));
-          });
-      }
-    });
-  }, [records, filesByAttendanceId, filesLoading]);
 
   const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -144,11 +111,11 @@ export default function AttendanceHistoryTable({
                   const address = getPrimaryLocation(am, pm, ot);
                   const allNotes = getCombinedNotes(am, pm, ot);
 
-                  // Get files from Supabase (first occurrence found via iterate through records)
+                  // Attachment: use data already embedded in the record by _serialize_attendance —
+                  // no extra API call needed
                   const attendanceRecord = records.find(r => r.date === day.date);
-                  const supabaseFiles = attendanceRecord ? filesByAttendanceId[attendanceRecord.id] || [] : [];
-                  const attachment = supabaseFiles.length > 0
-                    ? { filename: supabaseFiles[0].filename, url: supabaseFiles[0].file_url }
+                  const attachment = attendanceRecord?.attachment_url
+                    ? { filename: attendanceRecord.attachment_filename, url: attendanceRecord.attachment_url }
                     : null;
 
                   return (

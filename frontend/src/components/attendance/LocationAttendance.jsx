@@ -196,30 +196,16 @@ const LocationAttendance = ({
     return () => clearInterval(id);
   }, []);
 
-  const sessionEndInfo = SESSION_END_TIMES[todayRecord?.session_type] || null;
-  const isBeforeSessionEnd = sessionEndInfo
-    ? now.getHours() < sessionEndInfo.hour ||
-    (now.getHours() === sessionEndInfo.hour && now.getMinutes() < sessionEndInfo.minute)
-    : false;
-
-  // Compute remaining time string
-  const earlyTimeoutMessage = (() => {
-    if (!sessionEndInfo || !isBeforeSessionEnd) return null;
-    const endMinutes = sessionEndInfo.hour * 60 + sessionEndInfo.minute;
-    const nowMinutes = now.getHours() * 60 + now.getMinutes();
-    const diff = endMinutes - nowMinutes;
-    const h = Math.floor(diff / 60);
-    const m = diff % 60;
-    const remaining = h > 0 ? `${h}h ${m}m` : `${m}m`;
-    return `Time out available at ${sessionEndInfo.label} (${remaining} remaining)`;
-  })();
+  // Removed session-based locking logic so users can time out anytime.
+  const isBeforeSessionEnd = false;
+  const earlyTimeoutMessage = null;
 
   const canTimeIn = Boolean(locationIn) && inRangeIn && !hasClockedIn;
-  const canTimeOut = Boolean(locationOut) && inRangeOut && !hasClockedOut && !isBeforeSessionEnd;
+  const canTimeOut = Boolean(locationOut) && inRangeOut && !hasClockedOut;
 
   useEffect(() => {
-    onStatusChange?.({ ready: canTimeIn || canTimeOut, locationIn, locationOut, isBeforeSessionEnd });
-  }, [canTimeIn, canTimeOut, locationIn, locationOut, onStatusChange, isBeforeSessionEnd]);
+    onStatusChange?.({ ready: canTimeIn || canTimeOut, locationIn, locationOut, isBeforeSessionEnd, earlyTimeoutMessage });
+  }, [canTimeIn, canTimeOut, locationIn, locationOut, onStatusChange, isBeforeSessionEnd, earlyTimeoutMessage]);
 
   const fallbackLocation = useMemo(
     () => ({
@@ -266,12 +252,12 @@ const LocationAttendance = ({
     const location = isTimeIn ? locationIn : locationOut;
     const modeValue = isTimeIn ? mode : modeOut;
 
-    // Validate work documentation on clock-out
-    if (!isTimeIn) {
+    // Validate work documentation on clock-out for PM session only
+    if (!isTimeIn && todayRecord?.session_type === 'afternoon') {
       const plainText = workDoc.replace(/<[^>]*>/g, '').trim();
-      if (!plainText) {
+      if (!plainText && (!workDocAttachments || workDocAttachments.length === 0)) {
         toast.error("Work Documentation Required", {
-          description: "Please add a work documentation note before clocking out.",
+          description: "Please add a work documentation note or file before clocking out for the afternoon.",
         });
         return;
       }
@@ -466,20 +452,8 @@ const LocationAttendance = ({
       {/* ── Map section for Time Out ── */}
       {hasClockedIn && !hasClockedOut && (
         <MapPortal>
-          {/* ── Lock overlay wrapper: dims + blocks interaction before session end ── */}
-            <div className={`relative ${isBeforeSessionEnd ? 'pointer-events-none select-none' : ''}`}>
-              {/* Frosted lock overlay */}
-              {isBeforeSessionEnd && (
-                <div className="absolute inset-0 z-10 rounded-2xl flex flex-col items-center justify-center gap-3 bg-[#00273C]/70 backdrop-blur-[2px]">
-                  <Clock className="h-7 w-7 text-amber-400 shrink-0" />
-                  <div className="text-center px-4">
-                    <p className="text-amber-300 font-semibold text-sm">Time Out Locked</p>
-                    <p className="text-amber-300/70 text-xs mt-1">{earlyTimeoutMessage}</p>
-                  </div>
-                </div>
-              )}
-
-              <div className={isBeforeSessionEnd ? 'opacity-40' : ''}>
+            <div className="relative">
+              <div>
                 {/* Mode selector */}
                 <div className="mb-4">
                   <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-2.5">
@@ -504,7 +478,6 @@ const LocationAttendance = ({
                             className="hidden"
                             checked={isActive}
                             onChange={() => setModeOut(option.value)}
-                            disabled={isBeforeSessionEnd}
                           />
                           <div
                             className={`grid place-items-center h-8 w-8 rounded-lg shrink-0 ${isActive
@@ -541,7 +514,6 @@ const LocationAttendance = ({
                     src={mapSrc}
                     loading="lazy"
                     referrerPolicy="no-referrer"
-                    style={{ pointerEvents: isBeforeSessionEnd ? 'none' : 'auto' }}
                   />
                 </div>
                 <div className="flex items-start gap-2 text-xs text-white/45 mt-2">
