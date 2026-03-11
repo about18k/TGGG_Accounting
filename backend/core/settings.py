@@ -102,7 +102,7 @@ if USE_SUPABASE:
             'HOST': config('SUPABASE_DB_HOST', default=''),
             'PORT': config('SUPABASE_DB_PORT', default='5432'),
             'ATOMIC_REQUESTS': True,
-            'CONN_MAX_AGE': 600,
+            'CONN_MAX_AGE': 0,
         }
     }
 else:

@@ -244,7 +244,13 @@ def my_leave_requests(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def my_attendance_records(request):
-    records = Attendance.objects.filter(employee=request.user).order_by('-date', '-created_at')
+    records = (
+        Attendance.objects
+        .filter(employee=request.user)
+        .select_related('employee', 'employee__department')
+        .prefetch_related('logs')
+        .order_by('-date', '-created_at')
+    )
     return Response([_serialize_attendance(record) for record in records])
 
 
@@ -398,17 +404,7 @@ def clock_out(request):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Prohibit early timeout for morning and afternoon sessions
-        if record.session_type in ('morning', 'afternoon'):
-            session_end = SESSION_END_BASELINES.get(record.session_type)
-            if session_end and now.time() < session_end:
-                label = 'Morning' if record.session_type == 'morning' else 'Afternoon'
-                end_fmt = session_end.strftime('%I:%M %p')
-                return Response(
-                    {'error': f'Early timeout is not allowed. {label} session ends at {end_fmt}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
+        # Early timeout lock has been removed as per new policy.
         record.time_out = now.time()
 
         # Reverse geocode clock-out location
@@ -669,8 +665,15 @@ def upload_work_documentation(request, attendance_id):
         if not result.get('success'):
             return Response({'error': result.get('error')}, status=status.HTTP_400_BAD_REQUEST)
         
-        # File uploaded successfully - we don't save metadata to DB
-        # Files will be queried directly from Supabase bucket when needed
+        # File uploaded successfully - save the path to DB so _serialize_attendance can find it
+        file_path = result.get('file_path')
+        if file_path:
+            # Ensure it's a list since it defaults to []
+            if not isinstance(record.work_doc_file_paths, list):
+                record.work_doc_file_paths = []
+            if file_path not in record.work_doc_file_paths:
+                record.work_doc_file_paths.append(file_path)
+            
         uploaded_file_info = {
             'filename': result['filename'],
             'file_url': result['file_url'],

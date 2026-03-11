@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from 'react';
-import { FileText, Paperclip, PenLine, Plus, X } from 'lucide-react';
+import { Clock, FileText, Paperclip, PenLine, Plus, X } from 'lucide-react';
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 import './WorkDocEditor.css';
+import { toast } from 'sonner';
 
 /**
  * Shared Work Documentation card with rich text editing + attachments.
@@ -41,10 +42,13 @@ export default function WorkDocCard({
     onChange,
     attachments = [],
     onAttachmentsChange,
+    defaultOpen = false,
+    disabled = false,
+    disabledMessage = null,
     cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]',
     placeholder = 'Example: Completed database design, attended team meeting, fixed bug #123...',
 }) {
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditing, setIsEditing] = useState(defaultOpen);
     const fileInputRef = useRef(null);
     const toolbarId = useMemo(() => `toolbar-${Math.random().toString(36).substr(2, 9)}`, []);
 
@@ -56,7 +60,9 @@ export default function WorkDocCard({
 
     const handleAttachClick = () => {
         if (attachments.length >= 3) {
-            alert("You can only upload a maximum of 3 attachments.");
+            toast.warning('Maximum Attachments Reached', {
+                description: 'You can only upload a maximum of 3 attachments.',
+            });
             return;
         }
         fileInputRef.current?.click();
@@ -72,7 +78,9 @@ export default function WorkDocCard({
             onAttachmentsChange((prev) => {
                 const combined = [...(prev || []), ...files];
                 if (combined.length > 3) {
-                    alert("Maximum 3 attachments allowed.");
+                    toast.warning('Maximum Attachments Reached', {
+                        description: 'Maximum 3 attachments allowed.',
+                    });
                     return combined.slice(0, 3);
                 }
                 return combined;
@@ -99,7 +107,21 @@ export default function WorkDocCard({
     };
 
     return (
-        <div className={`${cardClass} p-4 sm:p-6 flex flex-col`}>
+        <div className={`${cardClass} p-4 sm:p-6 flex flex-col relative overflow-hidden`}>
+            {/* Lock overlay */}
+            {disabled && (
+                <div className="absolute inset-0 z-10 rounded-2xl flex flex-col items-center justify-center gap-3 bg-[#00273C]/75 backdrop-blur-[2px] pointer-events-none">
+                    <Clock className="h-7 w-7 text-amber-400 shrink-0" />
+                    <div className="text-center px-6">
+                        <p className="text-amber-300 font-semibold text-sm">Work Documentation Locked</p>
+                        {disabledMessage && (
+                            <p className="text-amber-300/70 text-xs mt-1">{disabledMessage}</p>
+                        )}
+                    </div>
+                </div>
+            )}
+            {/* Card content — dims + blocks interaction when locked */}
+            <div className={disabled ? 'pointer-events-none select-none opacity-40' : ''}>
             {/* Header */}
             <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -215,6 +237,7 @@ export default function WorkDocCard({
 
             {/* Map Portal Target */}
             <div id="map-preview-portal" className="empty:min-h-[300px] empty:mt-6 empty:rounded-2xl empty:bg-white/5 empty:animate-pulse"></div>
+            </div>
         </div>
     );
 }

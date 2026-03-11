@@ -41,6 +41,16 @@ class Attendance(models.Model):
     class Meta:
         ordering = ['-date']
         unique_together = ('employee', 'date', 'session_type')
+        indexes = [
+            # Fastest path: "my attendance history" — employee + date DESC
+            models.Index(fields=['employee', '-date'], name='att_employee_date_idx'),
+            # Admin / manager: all records for a specific date
+            models.Index(fields=['date'], name='att_date_idx'),
+            # Filtering by status (present / late / absent)
+            models.Index(fields=['employee', 'status'], name='att_employee_status_idx'),
+            # "Today's record" check — employee + date + session_type (narrower than unique_together)
+            models.Index(fields=['employee', 'date', 'session_type'], name='att_emp_date_session_idx'),
+        ]
 
     def __str__(self):
         return f"{self.employee.email} - {self.date} ({self.status})"
@@ -63,6 +73,12 @@ class TimeLog(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
+        indexes = [
+            # Latest logs per employee (clock-in/out history)
+            models.Index(fields=['employee', '-timestamp'], name='timelog_emp_ts_idx'),
+            # Filter by log type (time_in / time_out)
+            models.Index(fields=['employee', 'log_type'], name='timelog_emp_type_idx'),
+        ]
 
     def __str__(self):
         return f"{self.employee.email} - {self.log_type} at {self.timestamp}"
@@ -100,6 +116,14 @@ class Leave(models.Model):
 
     class Meta:
         ordering = ['-start_date']
+        indexes = [
+            # Per-employee leave history
+            models.Index(fields=['employee', '-start_date'], name='leave_emp_start_idx'),
+            # Filter pending / approved leaves (admin view)
+            models.Index(fields=['status', '-start_date'], name='leave_status_date_idx'),
+            # Date range overlap checks
+            models.Index(fields=['start_date', 'end_date'], name='leave_date_range_idx'),
+        ]
 
     def __str__(self):
         return f"{self.employee.email} - {self.leave_type} ({self.start_date} to {self.end_date})"
@@ -126,6 +150,12 @@ class CalendarEvent(models.Model):
     class Meta:
         ordering = ['date', 'title']
         unique_together = ('title', 'date')
+        indexes = [
+            # Holiday / event lookup by date (used every page load to check holidays)
+            models.Index(fields=['date'], name='cal_date_idx'),
+            # Filter by event type
+            models.Index(fields=['event_type', 'date'], name='cal_type_date_idx'),
+        ]
 
     def __str__(self):
         return f"{self.title} on {self.date} ({self.event_type})"
@@ -149,6 +179,12 @@ class OvertimeRequest(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            # Per-employee OT request history
+            models.Index(fields=['employee', '-created_at'], name='ot_emp_created_idx'),
+            # Admin: all requests sorted by date
+            models.Index(fields=['-date_completed'], name='ot_date_completed_idx'),
+        ]
 
     def __str__(self):
         return f"OT #{self.id} - {self.employee.email}"

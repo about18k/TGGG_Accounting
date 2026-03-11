@@ -17,6 +17,8 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
   const [workDoc, setWorkDoc] = useState('');
   const [workDocAttachments, setWorkDocAttachments] = useState([]);
   const [attendanceReady, setAttendanceReady] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockMessage, setLockMessage] = useState(null);
   const {
     records: attendanceRows,
     loading: attendanceLoading,
@@ -67,7 +69,11 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
                 className={`${cardClass} p-4 sm:p-6`}
                 workDoc={workDoc}
                 workDocAttachments={workDocAttachments}
-                onStatusChange={({ ready }) => setAttendanceReady(ready)}
+                onStatusChange={({ ready, isBeforeSessionEnd, earlyTimeoutMessage }) => {
+                    setAttendanceReady(ready);
+                    setIsLocked(!!isBeforeSessionEnd);
+                    setLockMessage(earlyTimeoutMessage || null);
+                  }}
                 onRecordSaved={(attendance) => {
                   // Clear work documentation after successful clock-out (documention saved)
                   if (!attendance?.time_in || attendance?.time_out) {
@@ -84,6 +90,9 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
                 onChange={setWorkDoc}
                 attachments={workDocAttachments}
                 onAttachmentsChange={setWorkDocAttachments}
+                defaultOpen={false}
+                disabled={isLocked}
+                disabledMessage={lockMessage}
                 cardClass={cardClass}
               />
             </div>
