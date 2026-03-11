@@ -100,14 +100,9 @@ def calculate_late_deduction(session_type, check_in_time):
     if late_minutes <= 0:
         return Decimal('0')
 
-    # Tiered deduction: 1hr flat within opening hour, then actual time late
-    if late_minutes <= 60:
-        # Within opening hour (baseline to baseline+60 mins): flat 1 hour deduction
-        return Decimal('1')
-    else:
-        # After opening hour: actual minutes late converted to hours
-        deduction = Decimal(str(round(late_minutes / 60, 2)))
-        return min(deduction, max_hours)
+    # After opening hour: actual minutes late converted to hours
+    deduction = Decimal(str(round(late_minutes / 60, 2)))
+    return min(deduction, max_hours)
 
 
 def calculate_session_hours(session_type, check_out_time):

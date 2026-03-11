@@ -13,6 +13,7 @@ function Profile({ token, user, onLogout }) {
   const [password, setPassword] = useState({ new: '', confirm: '' });
   const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [totalHours, setTotalHours] = useState(0);
+  const [totalDeductions, setTotalDeductions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [showCharLimitModal, setShowCharLimitModal] = useState(false);
@@ -35,12 +36,15 @@ function Profile({ token, user, onLogout }) {
     try {
       const data = await getMyAttendance();
       let totalMinutes = 0;
+      let totalDeductMins = 0;
 
       data.forEach(a => {
         totalMinutes += calcSessionMinutes(a);
+        totalDeductMins += Math.round(parseFloat(a.late_deduction_hours || 0) * 60);
       });
 
       setTotalHours(totalMinutes);
+      setTotalDeductions(totalDeductMins);
     } catch (err) {
       console.error('Failed to compute total hours', err);
     }
@@ -392,9 +396,11 @@ function Profile({ token, user, onLogout }) {
                       Based on attendance, deductions, and overtime.
                     </p>
                   </div>
-                  <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#FFB36B' }}>
-                    {Math.floor(totalHours / 60)}h {totalHours % 60}m
-                  </span>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#FFB36B' }}>
+                      {Math.floor(totalHours / 60)}h {totalHours % 60}m
+                    </div>
+                  </div>
                 </div>
               )}
 

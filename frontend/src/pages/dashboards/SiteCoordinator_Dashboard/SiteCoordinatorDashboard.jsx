@@ -10,6 +10,7 @@ import LocationAttendance from '../../../components/attendance/LocationAttendanc
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
 import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';
 import useMyAttendance from '../../../hooks/useMyAttendance';
+import { CardSkeleton } from '../../../components/SkeletonLoader';
 
 export default function SiteCoordinatorDashboard({ user, onNavigate }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -21,7 +22,15 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
     loading: attendanceLoading,
     error: attendanceError,
     refresh: refreshAttendance,
+    latest,
   } = useMyAttendance();
+
+  const todayIso = new Date().toISOString().split('T')[0];
+  const isToday = latest?.date === todayIso;
+  const hasIn = isToday && latest?.time_in;
+  const hasOut = isToday && latest?.time_out;
+  const showTimeIn = !hasIn || hasOut;
+  const showTimeOut = hasIn && !hasOut;
 
   const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -47,30 +56,39 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-        <LocationAttendance
-          role={user?.role}
-          className={`${cardClass} p-4 sm:p-6`}
-          workDoc={workDoc}
-          workDocAttachments={workDocAttachments}
-          onStatusChange={({ ready }) => setAttendanceReady(ready)}
-          onRecordSaved={(attendance) => {
-            // Clear work documentation after successful clock-out (documentation saved)
-            if (!attendance?.time_in || attendance?.time_out) {
-              setWorkDoc('');
-              setWorkDocAttachments([]);
-            }
-            refreshAttendance();
-          }}
-        />
-
-        <WorkDocCard
-          value={workDoc}
-          onChange={setWorkDoc}
-          attachments={workDocAttachments}
-          onAttachmentsChange={setWorkDocAttachments}
-          cardClass={cardClass}
-        />
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
+        {attendanceLoading ? (
+          <CardSkeleton />
+        ) : (
+          <>
+            <div className={showTimeOut ? 'hidden' : 'block'}>
+              <LocationAttendance
+                role={user?.role}
+                className={`${cardClass} p-4 sm:p-6`}
+                workDoc={workDoc}
+                workDocAttachments={workDocAttachments}
+                onStatusChange={({ ready }) => setAttendanceReady(ready)}
+                onRecordSaved={(attendance) => {
+                  // Clear work documentation after successful clock-out (documention saved)
+                  if (!attendance?.time_in || attendance?.time_out) {
+                    setWorkDoc('');
+                    setWorkDocAttachments([]);
+                  }
+                  refreshAttendance();
+                }}
+              />
+            </div>
+            <div className={showTimeIn ? 'hidden' : 'block'}>
+              <WorkDocCard
+                value={workDoc}
+                onChange={setWorkDoc}
+                attachments={workDocAttachments}
+                onAttachmentsChange={setWorkDocAttachments}
+                cardClass={cardClass}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       <AttendanceHistoryTable

@@ -28,6 +28,14 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
     refresh: refreshAttendance,
   } = useMyAttendance();
 
+  const latest = attendanceRows[0]; // Assuming attendanceRows is sorted by date descending
+  const todayIso = new Date().toISOString().split('T')[0];
+  const isToday = latest?.date === todayIso;
+  const hasIn = isToday && latest?.time_in;
+  const hasOut = isToday && latest?.time_out;
+  const showTimeIn = !hasIn || hasOut; // Show LocationAttendance if no clock-in today, or if already clocked out
+  const showTimeOut = hasIn && !hasOut; // Show WorkDocCard if clocked in but not clocked out
+
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const requested = params.get('section');
@@ -58,7 +66,7 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {attendanceLoading ? (
           <>
             <CardSkeleton />
@@ -66,28 +74,32 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
           </>
         ) : (
           <>
-            <LocationAttendance
-              role={user?.role}
-              className={`${cardClass} p-4 sm:p-6`}
-              workDoc={workDoc}
-              workDocAttachments={workDocAttachments}
-              onStatusChange={({ ready }) => setAttendanceReady(ready)}
-              onRecordSaved={(attendance) => {
-                // Clear work documentation after successful clock-out (documentation saved)
-                if (!attendance?.time_in || attendance?.time_out) {
-                  setWorkDoc('');
-                  setWorkDocAttachments([]);
-                }
-                refreshAttendance();
-              }}
-            />
-            <WorkDocCard
-              value={workDoc}
-              onChange={setWorkDoc}
-              attachments={workDocAttachments}
-              onAttachmentsChange={setWorkDocAttachments}
-              cardClass={cardClass}
-            />
+            <div className={showTimeIn ? 'block' : 'hidden'}>
+              <LocationAttendance
+                role={user?.role}
+                className={`${cardClass} p-4 sm:p-6`}
+                workDoc={workDoc}
+                workDocAttachments={workDocAttachments}
+                onStatusChange={({ ready }) => setAttendanceReady(ready)}
+                onRecordSaved={(attendance) => {
+                  // Clear work documentation after successful clock-out (documentation saved)
+                  if (!attendance?.time_in || attendance?.time_out) {
+                    setWorkDoc('');
+                    setWorkDocAttachments([]);
+                  }
+                  refreshAttendance();
+                }}
+              />
+            </div>
+            <div className={showTimeOut ? 'block' : 'hidden'}>
+              <WorkDocCard
+                value={workDoc}
+                onChange={setWorkDoc}
+                attachments={workDocAttachments}
+                onAttachmentsChange={setWorkDocAttachments}
+                cardClass={cardClass}
+              />
+            </div>
           </>
         )}
       </div>

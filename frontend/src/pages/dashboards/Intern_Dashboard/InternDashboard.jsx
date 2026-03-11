@@ -25,7 +25,15 @@ export default function InternDashboard({ user, onNavigate }) {
     loading: attendanceLoading,
     error: attendanceError,
     refresh: refreshAttendance,
+    latest,
   } = useMyAttendance();
+
+  const todayIso = new Date().toISOString().split('T')[0];
+  const isToday = latest?.date === todayIso;
+  const hasIn = isToday && latest?.time_in;
+  const hasOut = isToday && latest?.time_out;
+  const showTimeIn = !hasIn || hasOut;
+  const showTimeOut = hasIn && !hasOut;
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -69,7 +77,7 @@ export default function InternDashboard({ user, onNavigate }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 gap-4 sm:gap-6">
         {attendanceLoading ? (
           <>
             <CardSkeleton />
@@ -77,28 +85,32 @@ export default function InternDashboard({ user, onNavigate }) {
           </>
         ) : (
           <>
-            <LocationAttendance
-              role={user?.role}
-              className={`${cardClass} p-4 sm:p-6`}
-              workDoc={workDoc}
-              workDocAttachments={workDocAttachments}
-              onStatusChange={({ ready }) => setAttendanceReady(ready)}
-              onRecordSaved={(attendance) => {
-                // Clear work documentation after successful clock-out (documention saved)
-                if (!attendance?.time_in || attendance?.time_out) {
-                  setWorkDoc('');
-                  setWorkDocAttachments([]);
-                }
-                refreshAttendance();
-              }}
-            />
-            <WorkDocCard
-              value={workDoc}
-              onChange={setWorkDoc}
-              attachments={workDocAttachments}
-              onAttachmentsChange={setWorkDocAttachments}
-              cardClass={cardClass}
-            />
+            <div className={showTimeOut ? 'hidden' : 'block'}>
+              <LocationAttendance
+                role={user?.role}
+                className={`${cardClass} p-4 sm:p-6`}
+                workDoc={workDoc}
+                workDocAttachments={workDocAttachments}
+                onStatusChange={({ ready }) => setAttendanceReady(ready)}
+                onRecordSaved={(attendance) => {
+                  // Clear work documentation after successful clock-out (documention saved)
+                  if (!attendance?.time_in || attendance?.time_out) {
+                    setWorkDoc('');
+                    setWorkDocAttachments([]);
+                  }
+                  refreshAttendance();
+                }}
+              />
+            </div>
+            <div className={showTimeIn ? 'hidden' : 'block'}>
+              <WorkDocCard
+                value={workDoc}
+                onChange={setWorkDoc}
+                attachments={workDocAttachments}
+                onAttachmentsChange={setWorkDocAttachments}
+                cardClass={cardClass}
+              />
+            </div>
           </>
         )}
       </div>

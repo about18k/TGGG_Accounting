@@ -214,7 +214,7 @@ export default function WorkDocCard({
             )}
 
             {/* Map Portal Target */}
-            <div id="map-preview-portal"></div>
+            <div id="map-preview-portal" className="empty:min-h-[300px] empty:mt-6 empty:rounded-2xl empty:bg-white/5 empty:animate-pulse"></div>
         </div>
     );
 }

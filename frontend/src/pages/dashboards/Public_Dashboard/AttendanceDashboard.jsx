@@ -80,10 +80,13 @@ const AttendanceDashboard = ({
     return `${hrs}h ${mins}m`;
   };
 
+  const isToday = latest?.date === todayIso;
+  const hasIn = isToday && latest?.time_in;
+  const hasOut = isToday && latest?.time_out;
+  const showTimeIn = !hasIn || hasOut;
+  const showTimeOut = hasIn && !hasOut;
+
   const stats = useMemo(() => {
-    const isToday = latest?.date === todayIso;
-    const hasIn = isToday && latest?.time_in;
-    const hasOut = isToday && latest?.time_out;
     const todayStatus = attendanceLoading
       ? "Loading..."
       : isHoliday
@@ -124,7 +127,7 @@ const AttendanceDashboard = ({
         tone: "neutral",
       },
     ];
-  }, [attendanceLoading, isHoliday, latest, locationReady, todayIso]);
+  }, [attendanceLoading, isHoliday, latest, locationReady, hasIn, hasOut]);
 
   const cardClass =
     "rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]";
@@ -273,34 +276,42 @@ const AttendanceDashboard = ({
             </div>
 
             {/* Forms */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-              <div className={`${cardClass} p-4 sm:p-6`}>
-                {isHoliday ? (
-                  <div className="space-y-3 text-white">
-                    <h3 className="text-xl font-semibold text-white">Today is marked as a holiday / no work day.</h3>
-                    <p className="text-white/70 text-sm">
-                      Attendance is disabled. Enjoy your time off!
-                    </p>
+            <div className="grid grid-cols-1 gap-4 sm:gap-6">
+              {attendanceLoading ? (
+                <CardSkeleton />
+              ) : (
+                <>
+                  <div className={`${cardClass} p-4 sm:p-6 ${showTimeOut ? 'hidden' : 'block'}`}>
+                    {isHoliday ? (
+                      <div className="space-y-3 text-white">
+                        <h3 className="text-xl font-semibold text-white">Today is marked as a holiday / no work day.</h3>
+                        <p className="text-white/70 text-sm">
+                          Attendance is disabled. Enjoy your time off!
+                        </p>
+                      </div>
+                    ) : (
+                      <LocationAttendance
+                        role={user?.role}
+                        className="p-0"
+                        onStatusChange={({ ready }) => setLocationReady(ready)}
+                        onRecordSaved={refreshAttendance}
+                        workDoc={workDoc}
+                        workDocAttachments={workDocAttachments}
+                      />
+                    )}
                   </div>
-                ) : (
-                  <LocationAttendance
-                    role={user?.role}
-                    className="p-0"
-                    onStatusChange={({ ready }) => setLocationReady(ready)}
-                    onRecordSaved={refreshAttendance}
-                    workDoc={workDoc}
-                    workDocAttachments={workDocAttachments}
-                  />
-                )}
-              </div>
 
-              <WorkDocCard
-                value={workDoc}
-                onChange={setWorkDoc}
-                attachments={workDocAttachments}
-                onAttachmentsChange={setWorkDocAttachments}
-                cardClass={cardClass}
-              />
+                  <div className={showTimeIn ? 'hidden' : 'block'}>
+                    <WorkDocCard
+                      value={workDoc}
+                      onChange={setWorkDoc}
+                      attachments={workDocAttachments}
+                      onAttachmentsChange={setWorkDocAttachments}
+                      cardClass={cardClass}
+                    />
+                  </div>
+                </>
+              )}
             </div>
 
             {/* History */}

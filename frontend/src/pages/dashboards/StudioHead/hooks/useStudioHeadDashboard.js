@@ -98,7 +98,7 @@ export function useStudioHeadDashboard() {
     try {
       setApprovingUserId(userId);
       setMessage('');
-      await approvePendingUser({ userId, role });
+      await approvePendingUser(userId, role);
       setMessage('User approved successfully.');
       await fetchPending();
       await fetchUsers();

@@ -21,9 +21,26 @@ const MapPortal = ({ children }) => {
   const [target, setTarget] = useState(null);
   const [mounted, setMounted] = useState(false);
 
-  useLayoutEffect(() => {
-    setTarget(document.getElementById("map-preview-portal"));
-    setMounted(true);
+  useEffect(() => {
+    // Check initially
+    let el = document.getElementById("map-preview-portal");
+    if (el) {
+      setTarget(el);
+      setMounted(true);
+      return;
+    }
+
+    // If not found (due to sibling render order), poll for it
+    const interval = setInterval(() => {
+      el = document.getElementById("map-preview-portal");
+      if (el) {
+        setTarget(el);
+        setMounted(true);
+        clearInterval(interval);
+      }
+    }, 50);
+
+    return () => clearInterval(interval);
   }, []);
 
   if (!mounted) return null;
@@ -398,165 +415,250 @@ const LocationAttendance = ({
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
         <div className="flex items-center gap-3">
           <div>
-            <h3 className="text-white font-semibold text-lg leading-tight">Time In</h3>
+            <h3 className="text-white font-semibold text-lg leading-tight">
+              {hasClockedIn && !hasClockedOut ? "Time Out" : "Time In"}
+            </h3>
           </div>
         </div>
       </div>
 
 
       {/* ── Mode selector ── */}
-      <div className="mt-5">
-        <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-2.5">
-          Time In Work Mode
-        </p>
-        <div className="grid gap-3 lg:grid-cols-2">
-          {RADIO_OPTIONS.map((option) => {
-            const OptionIcon = option.icon;
-            const isActive = mode === option.value;
-            return (
-              <label
-                key={option.value}
-                className={`cursor-pointer rounded-xl border px-4 py-3 transition flex items-center gap-3 ${isActive
-                  ? "border-[#FF7120]/70 bg-[#FF7120]/10 text-white shadow-[0_0_16px_rgba(255,113,32,0.08)]"
-                  : "border-white/12 bg-transparent text-white/55 hover:border-white/30 hover:text-white/70"
-                  }`}
-              >
-                <input
-                  type="radio"
-                  name="attendance-mode"
-                  value={option.value}
-                  className="hidden"
-                  checked={isActive}
-                  onChange={() => setMode(option.value)}
-                />
-                <div
-                  className={`grid place-items-center h-8 w-8 rounded-lg shrink-0 ${isActive
-                    ? "bg-[#FF7120]/20 text-[#FF7120]"
-                    : "bg-white/5 text-white/40"
+      {!hasClockedIn && (
+        <div className="mt-5">
+          <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-2.5">
+            Time In Work Mode
+          </p>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {RADIO_OPTIONS.map((option) => {
+              const OptionIcon = option.icon;
+              const isActive = mode === option.value;
+              return (
+                <label
+                  key={option.value}
+                  className={`cursor-pointer rounded-xl border px-4 py-3 transition flex items-center gap-3 ${isActive
+                    ? "border-[#FF7120]/70 bg-[#FF7120]/10 text-white shadow-[0_0_16px_rgba(255,113,32,0.08)]"
+                    : "border-white/12 bg-transparent text-white/55 hover:border-white/30 hover:text-white/70"
                     }`}
                 >
-                  <OptionIcon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <span className="block text-sm font-semibold leading-tight">{option.label}</span>
-                  <span className="block text-[0.7rem] opacity-60 mt-0.5">{option.hint}</span>
-                </div>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Map section ── */}
-      <MapPortal>
-        <div className="mt-6 space-y-2.5">
-          <div className="mb-4">
-            <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-2.5">
-              Time Out Work Mode
-            </p>
-            <div className="grid gap-3 lg:grid-cols-2 mb-4">
-              {RADIO_OPTIONS.map((option) => {
-                const OptionIcon = option.icon;
-                const isActive = modeOut === option.value;
-                return (
-                  <label
-                    key={`out-${option.value}`}
-                    className={`cursor-pointer rounded-xl border px-4 py-3 transition flex items-center gap-3 ${isActive
-                      ? "border-[#FF7120]/70 bg-[#FF7120]/10 text-white shadow-[0_0_16px_rgba(255,113,32,0.08)]"
-                      : "border-white/12 bg-transparent text-white/55 hover:border-white/30 hover:text-white/70"
+                  <input
+                    type="radio"
+                    name="attendance-mode"
+                    value={option.value}
+                    className="hidden"
+                    checked={isActive}
+                    onChange={() => setMode(option.value)}
+                  />
+                  <div
+                    className={`grid place-items-center h-8 w-8 rounded-lg shrink-0 ${isActive
+                      ? "bg-[#FF7120]/20 text-[#FF7120]"
+                      : "bg-white/5 text-white/40"
                       }`}
                   >
-                    <input
-                      type="radio"
-                      name="attendance-mode-out"
-                      value={option.value}
-                      className="hidden"
-                      checked={isActive}
-                      onChange={() => setModeOut(option.value)}
-                    />
-                    <div
-                      className={`grid place-items-center h-8 w-8 rounded-lg shrink-0 ${isActive
-                        ? "bg-[#FF7120]/20 text-[#FF7120]"
-                        : "bg-white/5 text-white/40"
+                    <OptionIcon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="block text-sm font-semibold leading-tight">{option.label}</span>
+                    <span className="block text-[0.7rem] opacity-60 mt-0.5">{option.hint}</span>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Map section for Time Out ── */}
+      {hasClockedIn && !hasClockedOut && (
+        <MapPortal>
+          <div className="mt-6 space-y-2.5">
+            <div className="mb-4">
+              <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-2.5">
+                Time Out Work Mode
+              </p>
+              <div className="grid gap-3 lg:grid-cols-2 mb-4">
+                {RADIO_OPTIONS.map((option) => {
+                  const OptionIcon = option.icon;
+                  const isActive = modeOut === option.value;
+                  return (
+                    <label
+                      key={`out-${option.value}`}
+                      className={`cursor-pointer rounded-xl border px-4 py-3 transition flex items-center gap-3 ${isActive
+                        ? "border-[#FF7120]/70 bg-[#FF7120]/10 text-white shadow-[0_0_16px_rgba(255,113,32,0.08)]"
+                        : "border-white/12 bg-transparent text-white/55 hover:border-white/30 hover:text-white/70"
                         }`}
                     >
-                      <OptionIcon className="h-4 w-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <span className="block text-sm font-semibold leading-tight">{option.label}</span>
-                      <span className="block text-[0.7rem] opacity-60 mt-0.5">{option.hint}</span>
-                    </div>
-                  </label>
-                );
-              })}
+                      <input
+                        type="radio"
+                        name="attendance-mode-out"
+                        value={option.value}
+                        className="hidden"
+                        checked={isActive}
+                        onChange={() => setModeOut(option.value)}
+                      />
+                      <div
+                        className={`grid place-items-center h-8 w-8 rounded-lg shrink-0 ${isActive
+                          ? "bg-[#FF7120]/20 text-[#FF7120]"
+                          : "bg-white/5 text-white/40"
+                          }`}
+                      >
+                        <OptionIcon className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-sm font-semibold leading-tight">{option.label}</span>
+                        <span className="block text-[0.7rem] opacity-60 mt-0.5">{option.hint}</span>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <p className="text-white text-sm font-semibold">Location Preview</p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[0.65rem] font-semibold text-emerald-300 uppercase tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live
+              </span>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+              <iframe
+                title="Attendance location map"
+                className="w-full h-60 sm:h-64 border-0"
+                src={mapSrc}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="flex items-start gap-2 text-xs text-white/45">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <p>
+                {locationIn || locationOut
+                  ? "Showing your captured coordinates on the map. Drag or zoom to inspect."
+                  : `Showing ${officeLabel} as a reference area. Capture your location to update the marker.`}
+              </p>
+            </div>
+
+            <div className="mt-6">
+              {renderLocationSection(
+                "Time Out Location",
+                LogOut,
+                "amber",
+                locationOut,
+                locationOutError,
+                () => requestCoordinates(setLocationOut, setLocationOutError),
+                officeDistanceOut,
+                inRangeOut
+              )}
+            </div>
+
+            <div className="mt-4">
+              <button
+                type="button"
+                disabled={!canTimeOut || processing === "out"}
+                onClick={() => {
+                  handleTimeAction("out");
+                }}
+                className={[
+                  "w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold text-white transition shadow-[0_12px_24px_rgba(0,0,0,0.22)]",
+                  !canTimeOut || processing === "out"
+                    ? "bg-white/10 text-white/40 cursor-not-allowed"
+                    : "bg-[#FF7120] hover:brightness-95 active:scale-[0.98]",
+                ].join(" ")}
+              >
+                {processing === "out" ? "Processing..." : "Time Out"}
+              </button>
+              {earlyTimeoutMessage && !hasClockedOut && (
+                <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+                  <Clock className="h-3.5 w-3.5 shrink-0" />
+                  <span>{earlyTimeoutMessage}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer info for Time Out */}
+            <div className="mt-4 flex flex-col gap-2 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2.5 text-xs text-white/45">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-white/35" />
+                <p>
+                  Geofence radius <strong className="text-white/60">{officeConfig.radius}m</strong> around{" "}
+                  <strong className="text-white/60">{officeLabel}</strong>. You must be within range for Office Mode.
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </MapPortal>
+      )}
+
+      {/* ── Time In Map section ── */}
+      {!hasClockedIn && (
+        <>
+          <div className="mt-6 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <p className="text-white text-sm font-semibold">Location Preview</p>
+              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[0.65rem] font-semibold text-emerald-300 uppercase tracking-wider">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Live
+              </span>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
+              <iframe
+                title="Attendance location map"
+                className="w-full h-60 sm:h-64 border-0"
+                src={mapSrc}
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="flex items-start gap-2 text-xs text-white/45">
+              <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <p>
+                {locationIn || locationOut
+                  ? "Showing your captured coordinates on the map. Drag or zoom to inspect."
+                  : `Showing ${officeLabel} as a reference area. Capture your location to update the marker.`}
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <p className="text-white text-sm font-semibold">Location Preview</p>
-            </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[0.65rem] font-semibold text-emerald-300 uppercase tracking-wider">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              Live
-            </span>
-          </div>
-          <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
-            <iframe
-              title="Attendance location map"
-              className="w-full h-60 sm:h-64 border-0"
-              src={mapSrc}
-              loading="lazy"
-              referrerPolicy="no-referrer"
-            />
-          </div>
-          <div className="flex items-start gap-2 text-xs text-white/45">
-            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <p>
-              {locationIn || locationOut
-                ? "Showing your captured coordinates on the map. Drag or zoom to inspect."
-                : `Showing ${officeLabel} as a reference area. Capture your location to update the marker.`}
-            </p>
-          </div>
-
-          <div className="mt-6">
+          {/* ── Time In location section ── */}
+          <div className="mt-6 grid gap-4 lg:grid-cols-1">
             {renderLocationSection(
-              "Time Out Location",
-              LogOut,
-              "amber",
-              locationOut,
-              locationOutError,
-              () => requestCoordinates(setLocationOut, setLocationOutError),
-              officeDistanceOut,
-              inRangeOut
+              "Time In Location",
+              LogIn,
+              "emerald",
+              locationIn,
+              locationInError,
+              () => requestCoordinates(setLocationIn, setLocationInError),
+              officeDistanceIn,
+              inRangeIn
             )}
           </div>
 
-          <div className="mt-4">
+          {/* ── Action buttons ── */}
+          <div className="mt-6">
             <button
               type="button"
-              disabled={!canTimeOut || processing === "out"}
+              disabled={!canTimeIn || processing === "in"}
               onClick={() => {
-                handleTimeAction("out");
+                handleTimeAction("in");
               }}
               className={[
                 "w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold text-white transition shadow-[0_12px_24px_rgba(0,0,0,0.22)]",
-                !canTimeOut || processing === "out"
+                !canTimeIn || processing === "in"
                   ? "bg-white/10 text-white/40 cursor-not-allowed"
                   : "bg-[#FF7120] hover:brightness-95 active:scale-[0.98]",
               ].join(" ")}
             >
-              {processing === "out" ? "Processing..." : "Time Out"}
+              {processing === "in" ? "Processing..." : "Time In"}
             </button>
-            {earlyTimeoutMessage && !hasClockedOut && (
-              <div className="mt-2 flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-                <Clock className="h-3.5 w-3.5 shrink-0" />
-                <span>{earlyTimeoutMessage}</span>
-              </div>
-            )}
           </div>
 
-          {/* Footer info for Time Out */}
+          {/* ── Footer info ── */}
           <div className="mt-4 flex flex-col gap-2 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2.5 text-xs text-white/45">
             <div className="flex items-start gap-2">
               <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-white/35" />
@@ -566,83 +668,8 @@ const LocationAttendance = ({
               </p>
             </div>
           </div>
-
-        </div>
-      </MapPortal>
-
-      {/* ── Time In Map section ── */}
-      <div className="mt-6 space-y-2.5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <p className="text-white text-sm font-semibold">Location Preview</p>
-          </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[0.65rem] font-semibold text-emerald-300 uppercase tracking-wider">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Live
-          </span>
-        </div>
-        <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
-          <iframe
-            title="Attendance location map"
-            className="w-full h-60 sm:h-64 border-0"
-            src={mapSrc}
-            loading="lazy"
-            referrerPolicy="no-referrer"
-          />
-        </div>
-        <div className="flex items-start gap-2 text-xs text-white/45">
-          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          <p>
-            {locationIn || locationOut
-              ? "Showing your captured coordinates on the map. Drag or zoom to inspect."
-              : `Showing ${officeLabel} as a reference area. Capture your location to update the marker.`}
-          </p>
-        </div>
-      </div>
-
-      {/* ── Time In location section ── */}
-      <div className="mt-6 grid gap-4 lg:grid-cols-1">
-        {renderLocationSection(
-          "Time In Location",
-          LogIn,
-          "emerald",
-          locationIn,
-          locationInError,
-          () => requestCoordinates(setLocationIn, setLocationInError),
-          officeDistanceIn,
-          inRangeIn
-        )}
-      </div>
-
-      {/* ── Action buttons ── */}
-      <div className="mt-6">
-        <button
-          type="button"
-          disabled={!canTimeIn || processing === "in"}
-          onClick={() => {
-            handleTimeAction("in");
-          }}
-          className={[
-            "w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold text-white transition shadow-[0_12px_24px_rgba(0,0,0,0.22)]",
-            !canTimeIn || processing === "in"
-              ? "bg-white/10 text-white/40 cursor-not-allowed"
-              : "bg-[#FF7120] hover:brightness-95 active:scale-[0.98]",
-          ].join(" ")}
-        >
-          {processing === "in" ? "Processing..." : "Time In"}
-        </button>
-      </div>
-
-      {/* ── Footer info ── */}
-      <div className="mt-4 flex flex-col gap-2 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2.5 text-xs text-white/45">
-        <div className="flex items-start gap-2">
-          <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-white/35" />
-          <p>
-            Geofence radius <strong className="text-white/60">{officeConfig.radius}m</strong> around{" "}
-            <strong className="text-white/60">{officeLabel}</strong>. You must be within range for Office Mode.
-          </p>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 };
