@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getAllAttendance } from '../../../services/attendanceService';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import PrintAttendance from '../../globalattendancereport/PrintAttendance';
 import {
   Avatar,
   AvatarFallback,
@@ -76,7 +75,7 @@ export function AttendanceLeave() {
   const [exportStartDate, setExportStartDate] = useState('');
   const [exportEndDate, setExportEndDate] = useState('');
   const [exportEmployee, setExportEmployee] = useState('all');
-  const [isExporting, setIsExporting] = useState(false);
+  const [showDTROverlay, setShowDTROverlay] = useState(false);
 
 
   const fetchAttendanceRecords = async () => {
@@ -140,82 +139,54 @@ export function AttendanceLeave() {
     return ['all', ...Array.from(new Set(names))];
   }, [attendanceRecords]);
 
-  const handleExportReport = () => {
+  // Unique employees with their IDs for the DTR overlay
+  const uniqueEmployees = useMemo(() => {
+    const seen = new Set();
+    const result = [];
+    for (const record of attendanceRecords) {
+      const empId = record.employee_id ?? record.user_id;
+      if (empId != null && !seen.has(empId)) {
+        seen.add(empId);
+        result.push({ id: empId, name: record.employee_name || String(empId) });
+      }
+    }
+    return result;
+  }, [attendanceRecords]);
+
+  // Default date range: first and last attendance entry in the system
+  const defaultExportStartDate = useMemo(() => {
+    const dates = attendanceRecords.map((r) => r.date).filter(Boolean).sort();
+    return dates[0] || '';
+  }, [attendanceRecords]);
+
+  const defaultExportEndDate = useMemo(() => {
+    const dates = attendanceRecords.map((r) => r.date).filter(Boolean).sort();
+    return dates[dates.length - 1] || '';
+  }, [attendanceRecords]);
+
+  // Set default date range once records are loaded
+  useEffect(() => {
+    if (defaultExportStartDate && !exportStartDate) setExportStartDate(defaultExportStartDate);
+    if (defaultExportEndDate && !exportEndDate) setExportEndDate(defaultExportEndDate);
+  }, [defaultExportStartDate, defaultExportEndDate]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleOpenDTR = () => {
     if (!exportStartDate || !exportEndDate) {
       alert('Please select both start and end dates.');
       return;
     }
-
     const start = new Date(exportStartDate);
     const end = new Date(exportEndDate);
-
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       alert('Please provide valid dates.');
       return;
     }
-
     if (start > end) {
       alert('Start date must be before or equal to end date.');
       return;
     }
-
-    const filtered = attendanceRecords.filter((record) => {
-      const recordDate = new Date(record.date);
-      if (Number.isNaN(recordDate.getTime())) return false;
-      if (recordDate < start || recordDate > end) return false;
-      if (exportEmployee !== 'all' && record.employee_name !== exportEmployee) return false;
-      return true;
-    });
-
-    if (!filtered.length) {
-      alert('No attendance records found for the selected filters.');
-      return;
-    }
-
-    setIsExporting(true);
-    try {
-      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-      const now = new Date();
-
-      doc.setFontSize(16);
-      doc.text('Attendance Report', 14, 14);
-
-      doc.setFontSize(10);
-      doc.text('Employee: ' + (exportEmployee === 'all' ? 'All employees' : exportEmployee), 14, 20);
-      doc.text(
-        'Date range: ' + start.toLocaleDateString() + ' - ' + end.toLocaleDateString(),
-        14,
-        26
-      );
-      doc.text('Generated: ' + now.toLocaleString(), 14, 32);
-
-      const tableBody = filtered.map((record) => [
-        new Date(record.date).toLocaleDateString(),
-        record.employee_name || '-',
-        record.time_in || '-',
-        record.time_out || '-',
-        String(getWorkedHours(record)) + 'h',
-        record.status_label || record.status || '-',
-        record.location || '-',
-      ]);
-
-      autoTable(doc, {
-        startY: 38,
-        head: [['Date', 'Employee', 'Time In', 'Time Out', 'Hours Worked', 'Status', 'Location']],
-        body: tableBody,
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: [32, 34, 37], textColor: 255 },
-        alternateRowStyles: { fillColor: [245, 247, 250] },
-      });
-
-      doc.save('attendance_report_' + exportStartDate + '_' + exportEndDate + '.pdf');
-      setIsExportOpen(false);
-    } catch (error) {
-      console.error('Failed to export attendance report:', error);
-      alert('Failed to export attendance report. Please try again.');
-    } finally {
-      setIsExporting(false);
-    }
+    setIsExportOpen(false);
+    setShowDTROverlay(true);
   };
 
   return (
@@ -279,8 +250,8 @@ export function AttendanceLeave() {
                 <Button variant="outline" onClick={() => setIsExportOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleExportReport} disabled={isExporting}>
-                  {isExporting ? 'Exporting...' : 'Generate PDF'}
+                <Button onClick={handleOpenDTR}>
+                  Print DTR
                 </Button>
               </div>
             </DialogContent>
@@ -400,6 +371,22 @@ export function AttendanceLeave() {
 
         </TabsContent>
       </Tabs>
+
+      {/* DTR print overlay – covers full screen using the existing PrintAttendance template */}
+      {showDTROverlay && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
+          <PrintAttendance
+            employees={
+              exportEmployee === 'all'
+                ? uniqueEmployees
+                : uniqueEmployees.filter((e) => e.name === exportEmployee)
+            }
+            initialStartMonth={exportStartDate ? exportStartDate.slice(0, 7) : ''}
+            initialEndMonth={exportEndDate ? exportEndDate.slice(0, 7) : ''}
+            onClose={() => setShowDTROverlay(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import PublicNavigation from "./PublicNavigation";
 import StudioHeadSidebar from "../StudioHead/components/StudioHeadSidebar";
+import PrintAttendance from "../../globalattendancereport/PrintAttendance";
 import {
   MapPin,
   Calendar,
@@ -31,6 +32,7 @@ const AttendanceDashboard = ({
   const showStudioHeadSidebar = isStudioHeadMode && !hasCustomSidebar;
   const hasSidebar = hasCustomSidebar || showStudioHeadSidebar;
 
+  const [showDTROverlay, setShowDTROverlay] = useState(false);
   const [selectedDate, setSelectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -232,6 +234,13 @@ const AttendanceDashboard = ({
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    onClick={() => setShowDTROverlay(true)}
+                    className="px-3 py-2 rounded-xl border border-[#FF7120]/40 bg-[#FF7120]/10 text-[#FF7120] hover:bg-[#FF7120]/20 hover:text-white transition text-sm font-semibold"
+                  >
+                    Print DTR
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => alert("Add a policy modal / route here.")}
                     className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition text-sm font-semibold"
                   >
@@ -339,6 +348,17 @@ const AttendanceDashboard = ({
           </div>
         </div>
       </div>
+
+      {/* DTR print overlay – shows only this user's attendance */}
+      {showDTROverlay && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
+          <PrintAttendance
+            internId={user?.id}
+            internName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email || 'Employee'}
+            onClose={() => setShowDTROverlay(false)}
+          />
+        </div>
+      )}
     </div>
   );
 };
