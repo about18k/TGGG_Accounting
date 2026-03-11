@@ -9,7 +9,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from django.conf import settings
 from .models import CustomUser, Department, ROLE_CHOICES
 from .serializers import CustomUserSerializer, PendingUserSerializer
-from payroll.whatsapp_utils import normalize_phone_to_e164
+
 import uuid
 from supabase import create_client, Client
 from django.db import transaction
@@ -459,12 +459,12 @@ def accounting_employees(request):
         if CustomUser.objects.filter(email=email).exists():
             return Response({'error': 'User with this email already exists'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Validate phone number format if provided
+        # Validate phone number format if provided (basic validation)
         if phone:
-            try:
-                phone = normalize_phone_to_e164(phone)
-            except ValueError as e:
-                return Response({'error': f'Invalid phone number format: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+            # For testing: just strip and validate length
+            phone = str(phone).strip()
+            if len(phone) < 10:
+                return Response({'error': 'Phone number must be at least 10 digits'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             with transaction.atomic():
@@ -598,22 +598,14 @@ def accounting_employee_detail(request, user_id):
                     user.email = normalized_email
                 if whatsapp_account is not None:
                     phone_value = str(whatsapp_account).strip()
-                    if phone_value:
-                        try:
-                            phone_value = normalize_phone_to_e164(phone_value)
-                        except ValueError as e:
-                            return Response({'error': f'Invalid phone number format: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+                    if phone_value and len(phone_value) < 10:
+                        return Response({'error': 'Phone number must be at least 10 digits'}, status=status.HTTP_400_BAD_REQUEST)
                     user.phone_number = phone_value
                 elif phone is not None:
                     phone_value = str(phone).strip()
-                    if phone_value:
-                        try:
-                            phone_value = normalize_phone_to_e164(phone_value)
-                        except ValueError as e:
-                            return Response({'error': f'Invalid phone number format: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+                    if phone_value and len(phone_value) < 10:
+                        return Response({'error': 'Phone number must be at least 10 digits'}, status=status.HTTP_400_BAD_REQUEST)
                     user.phone_number = phone_value
-                if start_date is not None:
-                    user.date_hired = start_date
 
                 if status_text is not None:
                     user.is_active = (status_text == 'Active')

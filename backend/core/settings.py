@@ -198,12 +198,6 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_SERIALIZER': 'rest_framework_simplejwt.serializers.TokenRefreshSlidingSerializer',
 }
 
-# Twilio WhatsApp Configuration
-TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID', default='')
-TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', default='')
-TWILIO_WHATSAPP_NUMBER = config('TWILIO_WHATSAPP_NUMBER', default='')
-TWILIO_ENABLED = bool(TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_WHATSAPP_NUMBER)
-
 # CORS Configuration for JWT Authentication
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
@@ -232,3 +226,16 @@ EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=30, cast=int)
 EMAIL_SSL_CERTFILE = config('EMAIL_SSL_CERTFILE', default=None)
 EMAIL_SSL_KEYFILE = config('EMAIL_SSL_KEYFILE', default=None)
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='no-reply@tggg.local')
+
+# Media files (Uploaded files like PDFs)
+import os
+
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = '/media/'
+
+# Base URL for generating absolute URLs (used for PDF links in WhatsApp)
+BASE_URL = config('BASE_URL', default='http://localhost:8000')
+
+# Default primary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+

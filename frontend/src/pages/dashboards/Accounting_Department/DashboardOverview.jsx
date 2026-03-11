@@ -33,35 +33,18 @@ import {
 
 // Mock data for the dashboard
 const mockData = {
-  totalEmployees: 247,
-  activeEmployees: 234,
-  onLeaveToday: 13,
-  newHires: 8,
-  monthlyPayroll: 1240000,
-  attendanceRate: 94.2,
-  performanceRating: 4.3,
-  engagementScore: 87,
-  recentActivities: [
-    { id: 1, user: 'Sarah Johnson', action: 'Submitted leave request', time: '2 hours ago', type: 'leave' },
-    { id: 2, user: 'Mike Chen', action: 'Completed performance review', time: '4 hours ago', type: 'performance' },
-    { id: 3, user: 'Lisa Brown', action: 'Updated profile information', time: '6 hours ago', type: 'profile' },
-    { id: 4, user: 'David Wilson', action: 'Clocked in for work', time: '8 hours ago', type: 'attendance' },
-  ],
-  upcomingEvents: [
-    { id: 1, title: 'Team Building Workshop', date: 'Today, 2:00 PM', type: 'workshop' },
-    { id: 2, title: 'Performance Reviews Due', date: 'Tomorrow', type: 'deadline' },
-    { id: 3, title: 'Monthly All-Hands', date: 'Friday, 10:00 AM', type: 'meeting' },
-  ],
-  topPerformers: [
-    { name: 'Alex Rodriguez', role: 'Senior Developer', score: 98, avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face' },
-    { name: 'Emma Davis', role: 'Product Manager', score: 96, avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b1d3?w=40&h=40&fit=crop&crop=face' },
-    { name: 'James Wilson', role: 'Designer', score: 94, avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face' },
-  ],
-  pendingApprovals: [
-    { id: 1, type: 'Leave Request', employee: 'Sarah Johnson', status: 'pending' },
-    { id: 2, type: 'Expense Report', employee: 'Mike Chen', status: 'pending' },
-    { id: 3, type: 'Time Off', employee: 'Lisa Brown', status: 'pending' },
-  ]
+  totalEmployees: 0,
+  activeEmployees: 0,
+  onLeaveToday: 0,
+  newHires: 0,
+  monthlyPayroll: 0,
+  attendanceRate: 0,
+  performanceRating: 0,
+  engagementScore: 0,
+  recentActivities: [],
+  upcomingEvents: [],
+  topPerformers: [],
+  pendingApprovals: []
 };
 
 export function DashboardOverview({ user }) {

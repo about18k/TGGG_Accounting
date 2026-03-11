@@ -5,12 +5,10 @@ import {
   getDeductions,
   createDeduction,
   deleteDeduction,
-  getAttendanceSummary,
   processPayroll,
   getEmployeeContributions,
   updateEmployeeContributions,
   deleteEmployeeContribution,
-  notifyEmployeePayroll,
 } from '../../../services/payrollService';
 import {
   Avatar,
@@ -44,35 +42,6 @@ import {
   Plus,
   Trash2
 } from 'lucide-react';
-
-const formatDateInput = (value) => {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toISOString().split('T')[0];
-};
-
-const getDefaultPayrollRange = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const day = now.getDate();
-  const monthStart = new Date(year, month, 1);
-  const midMonth = new Date(year, month, 15);
-  const secondHalfStart = new Date(year, month, 16);
-  const monthEnd = new Date(year, month + 1, 0);
-
-  if (day <= 15) {
-    return {
-      startDate: formatDateInput(monthStart),
-      endDate: formatDateInput(midMonth),
-    };
-  }
-
-  return {
-    startDate: formatDateInput(secondHalfStart),
-    endDate: formatDateInput(monthEnd),
-  };
-};
 
 const formatCurrency = (amount) => {
   const value = Number(amount || 0);
@@ -163,19 +132,228 @@ const createEmptyPayslipForm = () => ({
   approvedBy: '',
 });
 
+// Payslip Print Preview Component
+function PayslipPrintPreview({ payload, selectedEmployeeData }) {
+  const slip = payload?.payslipFormPayload || {};
+  
+  const employeeName = selectedEmployeeData?.name || 'Employee';
+  const designation = slip.designation || selectedEmployeeData?.position || 'Employee';
+  const periodStart = payload?.startDate;
+  const periodEnd = payload?.endDate;
+  
+  const monthlyAmount = toNumber(slip.monthly ?? 0);
+  const basicSalary = toNumber(slip.basic_salary ?? 0);
+  const regularOvertime = toNumber(slip.regular_overtime ?? 0);
+  const lateUndertime = toNumber(slip.late_undertime ?? 0);
+  const restDayOt = toNumber(slip.rest_day_ot ?? 0);
+  const netTaxableSalary = toNumber(slip.net_taxable_salary ?? 0);
+  const payrollTax = toNumber(slip.payroll_tax ?? 0);
+  const totalDeductions = toNumber(slip.total_deductions ?? 0);
+  const grossAmount = toNumber(slip.gross_amount ?? 0);
+  const payrollAllowance = toNumber(slip.payroll_allowance ?? 0);
+  const companyLoanCashAdvance = toNumber(slip.company_loan_cash_advance ?? 0);
+  const salaryNetPay = toNumber(slip.salary_net_pay ?? 0);
+  const preparedBy = slip.prepared_by || 'Accounting Department';
+  const approvedByTopManagement = slip.approved_by_top_management || '';
+  const approvedBy = slip.approved_by || '';
+  const governmentContributions = Array.isArray(slip.government_contributions) ? slip.government_contributions : [];
+
+  const contributionRowsHtml = governmentContributions.length
+    ? governmentContributions
+      .map((item) => {
+        const amount = toNumber(item.amount);
+        return `<span style="display: flex; justify-content: space-between; padding: 4px 0;"><span>${item.name || 'Contribution'}</span><span>${formatCurrency(amount)}</span></span>`;
+      })
+      .join('')
+    : `<span style="display: flex; justify-content: space-between; padding: 4px 0;"><span>Government Contributions</span><span>${formatCurrency(0)}</span></span>`;
+
+  const payDateText = periodStart && periodEnd 
+    ? `${formatDisplayDate(periodStart)} to ${formatDisplayDate(periodEnd)}`
+    : 'Pay Period';
+
+  const logoUrl = `${window.location.origin}/formlogo.png`;
+
+  return (
+    <div style={{ backgroundColor: '#f2f2f2', padding: '16px', borderRadius: '8px', fontFamily: 'Arial, sans-serif' }}>
+      <div style={{ 
+        maxWidth: '880px', 
+        margin: '0 auto', 
+        backgroundColor: '#fff', 
+        border: '2px solid #111',
+        padding: '0'
+      }}>
+        {/* Header Logo */}
+        <img 
+          src={logoUrl} 
+          alt="TGGG Logo" 
+          style={{ 
+            width: '100%', 
+            display: 'block', 
+            borderBottom: '1px solid #111',
+            maxHeight: '100px',
+            objectFit: 'cover'
+          }} 
+          onError={(e) => {
+            e.target.style.display = 'none';
+          }}
+        />
+        
+        {/* Title Bar */}
+        <div style={{
+          backgroundColor: '#f39b3a',
+          color: '#111',
+          textAlign: 'center',
+          fontWeight: '700',
+          fontSize: '18px',
+          padding: '6px 10px',
+          borderTop: '1px solid #111',
+          borderBottom: '1px solid #111'
+        }}>
+          TGGG PAYSLIP {payDateText}
+        </div>
+
+        {/* Meta Info */}
+        <div style={{
+          padding: '10px 14px 4px',
+          fontSize: '13px',
+          display: 'grid',
+          gridTemplateColumns: '160px 1fr 150px 120px',
+          gap: '4px 10px'
+        }}>
+          <div style={{ color: '#333' }}>Employee Name:</div>
+          <div style={{ fontWeight: '700' }}>{employeeName}</div>
+          <div style={{ color: '#333' }}>Monthly:</div>
+          <div style={{ fontWeight: '700' }}>{formatCurrency(monthlyAmount)}</div>
+
+          <div style={{ color: '#333' }}>Designation:</div>
+          <div style={{ fontWeight: '700' }}>{designation}</div>
+          <div style={{ color: '#333' }}>Pay Frequency:</div>
+          <div style={{ fontWeight: '700' }}>Monthly</div>
+        </div>
+
+        {/* Earnings & Deductions Section */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '20px',
+          padding: '8px 14px 14px',
+          borderBottom: '2px solid #111'
+        }}>
+          {/* Earnings */}
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '6px' }}>Earnings</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }}>
+              <span>Basic Salary</span>
+              <span>{formatCurrency(basicSalary)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }}>
+              <span>Regular Overtime</span>
+              <span>{formatCurrency(regularOvertime)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }}>
+              <span>Late/Undertime</span>
+              <span>{formatCurrency(lateUndertime)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }}>
+              <span>Rest Day</span>
+              <span></span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }}>
+              <span>Rest Day OT</span>
+              <span>{formatCurrency(restDayOt)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }}>
+              <span>Holiday</span>
+              <span></span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '16px', marginTop: '8px', fontWeight: 'bold' }}>
+              <span>GROSS Amount</span>
+              <span>{formatCurrency(grossAmount)}</span>
+            </div>
+          </div>
+
+          {/* Deductions */}
+          <div>
+            <div style={{ fontSize: '16px', fontWeight: '700', marginBottom: '6px' }}>Deductions</div>
+            <div dangerouslySetInnerHTML={{ __html: contributionRowsHtml }} style={{ fontSize: '14px' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }}>
+              <span>NET Taxable Salary</span>
+              <span>{formatCurrency(netTaxableSalary)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }}>
+              <span>Payroll Tax</span>
+              <span>{formatCurrency(payrollTax)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '16px', marginTop: '8px', fontWeight: 'bold' }}>
+              <span>Total Deductions</span>
+              <span>{formatCurrency(totalDeductions)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }}>
+              <span>Payroll Allowance</span>
+              <span>{formatCurrency(payrollAllowance)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', fontSize: '14px' }}>
+              <span>Company Loan/Cash Advance</span>
+              <span>{formatCurrency(companyLoanCashAdvance)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Net Pay Bar */}
+        <div style={{
+          backgroundColor: '#f39b3a',
+          color: '#111',
+          textAlign: 'center',
+          fontWeight: '700',
+          fontSize: '18px',
+          padding: '8px 10px'
+        }}>
+          SALARY NET PAY {formatCurrency(salaryNetPay)}
+        </div>
+
+        {/* Signatures */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '60px',
+          padding: '24px 20px 16px',
+          fontSize: '13px'
+        }}>
+          <div>
+            <div style={{ marginBottom: '8px' }}>Prepared By (Accounting Department):</div>
+            <div style={{ borderTop: '1px solid #111', marginTop: '28px', paddingTop: '6px', textAlign: 'center' }}>
+              {preparedBy}
+            </div>
+            <div style={{ marginBottom: '8px', marginTop: '16px' }}>Approved By:</div>
+            <div style={{ borderTop: '1px solid #111', marginTop: '28px', paddingTop: '6px', textAlign: 'center' }}>
+              {approvedBy}
+            </div>
+          </div>
+          <div>
+            <div style={{ marginBottom: '8px' }}>Approved By (Top Management):</div>
+            <div style={{ borderTop: '1px solid #111', marginTop: '28px', paddingTop: '6px', textAlign: 'center' }}>
+              {approvedByTopManagement}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PayrollManagement() {
-  const defaultRange = getDefaultPayrollRange();
   const [isProcessPayrollOpen, setIsProcessPayrollOpen] = useState(false);
   const [isTaxDeductionsOpen, setIsTaxDeductionsOpen] = useState(false);
+  const [isPayslipPreviewOpen, setIsPayslipPreviewOpen] = useState(false);
+  const [payslipPreviewData, setPayslipPreviewData] = useState(null);
+  const [showPayslipPrintPreview, setShowPayslipPrintPreview] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedPayrollPeriod, setSelectedPayrollPeriod] = useState('29-13');
-  const [dailySalary, setDailySalary] = useState('');
   const [employees, setEmployees] = useState([]);
   const [recentPayrollRecords, setRecentPayrollRecords] = useState([]);
   const [isLoadingPayrollData, setIsLoadingPayrollData] = useState(true);
-  const [isFetchingAttendance, setIsFetchingAttendance] = useState(false);
   const [isProcessingPayroll, setIsProcessingPayroll] = useState(false);
   const [isSavingDeduction, setIsSavingDeduction] = useState(false);
   const [isLoadingDeductions, setIsLoadingDeductions] = useState(false);
@@ -208,12 +386,6 @@ export function PayrollManagement() {
   // Filter Recent Payroll Records
   const [filterEmployee, setFilterEmployee] = useState('all');
   const [filterPayrollPeriod, setFilterPayrollPeriod] = useState('all');
-
-  // Attendance data for selected employee and period
-  const [attendanceData, setAttendanceData] = useState(null);
-
-  // Calculate payroll whenever inputs change
-  const [calculations, setCalculations] = useState(null);
 
   const selectedEmployeeData = employees.find((e) => e.id === selectedEmployee);
 
@@ -295,42 +467,10 @@ export function PayrollManagement() {
 
   useEffect(() => {
     if (!selectedEmployee) {
-      setAttendanceData(null);
-      return;
-    }
-
-    const { startDate, endDate } = calculatePayrollDates();
-
-    const fetchAttendanceSummary = async () => {
-      setIsFetchingAttendance(true);
-      try {
-        const data = await getAttendanceSummary({
-          employee_id: selectedEmployee,
-          start_date: startDate,
-          end_date: endDate,
-        });
-        setAttendanceData(data || null);
-      } catch (error) {
-        console.error('Failed to load attendance summary:', error);
-        setAttendanceData(null);
-      } finally {
-        setIsFetchingAttendance(false);
-      }
-    };
-
-    fetchAttendanceSummary();
-  }, [selectedEmployee, selectedMonth, selectedYear, selectedPayrollPeriod]);
-
-  useEffect(() => {
-    if (!selectedEmployee) {
       setModalEmployeeContributions([]);
       return;
     }
-    const employee = employees.find((item) => item.id === selectedEmployee);
-    if (employee?.default_daily_rate) {
-      setDailySalary(employee.default_daily_rate);
-    }
-    
+
     // Fetch employee contributions for the selected employee
     const fetchEmployeeContributions = async () => {
       setIsLoadingModalContributions(true);
@@ -346,46 +486,96 @@ export function PayrollManagement() {
     };
     
     fetchEmployeeContributions();
-  }, [selectedEmployee, employees]);
+  }, [selectedEmployee]);
 
   const getContributionTotal = (items = []) => (
     items.reduce((sum, item) => sum + toNumber(item.amount), 0)
   );
 
+  const validateGovernmentContributions = (items = []) => {
+    for (const item of items) {
+      const rawAmount = item?.amount;
+      if (rawAmount === '' || rawAmount === null || rawAmount === undefined) {
+        return `${item?.name || 'Government contribution'} amount is required.`;
+      }
+
+      const numericAmount = Number(rawAmount);
+      if (!Number.isFinite(numericAmount)) {
+        return `${item?.name || 'Government contribution'} amount must be a valid number.`;
+      }
+
+      if (numericAmount < 0) {
+        return `${item?.name || 'Government contribution'} amount must be non-negative.`;
+      }
+    }
+
+    return '';
+  };
+
+  const validatePayrollConditions = () => {
+    if (!selectedEmployee) {
+      return 'Please select an employee first.';
+    }
+
+    const { startDate, endDate } = calculatePayrollDates();
+    if (!startDate || !endDate) {
+      return 'Payroll dates are required.';
+    }
+
+    const startDateValue = new Date(`${startDate}T00:00:00`);
+    const endDateValue = new Date(`${endDate}T00:00:00`);
+    if (Number.isNaN(startDateValue.getTime()) || Number.isNaN(endDateValue.getTime())) {
+      return 'Payroll dates are invalid.';
+    }
+
+    if (startDateValue > endDateValue) {
+      return 'Payroll period is invalid. Start date cannot be after end date.';
+    }
+
+    if (toNumber(payslipForm.monthly) <= 0) {
+      return 'Please enter a valid Monthly amount greater than 0.';
+    }
+
+    if (toNumber(payslipForm.basicSalary) <= 0) {
+      return 'Please enter a valid Basic Salary greater than 0.';
+    }
+
+    const contributionValidationError = validateGovernmentContributions(modalEmployeeContributions);
+    if (contributionValidationError) {
+      return contributionValidationError;
+    }
+
+    const hasDuplicate = recentPayrollRecords.some((record) => (
+      String(record.employee_id) === String(selectedEmployee)
+      && getDateOnly(record.period_start) === startDate
+      && getDateOnly(record.period_end) === endDate
+    ));
+
+    if (hasDuplicate) {
+      return 'Payroll already exists for this employee and period.';
+    }
+
+    return '';
+  };
+
   const buildInitialPayslipForm = () => {
-    const monthlyDefault = toNumber(selectedEmployeeData?.default_daily_rate) > 0
-      ? toNumber(selectedEmployeeData.default_daily_rate) * 22
+    const monthlyDefault = toNumber(selectedEmployeeData?.salary) > 0
+      ? toNumber(selectedEmployeeData.salary)
       : 0;
 
-    const effectiveDailyRate = monthlyDefault > 0
-      ? monthlyDefault / 22
-      : toNumber(dailySalary);
-
-    const daysPresent = toNumber(attendanceData?.totalDays);
-    const lateCount = toNumber(attendanceData?.lateCount);
-    const undertimeHours = toNumber(attendanceData?.undertimeHours ?? attendanceData?.undertime);
-
-    const basicSalaryDefault = daysPresent > 0 && effectiveDailyRate > 0
-      ? effectiveDailyRate * daysPresent
-      : monthlyDefault;
-
-    const lateDeduction = effectiveDailyRate > 0
-      ? effectiveDailyRate * 0.1 * lateCount
+    const basicSalaryDefault = toNumber(selectedEmployeeData?.salary) > 0
+      ? toNumber(selectedEmployeeData.salary)
       : 0;
-    const undertimeDeduction = effectiveDailyRate > 0
-      ? (effectiveDailyRate / 8) * undertimeHours
-      : 0;
-
-    const lateUndertimeDefault = lateDeduction + undertimeDeduction;
     const regularOvertimeDefault = 0;
+    const lateUndertimeDefault = 0;
     const restDayOtDefault = 0;
-    const grossAmountDefault = basicSalaryDefault + regularOvertimeDefault + restDayOtDefault;
     const payrollTaxDefault = 0;
-    const contributionsTotal = getContributionTotal(modalEmployeeContributions);
-    const totalDeductionsDefault = lateUndertimeDefault + payrollTaxDefault + contributionsTotal;
     const payrollAllowanceDefault = 0;
     const companyLoanDefault = 0;
-    const netSalaryDefault = grossAmountDefault + payrollAllowanceDefault - companyLoanDefault - totalDeductionsDefault;
+    const contributionsTotal = getContributionTotal(modalEmployeeContributions);
+    const grossAmountDefault = basicSalaryDefault;
+    const totalDeductionsDefault = contributionsTotal;
+    const netSalaryDefault = 0;
 
     return {
       monthly: monthlyDefault.toFixed(2),
@@ -416,7 +606,7 @@ export function PayrollManagement() {
   useEffect(() => {
     if (!selectedEmployee) return;
     if (isPayslipFormInitialized) return;
-    if (isFetchingAttendance || isLoadingModalContributions) return;
+    if (isLoadingModalContributions) return;
 
     const initialValues = buildInitialPayslipForm();
     setPayslipForm((prev) => ({
@@ -428,13 +618,21 @@ export function PayrollManagement() {
   }, [
     selectedEmployee,
     selectedEmployeeData,
-    attendanceData,
-    dailySalary,
     modalEmployeeContributions,
-    isFetchingAttendance,
     isLoadingModalContributions,
     isPayslipFormInitialized,
   ]);
+
+  // Auto-calculate Total Deductions from government contributions
+  useEffect(() => {
+    if (!selectedEmployee) return;
+    
+    const contributionsTotal = getContributionTotal(modalEmployeeContributions);
+    setPayslipForm((prev) => ({
+      ...prev,
+      totalDeductions: contributionsTotal.toFixed(2),
+    }));
+  }, [modalEmployeeContributions, selectedEmployee]);
 
   const handlePayslipFieldChange = (field, value) => {
     setPayslipForm((prev) => ({
@@ -468,84 +666,6 @@ export function PayrollManagement() {
       setIsSavingModalContributions(false);
     }
   };
-
-  // Calculate payroll
-  useEffect(() => {
-    if (attendanceData && dailySalary && parseFloat(dailySalary) > 0) {
-      const dailyRate = parseFloat(dailySalary);
-      const workingDays = attendanceData.totalDays;
-
-      // Base salary
-      const baseSalary = dailyRate * workingDays;
-
-      // Deductions
-      const absenceDeduction = dailyRate * attendanceData.absences;
-      const lateDeduction = (dailyRate * 0.1) * attendanceData.lateCount; // 10% per late
-      const undertimeDeduction = dailyRate * (attendanceData.undertime || 0); // Undertime deduction
-
-      const configuredDeductionItems = deductions.map((item) => {
-        const rate = toNumber(item.rate);
-        const computedAmount = item.type === 'percentage'
-          ? (baseSalary * (rate / 100))
-          : rate;
-        return {
-          id: item.id,
-          name: item.name,
-          category: item.category || 'other',
-          type: item.type,
-          rate,
-          amount: Number(computedAmount.toFixed(2)),
-        };
-      });
-      const configuredDeductionsTotal = configuredDeductionItems.reduce((sum, item) => sum + item.amount, 0);
-      const taxAmount = configuredDeductionItems
-        .filter((item) => item.category === 'tax')
-        .reduce((sum, item) => sum + item.amount, 0);
-
-      // Employee-specific contributions (government deductions)
-      const employeeContributionItems = (modalEmployeeContributions || []).map((contrib) => ({
-        id: contrib.id,
-        name: contrib.name,
-        category: 'contribution',
-        type: 'fixed',
-        amount: Number(toNumber(contrib.amount).toFixed(2)),
-      }));
-      const employeeContributionsTotal = employeeContributionItems.reduce((sum, item) => sum + item.amount, 0);
-
-      // Combine all deduction items
-      const allDeductionItems = [
-        ...configuredDeductionItems,
-        ...employeeContributionItems,
-      ];
-
-      const totalDeductions =
-        absenceDeduction +
-        lateDeduction +
-        undertimeDeduction +
-        configuredDeductionsTotal +
-        employeeContributionsTotal;
-
-      const netSalary = baseSalary - totalDeductions;
-
-      setCalculations({
-        baseSalary,
-        grossSalary: baseSalary,
-        deductions: {
-          absences: absenceDeduction,
-          late: lateDeduction,
-          undertime: undertimeDeduction,
-          tax: taxAmount,
-        },
-        deductionItems: allDeductionItems,
-        configuredDeductionsTotal,
-        employeeContributionsTotal,
-        totalDeductions,
-        netSalary,
-      });
-    } else {
-      setCalculations(null);
-    }
-  }, [attendanceData, dailySalary, deductions, modalEmployeeContributions]);
 
   const handleProcessPayroll = () => {
     setIsProcessPayrollOpen(true);
@@ -665,9 +785,6 @@ export function PayrollManagement() {
     setSelectedMonth(new Date().getMonth() + 1);
     setSelectedYear(new Date().getFullYear());
     setSelectedPayrollPeriod('29-13');
-    setDailySalary('');
-    setAttendanceData(null);
-    setCalculations(null);
     setModalEmployeeContributions([]);
     setIsEditingModalContributions(false);
     setPayslipForm(createEmptyPayslipForm());
@@ -885,12 +1002,7 @@ export function PayrollManagement() {
     printWindow.document.close();
   };
 
-  const handleGeneratePayslip = async () => {
-    if (!selectedEmployee) {
-      alert('Please select an employee.');
-      return;
-    }
-
+  const buildPayslipPayload = () => {
     const { startDate, endDate } = calculatePayrollDates();
 
     const getFieldValueOrFallback = (value, fallback) => {
@@ -913,16 +1025,12 @@ export function PayrollManagement() {
     const grossAmount = getFieldValueOrFallback(payslipForm.grossAmount, grossAmountComputed);
     const netTaxableSalary = getFieldValueOrFallback(payslipForm.netTaxableSalary, grossAmount);
 
-    const totalDeductionsComputed = lateUndertime + payrollTax + governmentContributionsTotal;
-    const totalDeductionsAmount = getFieldValueOrFallback(payslipForm.totalDeductions, totalDeductionsComputed);
+    const totalDeductionsAmount = governmentContributionsTotal;
 
     const salaryNetPayComputed = grossAmount + payrollAllowance - companyLoanCashAdvance - totalDeductionsAmount;
     const salaryNetPay = getFieldValueOrFallback(payslipForm.salaryNetPay, salaryNetPayComputed);
 
     const monthlyAmount = getFieldValueOrFallback(payslipForm.monthly, grossAmount);
-    const attendanceDays = toNumber(attendanceData?.totalDays);
-    const derivedDailySalary = attendanceDays > 0 ? (basicSalary / attendanceDays) : 0;
-    const dailySalaryForPayload = dailySalary || (derivedDailySalary > 0 ? derivedDailySalary.toFixed(2) : null);
 
     const governmentContributions = modalEmployeeContributions.map((item) => ({
       id: item.id,
@@ -930,70 +1038,132 @@ export function PayrollManagement() {
       amount: toNumber(item.amount),
     }));
 
-    const payslipFormPayload = {
-      designation: selectedEmployeeData?.position || '',
-      monthly: monthlyAmount,
-      basic_salary: basicSalary,
-      regular_overtime: regularOvertime,
-      late_undertime: lateUndertime,
-      rest_day_ot: restDayOt,
-      net_taxable_salary: netTaxableSalary,
-      payroll_tax: payrollTax,
-      total_deductions: totalDeductionsAmount,
-      gross_amount: grossAmount,
-      payroll_allowance: payrollAllowance,
-      company_loan_cash_advance: companyLoanCashAdvance,
-      salary_net_pay: salaryNetPay,
-      prepared_by: (payslipForm.preparedBy || '').trim(),
-      approved_by_top_management: (payslipForm.approvedByTopManagement || '').trim(),
-      approved_by: (payslipForm.approvedBy || '').trim(),
-      government_contributions: governmentContributions,
+    return {
+      startDate,
+      endDate,
+      basicSalary,
+      regularOvertime,
+      lateUndertime,
+      restDayOt,
+      payrollTax,
+      netTaxableSalary,
+      grossAmount,
+      payrollAllowance,
+      companyLoanCashAdvance,
+      totalDeductionsAmount,
+      salaryNetPay,
+      monthlyAmount,
+      governmentContributions,
+      payslipFormPayload: {
+        designation: selectedEmployeeData?.position || '',
+        monthly: monthlyAmount,
+        basic_salary: basicSalary,
+        regular_overtime: regularOvertime,
+        late_undertime: lateUndertime,
+        rest_day_ot: restDayOt,
+        net_taxable_salary: netTaxableSalary,
+        payroll_tax: payrollTax,
+        total_deductions: totalDeductionsAmount,
+        gross_amount: grossAmount,
+        payroll_allowance: payrollAllowance,
+        company_loan_cash_advance: companyLoanCashAdvance,
+        salary_net_pay: salaryNetPay,
+        prepared_by: (payslipForm.preparedBy || '').trim(),
+        approved_by_top_management: (payslipForm.approvedByTopManagement || '').trim(),
+        approved_by: (payslipForm.approvedBy || '').trim(),
+        government_contributions: governmentContributions,
+      },
     };
+  };
+
+  const handlePreviewPayslip = () => {
+    const validationError = validatePayrollConditions();
+    if (validationError) {
+      alert(validationError);
+      return;
+    }
+
+    const payload = buildPayslipPayload();
+    
+    // Store preview data and open confirmation modal
+    setPayslipPreviewData(payload);
+    setIsPayslipPreviewOpen(true);
+  };
+
+  const handleConfirmPayroll = async () => {
+    if (!payslipPreviewData) {
+      alert('No payslip preview data');
+      return;
+    }
+
+    console.log('\n' + '='.repeat(80));
+    console.log('🔍 DEBUG: Starting payroll processing');
+    console.log('='.repeat(80));
+    console.log('📋 Selected Employee ID:', selectedEmployee);
+    console.log('📋 Preview Data:', payslipPreviewData);
 
     setIsProcessingPayroll(true);
     try {
-      const responseData = await processPayroll({
+      const payload = {
         employee_id: selectedEmployee,
-        period_start: startDate,
-        period_end: endDate,
-        daily_salary: dailySalaryForPayload,
-        payslip_form: payslipFormPayload,
-      });
+        period_start: payslipPreviewData.startDate,
+        period_end: payslipPreviewData.endDate,
+        payslip_form: payslipPreviewData.payslipFormPayload,
+      };
+      
+      console.log('📤 Sending payload:', JSON.stringify(payload, null, 2));
+      
+      const responseData = await processPayroll(payload);
+      
+      console.log('✅ Response received:', responseData);
 
       const name = responseData?.payslip?.employee_name || selectedEmployeeData?.name || 'Employee';
-      const netSalary = responseData?.payslip?.net_salary || salaryNetPay;
-
-      let whatsappStatusMessage = 'WhatsApp notification was queued successfully.';
-      try {
-        const notifyResponse = await notifyEmployeePayroll(selectedEmployee, {
-          period_start: startDate,
-          period_end: endDate,
-          payslip_preview: {
-            employee_name: name,
-            designation: selectedEmployeeData?.position || '',
-            gross_amount: grossAmount,
-            total_deductions: totalDeductionsAmount,
-            salary_net_pay: salaryNetPay,
-          },
-        });
-
-        if (notifyResponse?.message) {
-          whatsappStatusMessage = notifyResponse.message;
+      const netSalary = responseData?.payslip?.net_salary || payslipPreviewData.salaryNetPay;
+      
+      // Create success message with Image and Email info
+      let successMessage = `✅ Payslip processed successfully!\n\nEmployee: ${name}\nNet Salary: ${formatCurrency(netSalary)}\n\nPayroll has been saved to the database.`;
+      
+      // Add Image info if available
+      if (responseData?.image?.generated && responseData?.image?.url) {
+        successMessage += `\n\n🖼️ Payslip Image: Generated\nYou can view it here: ${responseData.image.url}`;
+      }
+      
+      // Add Email info if attempted
+      if (responseData?.email) {
+        if (responseData.email.sent) {
+          successMessage += `\n\n📧 Email: Sent successfully to ${responseData.email.recipient}`;
+        } else if (responseData.email.message) {
+          successMessage += `\n\n📧 Email: ${responseData.email.message}`;
+        } else {
+          successMessage += `\n\n📧 Email: Not sent`;
         }
-      } catch (whatsappError) {
-        console.warn('WhatsApp notification failed:', whatsappError);
-        whatsappStatusMessage = `Payroll saved, but WhatsApp notification failed: ${
-          whatsappError.response?.data?.message || whatsappError.response?.data?.error || whatsappError.message
-        }`;
       }
 
-      alert(`Payslip processed successfully for ${name}\nNet Salary: ${formatCurrency(netSalary)}\n\n${whatsappStatusMessage}`);
+      alert(successMessage);
+      
+      // If image was generated, offer to open it
+      if (responseData?.image?.generated && responseData?.image?.url) {
+        const openImage = window.confirm('Would you like to view the payslip image now?');
+        if (openImage) {
+          window.open(responseData.image.url, '_blank');
+        }
+      }
+      
       await fetchPayrollData();
+      setIsPayslipPreviewOpen(false);
       handleCloseModal();
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to process payroll.');
+      console.error('❌ Payroll processing error:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        response: error.response,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+      alert(`❌ Failed to process payroll.\n\nError: ${error.response?.data?.error || error.message || 'Unknown error'}`);
     } finally {
       setIsProcessingPayroll(false);
+      console.log('='.repeat(80) + '\n');
     }
   };
 
@@ -1470,9 +1640,6 @@ export function PayrollManagement() {
                     min="0"
                     step="0.01"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Based on attendance totals: Late {toNumber(attendanceData?.lateCount)} | Undertime Hours {toNumber(attendanceData?.undertimeHours ?? attendanceData?.undertime).toFixed(2)}
-                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label>Rest Day</Label>
@@ -1590,8 +1757,8 @@ export function PayrollManagement() {
                       id="totalDeductions"
                       type="number"
                       value={payslipForm.totalDeductions}
-                      onChange={(e) => handlePayslipFieldChange('totalDeductions', e.target.value)}
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      readOnly
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white cursor-not-allowed"
                       min="0"
                       step="0.01"
                     />
@@ -1690,17 +1857,189 @@ export function PayrollManagement() {
           </div>
 
           {/* Action Buttons */}
+          <div className="flex justify-between pt-4 border-t">
+            <div></div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleCloseModal}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handlePreviewPayslip}
+                disabled={!selectedEmployee}
+                className="gap-2"
+              >
+                <BarChart3 className="w-4 h-4" />
+                Preview & Confirm
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payslip Confirmation Preview Modal */}
+      <Dialog open={isPayslipPreviewOpen} onOpenChange={setIsPayslipPreviewOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center justify-between w-full">
+              <DialogTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Payslip Preview - Confirm to Process
+              </DialogTitle>
+              <div className="flex gap-2">
+                <Button
+                  variant={showPayslipPrintPreview ? "outline" : "default"}
+                  size="sm"
+                  onClick={() => setShowPayslipPrintPreview(false)}
+                >
+                  Summary
+                </Button>
+                <Button
+                  variant={showPayslipPrintPreview ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowPayslipPrintPreview(true)}
+                >
+                  Print Format
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {payslipPreviewData && selectedEmployeeData && !showPayslipPrintPreview && (
+            <div className="space-y-4 py-4">
+              {/* Employee & Period Info */}
+              <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/20">
+                <div>
+                  <p className="text-xs text-muted-foreground">Employee</p>
+                  <p className="font-semibold text-white">{selectedEmployeeData.name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedEmployeeData.position}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Pay Period</p>
+                  <p className="font-semibold text-white">{payslipPreviewData.startDate} to {payslipPreviewData.endDate}</p>
+                </div>
+              </div>
+
+              {/* Earnings Section */}
+              <Card className="border border-[#AEAAAA]/20 bg-[#002035]">
+                <CardHeader>
+                  <CardTitle className="text-base">Earnings</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Monthly</span>
+                      <span className="font-semibold">{formatCurrency(payslipPreviewData.monthlyAmount)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Basic Salary</span>
+                      <span className="font-semibold">{formatCurrency(payslipPreviewData.basicSalary)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Regular Overtime</span>
+                      <span className="font-semibold">{formatCurrency(payslipPreviewData.regularOvertime)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Rest Day OT</span>
+                      <span className="font-semibold">{formatCurrency(payslipPreviewData.restDayOt)}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between pt-3 border-t border-[#AEAAAA]/20 font-semibold text-base text-green-400">
+                    <span>GROSS Amount</span>
+                    <span>{formatCurrency(payslipPreviewData.grossAmount)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Deductions Section */}
+              <Card className="border border-[#AEAAAA]/20 bg-[#002035]">
+                <CardHeader>
+                  <CardTitle className="text-base">Deductions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {payslipPreviewData.governmentContributions.length > 0 && (
+                    <div className="space-y-2 pb-3 border-b border-[#AEAAAA]/20">
+                      <p className="text-xs font-semibold text-muted-foreground">Government Contributions</p>
+                      {payslipPreviewData.governmentContributions.map((contrib) => (
+                        <div key={contrib.id} className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">{contrib.name}</span>
+                          <span className="font-semibold">{formatCurrency(contrib.amount)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">NET Taxable Salary</span>
+                      <span className="font-semibold">{formatCurrency(payslipPreviewData.netTaxableSalary)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Payroll Tax</span>
+                      <span className="font-semibold">{formatCurrency(payslipPreviewData.payrollTax)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Late/Undertime</span>
+                      <span className="font-semibold">{formatCurrency(payslipPreviewData.lateUndertime)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Payroll Allowance</span>
+                      <span className="font-semibold">{formatCurrency(payslipPreviewData.payrollAllowance)}</span>
+                    </div>
+                  </div>
+                  <div className="flex justify-between pt-3 border-t border-[#AEAAAA]/20 font-semibold text-base text-orange-400">
+                    <span>Total Deductions</span>
+                    <span>{formatCurrency(payslipPreviewData.totalDeductionsAmount)}</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Net Pay */}
+              <div className="p-4 rounded-lg bg-gradient-to-r from-[#F27229]/20 to-[#F27229]/10 border-2 border-[#F27229]/40">
+                <div className="flex items-center justify-between">
+                  <span className="text-lg font-bold text-[#F27229]">SALARY NET PAY</span>
+                  <span className="text-3xl font-bold text-[#F27229]">{formatCurrency(payslipPreviewData.salaryNetPay)}</span>
+                </div>
+              </div>
+
+              {/* Approvals */}
+              <div className="grid grid-cols-3 gap-3 p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/20">
+                <div>
+                  <p className="text-xs text-muted-foreground">Prepared By</p>
+                  <p className="text-sm font-semibold text-white">{payslipPreviewData.payslipFormPayload.prepared_by || 'Accounting'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Approved By</p>
+                  <p className="text-sm font-semibold text-white">{payslipPreviewData.payslipFormPayload.approved_by || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Top Management</p>
+                  <p className="text-sm font-semibold text-white">{payslipPreviewData.payslipFormPayload.approved_by_top_management || '-'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {payslipPreviewData && selectedEmployeeData && showPayslipPrintPreview && (
+            <div className="py-4 bg-white/5 rounded-lg border border-[#AEAAAA]/20 p-4 overflow-auto max-h-[70vh]">
+              <PayslipPrintPreview payload={payslipPreviewData} selectedEmployeeData={selectedEmployeeData} />
+            </div>
+          )}
+
+          {/* Action Buttons */}
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button variant="outline" onClick={handleCloseModal}>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsPayslipPreviewOpen(false)}
+              disabled={isProcessingPayroll}
+            >
               Cancel
             </Button>
             <Button
-              onClick={handleGeneratePayslip}
+              onClick={handleConfirmPayroll}
               disabled={!selectedEmployee || isProcessingPayroll}
               className="gap-2"
             >
               <CheckCircle className="w-4 h-4" />
-              {isProcessingPayroll ? 'Processing...' : 'Process Payroll'}
+              {isProcessingPayroll ? 'Processing...' : 'Confirm & Save to Database'}
             </Button>
           </div>
         </DialogContent>
