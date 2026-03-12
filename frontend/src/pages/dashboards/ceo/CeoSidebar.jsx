@@ -1,10 +1,11 @@
 import React from 'react';
-import { Calendar, CheckSquare, Clock, LogOut, User } from 'lucide-react';
+import { Calendar, CheckSquare, Clock, LogOut, User, FolderKanban } from 'lucide-react';
 
 const MENU_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Clock },
   { id: 'overtime', label: 'Overtime Requests', icon: Calendar },
   { id: 'todo', label: 'Tasks & Todo', icon: CheckSquare },
+  { id: 'ceo-bim-docs', label: 'BIM Documentation', icon: FolderKanban },
   { id: 'profile', label: 'Profile', icon: User },
 ];
 

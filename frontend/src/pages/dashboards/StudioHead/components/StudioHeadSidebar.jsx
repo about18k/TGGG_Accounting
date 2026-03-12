@@ -1,13 +1,13 @@
-import { Home, Calendar, Clock, User, UserCheck, Users, FileText, GitMerge } from 'lucide-react';
+import { Home, Calendar, Clock, User, UserCheck, Users, FileText, GitMerge, FolderKanban } from 'lucide-react';
 
 const PRIMARY_LINKS = [
-  { id: 'studio-head', label: 'Dashboard', icon: Home, page: 'studio-head' },
   { id: 'attendance', label: 'Attendance', icon: Calendar, page: 'attendance' },
   { id: 'overtime', label: 'Overtime & Leave', icon: Clock, page: 'overtime' },
-  { id: 'events', label: 'Calendar / Events', icon: Calendar, page: 'studio-head?tab=events' },
 ];
 
 const DASHBOARD_LINKS = [
+  { id: 'studio-head', label: 'Dashboard', icon: Home, page: 'studio-head' },
+  { id: 'bim-docs', label: 'BIM Documentation', icon: FolderKanban, page: 'studio-head-bim-docs' },
   { id: 'approvals', label: 'User Approvals', icon: UserCheck },
   { id: 'users', label: 'Manage Users', icon: Users },
   { id: 'reviews', label: 'Design Reviews', icon: FileText },
@@ -55,12 +55,14 @@ export default function StudioHeadSidebar({
         <div className="pt-2 mt-2 border-t border-white/10" />
         {DASHBOARD_LINKS.map((tab) => {
           const Icon = tab.icon;
-          const isActive = currentPage === 'studio-head' && activeTab === tab.id;
+          const isActive = tab.page
+            ? currentPage === tab.id
+            : currentPage === 'studio-head' && activeTab === tab.id;
           return (
             <button
               key={tab.id}
               type="button"
-              onClick={() => goToDashboardTab(tab.id)}
+              onClick={() => tab.page ? onNavigate?.(tab.page) : goToDashboardTab(tab.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive
                   ? "bg-[#FF7120] text-white"
                   : "text-white/70 hover:text-white hover:bg-white/5"

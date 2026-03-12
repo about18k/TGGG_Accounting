@@ -17,6 +17,7 @@ export function useStudioHeadDashboard() {
 
   const [message, setMessage] = useState('');
   const [approvingUserId, setApprovingUserId] = useState(null);
+  const [decliningUserId, setDecliningUserId] = useState(null);
 
   const [pendingUsers, setPendingUsers] = useState([]);
   const [pendingLoading, setPendingLoading] = useState(false);
@@ -135,14 +136,39 @@ export function useStudioHeadDashboard() {
     }
   }
 
+  async function declinePendingUser(userId) {
+    const resolvedUserId = resolveUserId(userId);
+
+    if (resolvedUserId === null || resolvedUserId === undefined || resolvedUserId === '') {
+      setMessage('Failed to decline user: missing user ID.');
+      return;
+    }
+
+    try {
+      setDecliningUserId(resolvedUserId);
+      setMessage('');
+      await deleteUserAccount(resolvedUserId);
+      setMessage('User declined and deleted successfully.');
+      await fetchPending();
+      await fetchUsers();
+    } catch (e) {
+      setMessage(e?.response?.data?.error || e?.message || 'Failed to decline user.');
+    } finally {
+      setDecliningUserId(null);
+    }
+  }
+
   async function editUser(userId, updates) {
     try {
       setUserActionById((prev) => ({ ...prev, [userId]: true }));
       await updateUserAccount(userId, updates);
       setMessage('User updated successfully.');
       await fetchUsers();
+      return { success: true };
     } catch (e) {
-      setMessage('Failed to update user.');
+      const errorMsg = e?.response?.data?.error || e?.message || 'Failed to update user.';
+      setMessage(errorMsg);
+      return { success: false, error: errorMsg };
     } finally {
       setUserActionById((prev) => ({ ...prev, [userId]: false }));
     }
@@ -260,6 +286,8 @@ export function useStudioHeadDashboard() {
     allowedRoles,
     approveUser,
     approvingUserId,
+    declinePendingUser,
+    decliningUserId,
 
     // users
     usersLoading,

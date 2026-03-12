@@ -1,6 +1,17 @@
 import { styles } from '../studioHeadStyles';
 
-export default function PendingUserCard({ user, role, onChangeRole, allowedRoles, onApprove, loading }) {
+export default function PendingUserCard({
+  user,
+  role,
+  onChangeRole,
+  allowedRoles,
+  onApprove,
+  onDecline,
+  approveLoading,
+  declineLoading,
+}) {
+  const loading = approveLoading || declineLoading;
+
   return (
     <div style={{ ...styles.panel2, border: '1px solid rgba(255,113,32,0.2)' }}>
       <p style={{ margin: 0, fontWeight: 700 }}>
@@ -32,24 +43,41 @@ export default function PendingUserCard({ user, role, onChangeRole, allowedRoles
         </select>
       </div>
 
-      <button
-        onClick={onApprove}
-        disabled={loading}
-        style={{
-          marginTop: '12px',
-          width: '100%',
-          padding: '10px',
-          backgroundColor: '#FF7120',
-          border: 'none',
-          borderRadius: '8px',
-          color: 'white',
-          cursor: loading ? 'not-allowed' : 'pointer',
-          opacity: loading ? 0.7 : 1,
-          fontWeight: 800,
-        }}
-      >
-        {loading ? 'Approving...' : 'Approve & Send Email'}
-      </button>
+      <div style={{ marginTop: '12px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <button
+          onClick={onApprove}
+          disabled={loading}
+          style={{
+            padding: '10px',
+            backgroundColor: '#FF7120',
+            border: 'none',
+            borderRadius: '8px',
+            color: 'white',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.7 : 1,
+            fontWeight: 800,
+          }}
+        >
+          {approveLoading ? 'Approving...' : 'Approve'}
+        </button>
+
+        <button
+          onClick={onDecline}
+          disabled={loading}
+          style={{
+            padding: '10px',
+            backgroundColor: '#7F1D1D',
+            border: '1px solid #DC2626',
+            borderRadius: '8px',
+            color: '#FEE2E2',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.7 : 1,
+            fontWeight: 800,
+          }}
+        >
+          {declineLoading ? 'Declining...' : 'Decline'}
+        </button>
+      </div>
     </div>
   );
 }

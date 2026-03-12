@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'attendance',
     'payroll',
     'todos',
+    'bim_documentation',
 ]
 
 MIDDLEWARE = [

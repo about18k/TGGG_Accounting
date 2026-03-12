@@ -5,6 +5,7 @@
 import StudioHeadDashboard from '../pages/dashboards/StudioHead/StudioHeadDashboard';
 import StudioHeadAttendance from '../pages/dashboards/StudioHead/StudioHeadAttendance';
 import StudioHeadProfilePage from '../pages/dashboards/StudioHead/StudioHeadProfilePage';
+import StudioHeadBimDocumentationPage from '../pages/dashboards/StudioHead/StudioHeadBimDocumentationPage';
 
 import InternAttendanceDashboard from '../pages/dashboards/Intern_Dashboard/InternAttendance';
 import InternOvertimePage from '../pages/dashboards/Intern_Dashboard/OvertimePage';
@@ -40,6 +41,7 @@ import JuniorDesignerTodoPage from '../pages/dashboards/JuniorDesigner_Dashboard
 import JuniorDesignerProfilePage from '../pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerProfilePage';
 
 import CeoAttendanceDashboard from '../pages/dashboards/ceo/ceoAttendance';
+import CeoBimDocumentationPage from '../pages/dashboards/ceo/CeoBimDocumentationPage';
 
 import { DashboardLayout } from '../pages/dashboards/Accounting_Department/DashboardLayout';
 import { DashboardOverview } from '../pages/dashboards/Accounting_Department/DashboardOverview';
@@ -49,6 +51,7 @@ import { PayrollManagement } from '../pages/dashboards/Accounting_Department/Pay
 import { Settings } from '../pages/dashboards/Accounting_Department/Settings';
 import AccountingPersonalAttendance from '../pages/dashboards/Accounting_Department/AccountingPersonalAttendance';
 import AccountingOvertimePage from '../pages/dashboards/Accounting_Department/AccountingOvertimePage';
+import AccountingEventsPanel from '../pages/dashboards/Accounting_Department/AccountingEventsPanel';
 
 /**
  * Renders the accounting dashboard with its own layout and tabs.
@@ -83,6 +86,9 @@ export function renderAccountingDashboard({
                     embedded
                 />
             );
+        }
+        if (effectiveSection === 'events') {
+            return <AccountingEventsPanel />;
         }
         switch (activeTab) {
             case 'dashboard':
@@ -129,6 +135,7 @@ export function renderDashboard({
         if (currentPage === 'attendance') return <StudioHeadAttendance user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'profile') return <StudioHeadProfilePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'studio-head-bim-docs') return <StudioHeadBimDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'studio-head') return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
         return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
     }
@@ -196,10 +203,11 @@ export function renderDashboard({
     }
 
     // CEO / President
-    if (user.role === 'president') {
+    if (user.role === 'president' || user.role === 'ceo') {
         if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'todo') return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
         if (currentPage === 'profile') return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'ceo-bim-docs') return <CeoBimDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
         return <CeoAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
     }
 

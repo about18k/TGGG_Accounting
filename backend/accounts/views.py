@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.db import transaction
+from django.utils.dateparse import parse_date
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.parsers import MultiPartParser, FormParser
@@ -392,6 +393,7 @@ def manage_user(request, user_id):
     role = request.data.get('role')
     department_id = request.data.get('department_id') if 'department_id' in request.data else None
     is_active = request.data.get('is_active') if 'is_active' in request.data else None
+    date_hired = request.data.get('date_hired') if 'date_hired' in request.data else None
 
     if first_name is not None:
         user.first_name = str(first_name).strip()
@@ -430,6 +432,16 @@ def manage_user(request, user_id):
 
         user.is_active = normalized
         fields_updated.append('is_active')
+
+    if 'date_hired' in request.data:
+        if date_hired in [None, '', 'null', 'None']:
+            user.date_hired = None
+        else:
+            parsed_date = parse_date(str(date_hired))
+            if not parsed_date:
+                return Response({'error': 'Invalid date_hired format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+            user.date_hired = parsed_date
+        fields_updated.append('date_hired')
 
     if not fields_updated:
         return Response({'error': 'No valid fields to update'}, status=status.HTTP_400_BAD_REQUEST)
