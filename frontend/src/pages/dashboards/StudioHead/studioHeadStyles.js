@@ -57,4 +57,12 @@ export const styles = {
     borderRadius: '8px',
     cursor: 'pointer',
   },
+  scrollbarHidden: {
+    msOverflowStyle: 'none',
+    scrollbarWidth: 'none',
+    WebkitOverflowScrolling: 'touch',
+    '&::WebkitScrollbar': {
+      display: 'none',
+    },
+  },
 };

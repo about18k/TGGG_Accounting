@@ -70,7 +70,7 @@ def is_late_for_session(session_type, check_in_time):
     if isinstance(check_in_time, datetime):
         check_in_time = check_in_time.time()
 
-    return check_in_time >= LATE_THRESHOLDS[session_type]
+    return check_in_time > LATE_THRESHOLDS[session_type]
 
 
 def calculate_late_deduction(session_type, check_in_time):

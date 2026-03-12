@@ -130,7 +130,6 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate }) {
 
                   {activeTab === 'reviews' && (
                     <div className="rounded-xl border border-white/10 bg-[#00273C]/60 p-6">
-                      <h2 className="text-white font-semibold text-xl mb-2">Design Reviews</h2>
                       <p className="text-white/60 text-sm">
                         Queue for drawings, presentations, and documentation review (connect your projects module here).
                       </p>

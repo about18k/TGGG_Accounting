@@ -1,6 +1,8 @@
-import { styles, colors } from '../studioHeadStyles';
+import { UserCheck } from 'lucide-react';
 import PendingUserCard from './PendingUserCard';
 import EmptyState from './EmptyState';
+
+// Registration queue for new studio users
 
 export default function PendingApprovalsPanel({
   pendingUsers,
@@ -11,41 +13,79 @@ export default function PendingApprovalsPanel({
   approveUser,
   approvingUserId,
 }) {
+  const pendingCount = pendingUsers.length;
+
   return (
-    <div style={styles.panel}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-        <h2 style={{ margin: 0, fontSize: '20px' }}>Pending User Approvals</h2>
-        <span style={{ color: colors.textMuted, fontSize: '13px' }}>
-          {pendingUsers.length} waiting
-        </span>
-      </div>
+    <div className="flex flex-col gap-6">
+      <style>
+        {`
+          @keyframes pulse-orange {
+            0% { box-shadow: 0 0 0 0 rgba(255, 113, 32, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 113, 32, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 113, 32, 0); }
+          }
+          .animate-pulse-orange {
+            animation: pulse-orange 2s infinite;
+          }
+        `}
+      </style>
 
-      {pendingLoading && <div style={{ color: colors.textMuted }}>Loading pending users...</div>}
-
-      {!pendingLoading && pendingUsers.length === 0 && (
-        <EmptyState title="No pending users" subtitle="All accounts are verified." />
-      )}
-
-      {!pendingLoading && pendingUsers.length > 0 && (
-        <div style={{ marginTop: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {pendingUsers.map((u) => {
-            const userId = u?.id ?? u?.user_id ?? u?.userId;
-            if (userId === null || userId === undefined || userId === '') return null;
-
-            return (
-              <PendingUserCard
-                key={userId}
-                user={u}
-                role={roleByUserId[userId] || 'accounting'}
-                onChangeRole={(val) => setRoleByUserId((prev) => ({ ...prev, [userId]: val }))}
-                allowedRoles={allowedRoles}
-                onApprove={() => approveUser(userId)}
-                loading={approvingUserId === userId}
-              />
-            );
-          })}
+      {/* Attention-Grabbing Indicator */}
+      {!pendingLoading && pendingCount > 0 && (
+        <div className="bg-[#FF7120]/10 border border-[#FF7120]/30 rounded-2xl p-6 flex items-center justify-between animate-pulse-orange">
+          <div className="flex items-center gap-4">
+            <div className="bg-[#FF7120] p-3 rounded-xl text-white">
+              <UserCheck size={24} />
+            </div>
+            <div>
+              <h3 className="text-white font-bold text-lg">Action Required</h3>
+              <p className="text-[#FF7120] text-sm font-medium">
+                You have {pendingCount} new {pendingCount === 1 ? 'user' : 'users'} waiting for approval
+              </p>
+            </div>
+          </div>
         </div>
       )}
+
+      {/* Main Panel */}
+      <div className="bg-[#00273C]/60 rounded-xl border border-white/10 p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div className="flex items-center gap-2">
+             <UserCheck size={20} className="text-[#FF7120]" />
+             <span className="text-white font-semibold">Registration Queue</span>
+          </div>
+          <p className="text-white/50 text-xs">Review and verify new account access</p>
+        </div>
+
+        {pendingLoading && <div className="text-gray-400 text-sm py-4">Loading pending users...</div>}
+
+        {!pendingLoading && pendingUsers.length === 0 && (
+          <div className="py-10">
+            <EmptyState title="No pending users" subtitle="All accounts are verified." />
+          </div>
+        )}
+
+        {!pendingLoading && pendingUsers.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {pendingUsers.map((u) => {
+              const userId = u?.id ?? u?.user_id ?? u?.userId;
+              if (userId === null || userId === undefined || userId === '') return null;
+
+              return (
+                <PendingUserCard
+                  key={userId}
+                  user={u}
+                  role={roleByUserId[userId] || 'accounting'}
+                  onChangeRole={(val) => setRoleByUserId((prev) => ({ ...prev, [userId]: val }))}
+                  allowedRoles={allowedRoles}
+                  onApprove={() => approveUser(userId)}
+                  loading={approvingUserId === userId}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

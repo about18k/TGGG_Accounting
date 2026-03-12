@@ -90,48 +90,6 @@ const AttendanceDashboard = ({
   const showTimeIn = !hasIn || hasOut;
   const showTimeOut = hasIn && !hasOut;
 
-  const stats = useMemo(() => {
-    const todayStatus = attendanceLoading
-      ? "Loading..."
-      : isHoliday
-        ? "Holiday / No Work"
-        : hasOut
-          ? "Completed"
-          : hasIn
-            ? "Timed In"
-            : locationReady
-              ? "Ready to Time In"
-              : "Location Required";
-    const todayTone = isHoliday
-      ? "neutral"
-      : hasOut || hasIn || locationReady
-        ? "good"
-        : "warn";
-
-    const lateTone = latest?.status === "late" ? "warn" : "good";
-    const lateLabel = latest?.status === "late" ? "Late" : latest?.status_label || "On time";
-
-    return [
-      {
-        label: "Today's Status",
-        value: todayStatus,
-        icon: MapPin,
-        tone: todayTone,
-      },
-      {
-        label: "Latest Status",
-        value: lateLabel,
-        icon: Clock,
-        tone: lateTone,
-      },
-      {
-        label: "Total Hours (Latest)",
-        value: computeHours(latest),
-        icon: FileText,
-        tone: "neutral",
-      },
-    ];
-  }, [attendanceLoading, isHoliday, latest, locationReady, hasIn, hasOut]);
 
   const cardClass =
     "rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]";
@@ -225,10 +183,6 @@ const AttendanceDashboard = ({
                     </Badge>
                   </div>
 
-                  <p className="mt-3 text-white/50 text-sm leading-relaxed">
-                    Keep your attendance and daily accomplishments accurate — this helps compute hours,
-                    late minutes, and overtime cleanly.
-                  </p>
                 </div>
 
                 <div className="flex flex-wrap gap-2">
@@ -239,52 +193,10 @@ const AttendanceDashboard = ({
                   >
                     Print DTR
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => alert("Add a policy modal / route here.")}
-                    className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition text-sm font-semibold"
-                  >
-                    View Policy
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                    className="px-3 py-2 rounded-xl border border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white transition text-sm font-semibold"
-                  >
-                    Back to Top
-                  </button>
                 </div>
               </div>
             </div>
 
-            {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-              {attendanceLoading ? (
-                <>
-                  <CardSkeleton />
-                  <CardSkeleton />
-                  <CardSkeleton />
-                </>
-              ) : (
-                stats.map((s, i) => {
-                  const Icon = s.icon;
-                  return (
-                    <div key={i} className={`${cardClass} p-4`}>
-                      <div className="flex items-center justify-between">
-                        <p className="text-white/60 text-sm font-medium">{s.label}</p>
-                        <Icon className="h-4 w-4 text-white/40" />
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <p className="text-white text-lg font-semibold tracking-tight">{s.value}</p>
-                        {s.tone !== "neutral" && (
-                          <Badge tone={s.tone}>{s.tone === "good" ? "OK" : "Attention"}</Badge>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
 
             {/* Forms */}
             <div className="grid grid-cols-1 gap-4 sm:gap-6">

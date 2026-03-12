@@ -10,6 +10,7 @@ import LocationAttendance from '../../../components/attendance/LocationAttendanc
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
 import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';
 import useMyAttendance from '../../../hooks/useMyAttendance';
+import { CardSkeleton } from '../../../components/SkeletonLoader';
 
 export default function JuniorDesignerDashboard({ user, onNavigate }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
