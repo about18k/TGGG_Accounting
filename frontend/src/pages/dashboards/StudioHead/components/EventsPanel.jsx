@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { getEvents, createEvent } from '../../../../services/attendanceService';
-import { CalendarDays, Plus, AlertCircle } from 'lucide-react';
+import { CalendarDays, Plus, AlertCircle, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, Button, Input, Label, Textarea, Switch } from '../../../../components/ui/accounting-ui';
 
 export default function EventsPanel() {

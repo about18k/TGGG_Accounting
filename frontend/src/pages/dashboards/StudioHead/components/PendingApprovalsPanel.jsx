@@ -2,6 +2,8 @@ import { UserCheck } from 'lucide-react';
 import PendingUserCard from './PendingUserCard';
 import EmptyState from './EmptyState';
 
+// Registration queue for new studio users
+
 export default function PendingApprovalsPanel({
   pendingUsers,
   pendingLoading,
