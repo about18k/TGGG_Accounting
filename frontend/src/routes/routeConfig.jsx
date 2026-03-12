@@ -129,8 +129,14 @@ export function renderDashboard({
         if (currentPage === 'attendance') return <StudioHeadAttendance user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'profile') return <StudioHeadProfilePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'studio-head') return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        
+        // These keys map to panels inside StudioHeadDashboard
+        const studioHeadPages = ['approvals', 'users', 'reviews', 'coordination', 'events', 'studio-head'];
+        if (studioHeadPages.includes(currentPage)) {
+            return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} currentPage={currentPage} />;
+        }
+        
+        return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} currentPage="approvals" />;
     }
 
     // Accounting

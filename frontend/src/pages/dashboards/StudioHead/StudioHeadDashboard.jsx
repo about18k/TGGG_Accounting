@@ -18,11 +18,13 @@ const TABS = [
   { id: 'events', label: 'Calendar / Events', icon: Calendar },
 ];
 
-export default function StudioHeadDashboard({ user, onLogout, onNavigate }) {
+export default function StudioHeadDashboard({ user, onLogout, onNavigate, currentPage = 'approvals' }) {
   const location = useLocation();
+  
+  // Use currentPage from props as the source of truth
+  const activeTab = (currentPage === 'studio-head' || !currentPage) ? 'approvals' : currentPage;
+
   const {
-    activeTab,
-    setActiveTab,
     message,
     setMessage,
     pendingUsers,
@@ -49,15 +51,6 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate }) {
     handleDisbandGroup,
   } = useStudioHeadDashboard();
 
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const requestedTab = params.get('tab');
-    if (!requestedTab) return;
-    if (TABS.some((tab) => tab.id === requestedTab)) {
-      setActiveTab(requestedTab);
-    }
-  }, [location.search, setActiveTab]);
-
   const cardClass = "rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg";
 
   return (
@@ -76,10 +69,8 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate }) {
             {/* Sidebar Navigation */}
             <aside className="hidden lg:block lg:w-64 lg:shrink-0">
               <StudioHeadSidebar
-                currentPage="studio-head"
+                currentPage={activeTab}
                 onNavigate={onNavigate}
-                activeTab={activeTab}
-                onSelectTab={setActiveTab}
               />
             </aside>
 

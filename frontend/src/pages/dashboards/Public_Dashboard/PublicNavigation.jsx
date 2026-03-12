@@ -120,19 +120,17 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                     {[
                       { id: 'attendance', label: 'Attendance', icon: Home, path: 'attendance' },
                       { id: 'overtime', label: 'Overtime & Leave', icon: Clock, path: 'overtime' },
-                      { id: 'events', label: 'Calendar / Events', icon: Calendar, path: 'studio-head?tab=events' },
-                      { id: 'approvals', label: 'User Approvals', icon: ClipboardCheck, path: 'studio-head?tab=approvals' },
-                      { id: 'users', label: 'Manage Users', icon: Users, path: 'studio-head?tab=users' },
-                      { id: 'reviews', label: 'Design Reviews', icon: FileText, path: 'studio-head?tab=reviews' },
-                      { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge, path: 'studio-head?tab=coordination' },
+                      { id: 'events', label: 'Calendar / Events', icon: Calendar, path: 'events' },
+                      { id: 'approvals', label: 'User Approvals', icon: ClipboardCheck, path: 'approvals' },
+                      { id: 'users', label: 'Manage Users', icon: Users, path: 'users' },
+                      { id: 'reviews', label: 'Design Reviews', icon: FileText, path: 'reviews' },
+                      { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge, path: 'coordination' },
                     ].map((item) => (
                       <button
                         key={item.id}
                         onClick={() => onNavigate(item.path)}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
-                          (item.path.includes('tab=') 
-                            ? (window.location.search.includes(item.path.split('=')[1]))
-                            : (currentPage === item.id))
+                          currentPage === item.id
                             ? 'bg-[#FF7120] text-white' 
                             : 'text-[#AEAAAA] hover:bg-[#FF7120]/10 hover:text-[#FF7120]'
                         }`}

@@ -3,30 +3,24 @@ import { Home, Calendar, Clock, User, UserCheck, Users, FileText, GitMerge } fro
 const PRIMARY_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Calendar, page: 'attendance' },
   { id: 'overtime', label: 'Overtime & Leave', icon: Clock, page: 'overtime' },
-  { id: 'events', label: 'Calendar / Events', icon: Calendar, page: 'studio-head?tab=events' },
+  { id: 'events', label: 'Calendar / Events', icon: Calendar, page: 'events' },
 ];
 
 const DASHBOARD_LINKS = [
-  { id: 'approvals', label: 'User Approvals', icon: UserCheck },
-  { id: 'users', label: 'Manage Users', icon: Users },
-  { id: 'reviews', label: 'Design Reviews', icon: FileText },
-  { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge },
+  { id: 'approvals', label: 'User Approvals', icon: UserCheck, page: 'approvals' },
+  { id: 'users', label: 'Manage Users', icon: Users, page: 'users' },
+  { id: 'reviews', label: 'Design Reviews', icon: FileText, page: 'reviews' },
+  { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge, page: 'coordination' },
 ];
 
 export default function StudioHeadSidebar({
-  currentPage = 'studio-head',
+  currentPage = 'approvals',
   onNavigate,
-  activeTab,
-  onSelectTab,
 }) {
   const cardClass = "rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg";
 
   const goToDashboardTab = (tabId) => {
-    if (currentPage === 'studio-head' && onSelectTab) {
-      onSelectTab(tabId);
-      return;
-    }
-    onNavigate?.(`studio-head?tab=${tabId}`);
+    onNavigate?.(tabId);
   };
 
   return (
@@ -34,17 +28,8 @@ export default function StudioHeadSidebar({
       <nav className="space-y-2">
         {PRIMARY_LINKS.map((item) => {
           const Icon = item.icon;
-          const isActive = item.id === 'events'
-            ? (currentPage === 'studio-head' && activeTab === 'events')
-            : currentPage === item.id;
-
-          const handleClick = () => {
-            if (item.id === 'events') {
-              goToDashboardTab('events');
-            } else {
-              onNavigate?.(item.page);
-            }
-          };
+          const handleClick = () => onNavigate?.(item.page);
+          const isActive = currentPage === item.page;
 
           return (
             <button
@@ -65,7 +50,7 @@ export default function StudioHeadSidebar({
         <div className="pt-2 mt-2 border-t border-white/10" />
         {DASHBOARD_LINKS.map((tab) => {
           const Icon = tab.icon;
-          const isActive = currentPage === 'studio-head' && activeTab === tab.id;
+          const isActive = currentPage === tab.page;
           return (
             <button
               key={tab.id}
