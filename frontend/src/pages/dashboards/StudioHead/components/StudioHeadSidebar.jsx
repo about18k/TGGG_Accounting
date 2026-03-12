@@ -1,7 +1,6 @@
 import { Home, Calendar, Clock, User, UserCheck, Users, FileText, GitMerge } from 'lucide-react';
 
 const PRIMARY_LINKS = [
-  { id: 'studio-head', label: 'Dashboard', icon: Home, page: 'studio-head' },
   { id: 'attendance', label: 'Attendance', icon: Calendar, page: 'attendance' },
   { id: 'overtime', label: 'Overtime & Leave', icon: Clock, page: 'overtime' },
   { id: 'events', label: 'Calendar / Events', icon: Calendar, page: 'studio-head?tab=events' },
