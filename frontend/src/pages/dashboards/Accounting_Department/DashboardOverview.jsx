@@ -67,11 +67,7 @@ export function DashboardOverview({ user }) {
   const [topPerformers, setTopPerformers] = useState([]);
   const [events, setEvents] = useState(mockData.upcomingEvents);
 
-  const userName =
-    user?.full_name ||
-    [user?.first_name, user?.last_name].filter(Boolean).join(' ') ||
-    user?.username ||
-    'there';
+  const userName = user?.first_name || 'Staff';
 
   useEffect(() => {
     if (!user) return;

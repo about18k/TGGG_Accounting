@@ -336,7 +336,7 @@ function OvertimeForm({ token }) {
             </div>
 
             <form onSubmit={handleSubmit} className="overtime-form">
-              <div className="overtime-grid">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mb-6 sm:mb-8">
                 <div className="overtime-field">
                   <label>Employee Name</label>
                   <input
@@ -366,7 +366,7 @@ function OvertimeForm({ token }) {
                     required
                   />
                 </div>
-                <div className="overtime-field span-3">
+                <div className="overtime-field md:col-span-2 lg:col-span-3">
                   <label>Department</label>
                   <select
                     value={form.department}
@@ -533,7 +533,7 @@ function OvertimeForm({ token }) {
                 </div>
               </div>
 
-              <div className="overtime-grid hours-explanation">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 mb-6 sm:mb-8">
                 <div className="overtime-field">
                   <label>Anticipated Number of Overtime Hours</label>
                   <input
@@ -544,7 +544,7 @@ function OvertimeForm({ token }) {
                     readOnly
                   />
                 </div>
-                <div className="overtime-field stretch">
+                <div className="overtime-field md:col-span-2">
                   <label>Please provide an explanation of the work that requires overtime</label>
                   <textarea
                     rows="4"

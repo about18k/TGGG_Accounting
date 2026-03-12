@@ -176,9 +176,9 @@ function OvertimeStatus({ token }) {
           onClose={() => setAlert(null)}
         />
       )}
-      <div className="welcome">
-        <h2>OT Request Status</h2>
-        <p>View your submitted overtime requests.</p>
+      <div className="welcome p-4 sm:p-6 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold">OT Request Status</h2>
+        <p className="text-sm sm:text-base text-gray-400">View your submitted overtime requests.</p>
       </div>
       <div className="attendance-table">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -283,12 +283,7 @@ function OvertimeStatus({ token }) {
               >×</button>
             </div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr',
-              gap: '1rem',
-              marginBottom: '1rem'
-            }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div>
                 <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Employee Name</label>
                 <div style={{ color: '#e8eaed' }}>{selectedForView.employee_name || '-'}</div>

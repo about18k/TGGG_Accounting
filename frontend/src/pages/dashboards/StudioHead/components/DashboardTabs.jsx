@@ -11,7 +11,6 @@ const tabBtn = (active) => ({
 
 export default function DashboardTabs({ activeTab, setActiveTab }) {
   const tabs = [
-    { key: 'overview', label: 'Overview' },
     { key: 'approvals', label: 'User Approvals' },
     { key: 'users', label: 'Manage Users' },
     { key: 'reviews', label: 'Design Reviews' },         // placeholder UI

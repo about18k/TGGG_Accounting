@@ -30,7 +30,7 @@ export default function StudioHeadSidebar({
   };
 
   return (
-    <div className={`${cardClass} p-4 sticky top-24`}>
+    <div className={`${cardClass} p-4 lg:sticky lg:top-24`}>
       <nav className="space-y-2">
         {PRIMARY_LINKS.map((item) => {
           const Icon = item.icon;

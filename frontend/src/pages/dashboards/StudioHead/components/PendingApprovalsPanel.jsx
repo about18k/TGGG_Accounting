@@ -48,13 +48,13 @@ export default function PendingApprovalsPanel({
       )}
 
       {/* Main Panel */}
-      <div className="bg-[#00273C]/60 rounded-xl border border-white/10 p-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className="bg-[#00273C]/60 rounded-xl border border-white/10 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
           <div className="flex items-center gap-2">
              <UserCheck size={20} className="text-[#FF7120]" />
              <span className="text-white font-semibold">Registration Queue</span>
           </div>
-          <p className="text-white/50 text-xs">Review and verify new account access</p>
+          <p className="text-white/50 text-[10px] sm:text-xs">Review and verify new account access</p>
         </div>
 
         {pendingLoading && <div className="text-gray-400 text-sm py-4">Loading pending users...</div>}

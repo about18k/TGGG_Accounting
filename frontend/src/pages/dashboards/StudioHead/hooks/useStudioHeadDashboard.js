@@ -13,7 +13,7 @@ import {
 } from '../services/studioHeadApi';
 
 export function useStudioHeadDashboard() {
-  const [activeTab, setActiveTab] = useState('overview'); // overview | approvals | users | reviews | coordination
+  const [activeTab, setActiveTab] = useState('approvals'); // approvals | users | reviews | coordination
 
   const [message, setMessage] = useState('');
   const [approvingUserId, setApprovingUserId] = useState(null);

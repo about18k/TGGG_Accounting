@@ -34,15 +34,15 @@ export default function ManageUsersPanel({
   return (
     <div className="flex flex-col gap-6">
       {/* Top Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard title="Total Users" value={totalUsers} icon={Users} />
         <StatCard title="Active" value={activeUsers} icon={Users} />
         <StatCard title="Suspended" value={suspendedUsers} icon={Users} />
       </div>
 
       {/* Main Panel */}
-      <div className="bg-[#00273C]/60 rounded-xl border border-white/10 p-6">
-        <div className="flex justify-end items-center mb-6">
+      <div className="bg-[#00273C]/60 rounded-xl border border-white/10 p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
           <div className="flex items-center gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#FF7120]" size={16} />
@@ -51,11 +51,11 @@ export default function ManageUsersPanel({
                 placeholder="Search users..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-[#001f35] border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] w-64"
+                className="bg-[#001f35] border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] w-full sm:w-64"
               />
             </div>
             <button 
-              className="flex items-center gap-2 bg-[#FF7120] hover:bg-[#ff853e] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors opacity-60 cursor-not-allowed"
+              className="flex items-center justify-center gap-2 bg-[#FF7120] hover:bg-[#ff853e] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors opacity-60 cursor-not-allowed whitespace-nowrap"
               disabled
             >
               <Plus size={16} />

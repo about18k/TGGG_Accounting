@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as notifService from '../../../services/notificationService';
-import { Bell, User, Home, Clock, CheckSquare, FolderKanban, ArrowUpDown, Check } from 'lucide-react';
+import { 
+  Bell, User, Home, Clock, CheckSquare, FolderKanban, ArrowUpDown, Check, Menu, 
+  LayoutDashboard, Users, CalendarCheck, ClipboardCheck, Calendar, FileText, GitMerge 
+} from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/accounting-ui';
 
@@ -91,6 +94,58 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
           <span className="text-base font-semibold sm:hidden">TG AOC</span>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+          {user?.role === 'studio_head' && (
+            <div className="flex lg:hidden items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid #FF7120',
+                      color: '#FF7120',
+                      padding: '0.4rem',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Menu className="h-5 w-5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2 bg-[#001f35] border-[#AEAAAA]/20 shadow-xl z-[60]" align="start" sideOffset={8}>
+                  <div className="flex flex-col gap-1">
+                    {[
+                      { id: 'attendance', label: 'Attendance', icon: Home, path: 'attendance' },
+                      { id: 'overtime', label: 'Overtime & Leave', icon: Clock, path: 'overtime' },
+                      { id: 'events', label: 'Calendar / Events', icon: Calendar, path: 'studio-head?tab=events' },
+                      { id: 'approvals', label: 'User Approvals', icon: ClipboardCheck, path: 'studio-head?tab=approvals' },
+                      { id: 'users', label: 'Manage Users', icon: Users, path: 'studio-head?tab=users' },
+                      { id: 'reviews', label: 'Design Reviews', icon: FileText, path: 'studio-head?tab=reviews' },
+                      { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge, path: 'studio-head?tab=coordination' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => onNavigate(item.path)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                          (item.path.includes('tab=') 
+                            ? (window.location.search.includes(item.path.split('=')[1]))
+                            : (currentPage === item.id))
+                            ? 'bg-[#FF7120] text-white' 
+                            : 'text-[#AEAAAA] hover:bg-[#FF7120]/10 hover:text-[#FF7120]'
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          )}
           {user?.role !== 'studio_head' && user?.role !== 'admin' && !isSidebarDrivenRole && (
             <button
               onClick={() => onNavigate('attendance')}

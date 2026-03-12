@@ -119,7 +119,6 @@ const AttendanceDashboard = ({
     <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
       {/* Soft background glow */}
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute -top-32 -left-32 h-[420px] w-[420px] rounded-full bg-[#FF7120]/20 blur-[80px]" />
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
         <div className="absolute bottom-[-200px] left-1/2 h-[520px] w-[520px] -translate-x-1/2 rounded-full bg-white/5 blur-[110px]" />
       </div>
@@ -140,7 +139,7 @@ const AttendanceDashboard = ({
           )}
 
           {showStudioHeadSidebar && (
-            <aside className="w-full lg:w-64 shrink-0">
+            <aside className="hidden lg:block lg:w-64 shrink-0">
               <StudioHeadSidebar currentPage="attendance" onNavigate={onNavigate} />
             </aside>
           )}
@@ -165,10 +164,10 @@ const AttendanceDashboard = ({
 
                     <div className="min-w-0">
                       <h2 className={`${titleText} text-[clamp(1rem,3.5vw,1.5rem)] truncate`}>
-                        Welcome, {user?.first_name || "Villamora"} {user?.last_name || "Archie"}
+                        Welcome, {user?.first_name || "Associate"}
                       </h2>
-                      <p className={`${subtleText} text-sm sm:text-[0.95rem] font-medium`}>
-                        Role: <span className="text-white/80">{user?.role || "Intern"}</span>
+                      <p className={`${subtleText} text-sm sm:text-[0.95rem] font-medium capitalize`}>
+                        Role: <span className="text-white/80">{user?.role?.replace('_', ' ') || "Staff"}</span>
                       </p>
                     </div>
                   </div>

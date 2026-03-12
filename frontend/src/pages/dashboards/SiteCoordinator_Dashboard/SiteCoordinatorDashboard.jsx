@@ -45,8 +45,8 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
               {user?.profile_picture ? <img src={user.profile_picture} alt="Profile" className="h-full w-full object-cover" /> : <User className="h-8 w-8 sm:h-10 sm:w-10 text-[#FF7120]" />}
             </div>
             <div>
-              <h2 className="text-white font-semibold text-[clamp(1rem,3.5vw,1.5rem)]">Welcome, {user?.first_name || 'Site'} {user?.last_name || 'Coordinator'}</h2>
-              <p className="text-white/60 text-sm">Role: <span className="text-white/80">{user?.role || 'site_coordinator'}</span></p>
+              <h2 className="text-white font-semibold text-[clamp(1rem,3.5vw,1.5rem)]">Welcome, {user?.first_name || 'Site Coordinator'}</h2>
+              <p className="text-white/60 text-sm capitalize">Role: <span className="text-white/80">{user?.role?.replace('_', ' ') || 'site coordinator'}</span></p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">

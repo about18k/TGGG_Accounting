@@ -14,7 +14,7 @@ const StudioHeadProfilePage = ({ user, token, onLogout, onNavigate }) => {
 
       <div className="relative pt-28 px-6 pb-10">
         <div className="max-w-[1600px] mx-auto flex gap-6">
-          <aside className="w-64 shrink-0">
+          <aside className="hidden lg:block lg:w-64 shrink-0">
             <StudioHeadSidebar currentPage="profile" onNavigate={onNavigate} />
           </aside>
 
