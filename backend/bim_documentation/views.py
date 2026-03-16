@@ -35,23 +35,34 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Filter based on user role:
-        - BIM Specialist: Can see their own docs
+        - BIM Specialist / Junior Architect: Can see their own docs
         - Studio Head: Can see all pending docs + approved docs
         - CEO: Can see all docs
         - Admin: Can see all docs
         """
         user = self.request.user
+        created_by_role = (self.request.query_params.get('created_by_role') or '').strip()
+        queryset = BimDocumentation.objects.none()
         
-        if user.role == 'bim_specialist':
-            return BimDocumentation.objects.filter(created_by=user)
+        if user.role in ['bim_specialist', 'junior_architect']:
+            queryset = BimDocumentation.objects.filter(created_by=user)
         elif user.role == 'studio_head':
-            return BimDocumentation.objects.filter(
+            queryset = BimDocumentation.objects.filter(
                 Q(status__in=['pending_review', 'approved', 'rejected'])
             )
         elif user.role in ['ceo', 'admin', 'president']:
-            return BimDocumentation.objects.all()
-        else:
-            return BimDocumentation.objects.none()
+            queryset = BimDocumentation.objects.all()
+
+        if created_by_role:
+            queryset = queryset.filter(created_by__role=created_by_role)
+
+        queryset = queryset.select_related(
+            'created_by',
+            'reviewed_by_studio_head',
+            'reviewed_by_ceo',
+        ).prefetch_related('files')
+
+        return queryset
     
     def get_serializer_class(self):
         """Use different serializers for list vs detail"""
@@ -66,11 +77,11 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         """
         Create new BIM documentation.
-        Only BIM Specialists can create documentation.
+        BIM Specialists and Junior Architects can create documentation.
         """
-        if request.user.role != 'bim_specialist':
+        if request.user.role not in ['bim_specialist', 'junior_architect']:
             return Response(
-                {'error': 'Only BIM Specialists can create documentation'},
+                {'error': 'Only BIM Specialists and Junior Architects can create documentation'},
                 status=status.HTTP_403_FORBIDDEN
             )
         

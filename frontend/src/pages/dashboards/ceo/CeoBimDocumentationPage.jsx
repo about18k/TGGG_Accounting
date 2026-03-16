@@ -1,167 +1,420 @@
-import React, { useState, useEffect } from 'react';
-import PublicNavigation from '../Public_Dashboard/PublicNavigation';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+    CalendarDays,
+    CheckCircle2,
+    Clock3,
+    FileText,
+    FolderKanban,
+    Paperclip,
+    User2,
+    XCircle,
+} from 'lucide-react';
+import CeoNavigation from './CeoNavigation';
+import CeoSidebar from './CeoSidebar';
 import bimDocumentationService from '../../../services/bimDocumentationService';
 import CommentThread from '../../../components/CommentThread';
 
-const CeoBimDocumentationPage = ({ user, onNavigate }) => {
+const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
+
+const TAB_CONFIG = [
+    {
+        id: 'pending',
+        label: 'Needs Decision',
+        description: 'Ready for your final approval',
+        icon: Clock3,
+        emptyText: 'No documentation is waiting for your decision.',
+    },
+    {
+        id: 'approved',
+        label: 'Approved',
+        description: 'Finalized by the CEO',
+        icon: CheckCircle2,
+        emptyText: 'No approved documentation yet.',
+    },
+    {
+        id: 'rejected',
+        label: 'Rejected',
+        description: 'Sent back for revision',
+        icon: XCircle,
+        emptyText: 'No rejected documentation.',
+    },
+];
+
+const STATUS_TO_TAB_ID = {
+    pending_review: 'pending',
+    approved: 'approved',
+    rejected: 'rejected',
+};
+
+const TAB_TONES = {
+    pending: 'pending',
+    approved: 'approved',
+    rejected: 'rejected',
+};
+
+const getStatusMeta = (status) => {
+    const tabId = STATUS_TO_TAB_ID[status] || 'pending';
+    const tab = TAB_CONFIG.find((item) => item.id === tabId) || TAB_CONFIG[0];
+
+    return {
+        tabId,
+        label: tab.label,
+        tone: TAB_TONES[tabId] || 'neutral',
+    };
+};
+
+const DOC_TYPE_LABELS = {
+    'model-update': 'Model Update',
+    'clash-detection': 'Clash Detection',
+    'drawing-package': 'Drawing Package',
+    'simulation': 'Simulation / Rendering',
+    'bim-standards': 'BIM Standards',
+};
+
+const Badge = ({ tone = 'neutral', children, className = '' }) => {
+    const toneClasses = {
+        pending: 'bg-blue-500/10 text-blue-200 border-blue-500/20',
+        approved: 'bg-emerald-500/10 text-emerald-200 border-emerald-500/20',
+        rejected: 'bg-red-500/10 text-red-200 border-red-500/20',
+        warn: 'bg-[#FF7120]/10 text-[#FFBE9B] border-[#FF7120]/20',
+        neutral: 'bg-white/5 text-white/70 border-white/10',
+    };
+
+    return (
+        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${toneClasses[tone] || toneClasses.neutral} ${className}`.trim()}>
+            {children}
+        </span>
+    );
+};
+
+const formatDate = (value, options) => {
+    if (!value) return '—';
+
+    return new Date(value).toLocaleDateString('en-US', options || {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    });
+};
+
+const formatDateTime = (value) => {
+    if (!value) return '—';
+
+    return new Date(value).toLocaleString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+    });
+};
+
+const formatFileSize = (bytes) => {
+    if (!bytes) return 'Unknown size';
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+};
+
+const isImageFile = (file) => {
+    if (!file) return false;
+
+    if (file.is_image === true) return true;
+
+    const fileType = String(file.file_type || '').toLowerCase();
+    if (fileType.includes('image')) return true;
+
+    const fileName = String(file.file_name || '').toLowerCase();
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/.test(fileName);
+};
+
+const getAttachmentDisplayName = (name) => {
+    const rawName = String(name || '').trim();
+
+    if (!rawName) {
+        return 'Attachment';
+    }
+
+    const cleanedName = rawName
+        .replace(/\bchatgpt\b/gi, '')
+        .replace(/[\s_-]{2,}/g, ' ')
+        .replace(/^[\s._-]+|[\s._-]+$/g, '')
+        .trim();
+
+    return cleanedName || rawName;
+};
+
+const getDisplayType = (type) => DOC_TYPE_LABELS[type] || type || 'Documentation';
+
+const SummaryCard = ({ label, value, icon: Icon, tone = 'neutral', isActive = false, onClick }) => {
+    const toneStyles = {
+        pending: 'border-blue-500/15 bg-blue-500/8 text-blue-200',
+        approved: 'border-emerald-500/15 bg-emerald-500/8 text-emerald-200',
+        rejected: 'border-red-500/15 bg-red-500/8 text-red-200',
+        neutral: 'border-white/10 bg-white/[0.03] text-white',
+    };
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className={`${cardClass} w-full p-5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7120]/40 active:scale-[0.99] ${
+                isActive
+                    ? 'border-[#FF7120]/55 bg-[#FF7120]/8 shadow-[0_0_20px_rgba(255,113,32,0.18)]'
+                    : 'hover:-translate-y-0.5 hover:border-[#FF7120]/35 hover:bg-white/[0.05] hover:shadow-[0_10px_24px_rgba(0,0,0,0.25)]'
+            }`}
+        >
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <p className={`text-sm ${isActive ? 'text-white/80' : 'text-white/55'}`}>{label}</p>
+                    <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
+                </div>
+                <div className={`grid h-11 w-11 place-items-center rounded-2xl border ${toneStyles[tone] || toneStyles.neutral} ${isActive ? 'ring-1 ring-white/20' : ''}`}>
+                    <Icon className="h-5 w-5" />
+                </div>
+            </div>
+        </button>
+    );
+};
+
+const DocumentListItem = ({ doc, isSelected, onSelect }) => {
+    const statusMeta = getStatusMeta(doc.status);
+    const attachmentCount = doc.files?.length ?? doc.file_count ?? 0;
+
+    return (
+        <button
+            type="button"
+            onClick={() => onSelect(doc.id)}
+            className={`w-full rounded-2xl border p-4 text-left transition ${
+                isSelected
+                    ? 'border-[#FF7120]/50 bg-[#FF7120]/10 shadow-[0_0_24px_rgba(255,113,32,0.12)]'
+                    : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]'
+            }`}
+        >
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white line-clamp-2">{doc.title}</p>
+                    <p className="mt-1 text-xs text-white/45">{getDisplayType(doc.doc_type)}</p>
+                </div>
+                <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
+            </div>
+
+            <div className="mt-3 grid gap-2 text-xs text-white/55 sm:grid-cols-2">
+                <div className="flex items-center gap-2 min-w-0">
+                    <User2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{doc.created_by_name || 'Unknown author'}</span>
+                </div>
+                <div className="flex items-center gap-2 min-w-0">
+                    <CalendarDays className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{formatDate(doc.doc_date)}</span>
+                </div>
+            </div>
+
+            {doc.studio_head_comments && (
+                <div className="mt-3 rounded-xl border border-white/10 bg-black/10 px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/35">Studio Head Note</p>
+                    <p className="mt-1 text-xs text-white/65 line-clamp-2">{doc.studio_head_comments}</p>
+                </div>
+            )}
+
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-white/40">
+                <span>{formatDateTime(doc.created_at)}</span>
+                <span className="inline-flex items-center gap-1.5">
+                    <Paperclip className="h-3.5 w-3.5" />
+                    {attachmentCount} file{attachmentCount === 1 ? '' : 's'}
+                </span>
+            </div>
+        </button>
+    );
+};
+
+const CeoBimDocumentationPage = ({
+    user,
+    onNavigate,
+    onLogout,
+    pageEyebrow = 'CEO Final Review',
+    pageTitle = 'BIM Documentation',
+    pageDescription = 'Final review for documentation forwarded by the Studio Head.',
+    navigationCurrentPage = 'ceo-bim-docs',
+    sidebarCurrentPage = 'ceo-bim-docs',
+    documentationQuery = {},
+}) => {
     const [activeTab, setActiveTab] = useState('pending');
     const [pendingDocs, setPendingDocs] = useState([]);
     const [approvedDocs, setApprovedDocs] = useState([]);
     const [rejectedDocs, setRejectedDocs] = useState([]);
-    const [selectedDoc, setSelectedDoc] = useState(null);
+    const [selectedDocId, setSelectedDocId] = useState(null);
     const [approvalComments, setApprovalComments] = useState('');
     const [loading, setLoading] = useState(false);
+    const [submittingDecision, setSubmittingDecision] = useState(false);
     const [message, setMessage] = useState('');
+    const [previewImage, setPreviewImage] = useState(null);
 
-    const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
+    const reviewerName = useMemo(() => {
+        const first = user?.first_name || '';
+        const last = user?.last_name || '';
+        const fullName = `${first} ${last}`.trim();
+        return fullName || user?.full_name || user?.name || user?.email || 'CEO';
+    }, [user]);
 
-    const Badge = ({ tone = 'neutral', children }) => {
-        const toneClasses = {
-            warn: 'bg-[#FF7120]/10 text-[#FF7120] border-[#FF7120]/30',
-            good: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
-            pending: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
-            approved: 'bg-green-500/10 text-green-300 border-green-500/20',
-            rejected: 'bg-red-500/10 text-red-300 border-red-500/20',
-            neutral: 'bg-white/5 text-white/70 border-white/10',
-        };
-        const cls = toneClasses[tone] || toneClasses.neutral;
-        return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${cls}`}>{children}</span>;
-    };
+    const docsByTab = useMemo(() => ({
+        pending: pendingDocs,
+        approved: approvedDocs,
+        rejected: rejectedDocs,
+    }), [pendingDocs, approvedDocs, rejectedDocs]);
+
+    const activeDocs = docsByTab[activeTab] || [];
+    const activeTabMeta = TAB_CONFIG.find((tab) => tab.id === activeTab) || TAB_CONFIG[0];
+    const selectedDoc = useMemo(
+        () => activeDocs.find((doc) => doc.id === selectedDocId) || activeDocs[0] || null,
+        [activeDocs, selectedDocId]
+    );
 
     useEffect(() => {
         fetchDocumentations();
     }, []);
 
-    const fetchDocumentations = async () => {
-        setLoading(true);
-        const result = await bimDocumentationService.getDocumentations();
+    useEffect(() => {
+        if (!activeDocs.length) {
+            if (selectedDocId !== null) {
+                setSelectedDocId(null);
+            }
+            return;
+        }
+
+        if (!activeDocs.some((doc) => doc.id === selectedDocId)) {
+            setSelectedDocId(activeDocs[0].id);
+        }
+    }, [activeDocs, selectedDocId]);
+
+    const fetchDocumentations = async ({ silent = false } = {}) => {
+        if (!silent) {
+            setLoading(true);
+        }
+
+        const result = await bimDocumentationService.getDocumentations(documentationQuery);
+
         if (result.success) {
             const docs = Array.isArray(result.data) ? result.data : (result.data?.results || []);
-            // CEO sees only docs that have been approved by Studio Head
-            const allDocs = docs.filter(
+            const ceoDocs = docs.filter(
                 (doc) => doc.reviewed_by_studio_head !== null && doc.reviewed_by_studio_head !== undefined
             );
-            
-            const pending = allDocs.filter((doc) => doc.status === 'pending_review');
-            const approved = allDocs.filter((doc) => doc.status === 'approved');
-            const rejected = allDocs.filter((doc) => doc.status === 'rejected');
-            
-            setPendingDocs(pending);
-            setApprovedDocs(approved);
-            setRejectedDocs(rejected);
+
+            setPendingDocs(ceoDocs.filter((doc) => doc.status === 'pending_review'));
+            setApprovedDocs(ceoDocs.filter((doc) => doc.status === 'approved'));
+            setRejectedDocs(ceoDocs.filter((doc) => doc.status === 'rejected'));
         } else {
-            setMessage('Failed to load documentations: ' + result.error);
+            setMessage(`Failed to load documentations: ${result.error}`);
         }
-        setLoading(false);
+
+        if (!silent) {
+            setLoading(false);
+        }
+    };
+
+    const applyLocalDecision = (docId, action, comments) => {
+        const reviewedAt = new Date().toISOString();
+        let updatedDoc = null;
+
+        setPendingDocs((current) => {
+            const found = current.find((doc) => doc.id === docId);
+
+            if (!found) {
+                return current;
+            }
+
+            updatedDoc = {
+                ...found,
+                status: action === 'approve' ? 'approved' : 'rejected',
+                reviewed_by_ceo: user?.id || found.reviewed_by_ceo || true,
+                reviewed_by_ceo_name: reviewerName,
+                ceo_reviewed_at: reviewedAt,
+                ceo_comments: comments || '',
+                updated_at: reviewedAt,
+            };
+
+            return current.filter((doc) => doc.id !== docId);
+        });
+
+        if (!updatedDoc) {
+            return;
+        }
+
+        if (action === 'approve') {
+            setApprovedDocs((current) => [updatedDoc, ...current.filter((doc) => doc.id !== docId)]);
+            setActiveTab('approved');
+        } else {
+            setRejectedDocs((current) => [updatedDoc, ...current.filter((doc) => doc.id !== docId)]);
+            setActiveTab('rejected');
+        }
+
+        setSelectedDocId(updatedDoc.id);
     };
 
     const handleApprove = async () => {
         if (!selectedDoc) return;
-        
-        setLoading(true);
-        const result = await bimDocumentationService.approvalAction(
-            selectedDoc.id,
-            'approve',
-            approvalComments
-        );
+
+        setSubmittingDecision(true);
+        const result = await bimDocumentationService.approvalAction(selectedDoc.id, 'approve', approvalComments);
 
         if (result.success) {
-            setMessage('Documentation approved and finalized!');
-            setSelectedDoc(null);
+            setMessage('Documentation approved and finalized.');
             setApprovalComments('');
-            fetchDocumentations();
-            setTimeout(() => setMessage(''), 3000);
+            applyLocalDecision(selectedDoc.id, 'approve', approvalComments);
+            fetchDocumentations({ silent: true });
         } else {
-            setMessage('Error: ' + result.error);
+            setMessage(`Error: ${result.error}`);
         }
-        setLoading(false);
+
+        setSubmittingDecision(false);
     };
 
     const handleReject = async () => {
-        if (!selectedDoc || !approvalComments.trim()) {
-            setMessage('Please provide rejection reason');
+        if (!selectedDoc) return;
+
+        if (!approvalComments.trim()) {
+            setMessage('Please add a reason before rejecting this documentation.');
             return;
         }
-        
-        setLoading(true);
-        const result = await bimDocumentationService.approvalAction(
-            selectedDoc.id,
-            'reject',
-            approvalComments
-        );
+
+        setSubmittingDecision(true);
+        const result = await bimDocumentationService.approvalAction(selectedDoc.id, 'reject', approvalComments);
 
         if (result.success) {
-            setMessage('Documentation rejected. Studio Head and BIM Specialist will be notified.');
-            setSelectedDoc(null);
+            setMessage('Documentation rejected and returned for revision.');
             setApprovalComments('');
-            fetchDocumentations();
-            setTimeout(() => setMessage(''), 3000);
+            applyLocalDecision(selectedDoc.id, 'reject', approvalComments);
+            fetchDocumentations({ silent: true });
         } else {
-            setMessage('Error: ' + result.error);
+            setMessage(`Error: ${result.error}`);
         }
-        setLoading(false);
+
+        setSubmittingDecision(false);
     };
 
-    const getDisplayType = (type) => {
-        const types = {
-            'model-update': 'Model Update',
-            'clash-detection': 'Clash Detection',
-            'drawing-package': 'Drawing Package',
-            'simulation': 'Simulation / Rendering',
-            'bim-standards': 'BIM Standards',
-        };
-        return types[type] || type;
+    const handleTabChange = (tabId) => {
+        setActiveTab(tabId);
+        setApprovalComments('');
+        setMessage('');
     };
 
-    const DocumentCard = ({ doc, isSelected, onSelect }) => (
-        <div
-            onClick={() => onSelect(doc)}
-            className={`rounded-xl border p-5 cursor-pointer transition ${
-                isSelected
-                    ? 'border-[#FF7120] bg-[#001f35] shadow-[0_0_20px_rgba(255,113,32,0.2)]'
-                    : 'border-white/10 bg-[#00273C]/40 hover:border-white/20 hover:bg-[#00273C]/60'
-            }`}
-        >
-            <div className="space-y-3">
-                <div className="flex items-start justify-between gap-2">
-                    <h3 className="text-sm font-semibold text-white flex-1">{doc.title}</h3>
-                    <Badge tone="pending">Under Review</Badge>
-                </div>
+    const openImagePreview = (file) => {
+        const imageUrl = file?.file_url || file?.file || null;
+        if (!imageUrl) return;
 
-                <div className="flex gap-2 flex-wrap">
-                    <Badge tone="neutral">{doc.doc_date}</Badge>
-                    <Badge tone="neutral">{getDisplayType(doc.doc_type)}</Badge>
-                </div>
+        setPreviewImage({
+            url: imageUrl,
+            name: getAttachmentDisplayName(file?.file_name) || 'Image Preview',
+        });
+    };
 
-                <div className="space-y-1 text-xs text-white/60">
-                    <p>👤 Created by: {doc.created_by_name}</p>
-                    <p>✓ Studio Head: {doc.reviewed_by_studio_head_name || 'Pending'}</p>
-                    <p>📅 {new Date(doc.created_at).toLocaleDateString()}</p>
-                </div>
+    const closeImagePreview = () => {
+        setPreviewImage(null);
+    };
 
-                {doc.description && (
-                    <p className="text-xs text-white/70 line-clamp-2">{doc.description}</p>
-                )}
-
-                {(doc.files?.length ?? doc.file_count ?? 0) > 0 && (
-                    <p className="text-xs text-white/60">📎 {doc.files?.length ?? doc.file_count ?? 0} file(s) attached</p>
-                )}
-            </div>
-        </div>
+    const requiresDecision = Boolean(
+        selectedDoc && selectedDoc.status === 'pending_review' && !selectedDoc.reviewed_by_ceo_name
     );
-
-    const getTabCount = (tabName) => {
-        switch (tabName) {
-            case 'pending':
-                return pendingDocs.length;
-            case 'approved':
-                return approvedDocs.length;
-            case 'rejected':
-                return rejectedDocs.length;
-            default:
-                return 0;
-        }
-    };
+    const statusMeta = getStatusMeta(selectedDoc?.status);
+    const attachmentCount = selectedDoc ? (selectedDoc.files?.length ?? selectedDoc.file_count ?? 0) : 0;
 
     return (
         <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
@@ -169,288 +422,290 @@ const CeoBimDocumentationPage = ({ user, onNavigate }) => {
                 <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
             </div>
 
-            <PublicNavigation onNavigate={onNavigate} currentPage="bim-documentation" user={user} />
+            <CeoNavigation onNavigate={onNavigate} currentPage={navigationCurrentPage} user={user} onLogout={onLogout} />
 
             <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
-                <div className="max-w-[1600px] mx-auto">
-                    <div className="space-y-6">
-                        {/* Header */}
-                        <div className={cardClass}>
-                            <div className="p-6">
-                                <h1 className="text-3xl font-bold text-white">BIM Documentation Approval</h1>
-                                <p className="text-white/60 text-sm mt-2">Final approval of BIM documentation reviewed by Studio Head</p>
-                            </div>
-                        </div>
+                <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-6">
+                    <aside className="w-full lg:w-64 shrink-0">
+                        <CeoSidebar currentPage={sidebarCurrentPage} onNavigate={onNavigate} />
+                    </aside>
 
-                        {/* Content */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* Left: Documentation List */}
-                            <div className="lg:col-span-1 space-y-4">
-                                {/* Tab Navigation */}
-                                <div className={cardClass}>
-                                    <div className="p-2 space-y-2">
-                                        {['pending', 'approved', 'rejected'].map((tab) => (
-                                            <button
-                                                key={tab}
-                                                onClick={() => setActiveTab(tab)}
-                                                className={`w-full py-2 px-4 rounded-lg text-sm font-semibold transition flex items-center justify-between ${
-                                                    activeTab === tab
-                                                        ? 'bg-[#FF7120] text-white'
-                                                        : 'text-white/60 hover:text-white bg-white/5'
-                                                }`}
-                                            >
-                                                <span>
-                                                    {tab === 'pending' && '⏳ Pending'}
-                                                    {tab === 'approved' && '✅ Approved'}
-                                                    {tab === 'rejected' && '❌ Rejected'}
-                                                </span>
-                                                <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
-                                                    activeTab === tab
-                                                        ? 'bg-white/20'
-                                                        : 'bg-white/10'
-                                                }`}>
-                                                    {getTabCount(activeTab)}
-                                                </span>
-                                            </button>
-                                        ))}
-                                    </div>
+                    <main className="flex-1 min-w-0 space-y-6">
+                        <section className={cardClass}>
+                            <div className="p-6 sm:p-8 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
+                                <div className="max-w-3xl">
+                                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#FF7120]/80">{pageEyebrow}</p>
+                                    <h1 className="mt-3 text-3xl sm:text-4xl font-semibold text-white">{pageTitle}</h1>
+                                    <p className="mt-3 text-sm text-white/60 max-w-2xl">{pageDescription}</p>
                                 </div>
+                            </div>
+                        </section>
 
-                                {/* Documentation List */}
+                        {message && (
+                            <div className={`rounded-xl border px-4 py-3 text-sm ${
+                                message.startsWith('Error') || message.startsWith('Failed')
+                                    ? 'border-red-500/20 bg-red-500/10 text-red-200'
+                                    : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
+                            }`}>
+                                {message}
+                            </div>
+                        )}
+
+                        <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <SummaryCard
+                                label="Waiting"
+                                value={pendingDocs.length}
+                                icon={Clock3}
+                                tone="pending"
+                                isActive={activeTab === 'pending'}
+                                onClick={() => handleTabChange('pending')}
+                            />
+                            <SummaryCard
+                                label="Approved"
+                                value={approvedDocs.length}
+                                icon={CheckCircle2}
+                                tone="approved"
+                                isActive={activeTab === 'approved'}
+                                onClick={() => handleTabChange('approved')}
+                            />
+                            <SummaryCard
+                                label="Rejected"
+                                value={rejectedDocs.length}
+                                icon={XCircle}
+                                tone="rejected"
+                                isActive={activeTab === 'rejected'}
+                                onClick={() => handleTabChange('rejected')}
+                            />
+                        </section>
+
+                        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                            <div className="lg:col-span-1">
                                 <div className={cardClass}>
+                                    <div className="p-5 border-b border-white/10">
+                                        <p className="text-lg font-semibold text-white">{activeTabMeta.label}</p>
+                                        <p className="mt-1 text-sm text-white/55">{activeTabMeta.description}</p>
+                                    </div>
+
                                     <div className="p-4">
-                                        {loading && <p className="text-center text-white/60 py-6">Loading...</p>}
-                                        
-                                        {!loading && activeTab === 'pending' && pendingDocs.length === 0 && (
-                                            <p className="text-center text-white/55 py-6">No pending documentations</p>
+                                        {loading ? (
+                                            <p className="py-10 text-center text-sm text-white/55">Loading documentation...</p>
+                                        ) : activeDocs.length === 0 ? (
+                                            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] px-4 py-10 text-center">
+                                                <p className="text-sm font-semibold text-white/70">Nothing here right now</p>
+                                                <p className="mt-2 text-sm text-white/45">{activeTabMeta.emptyText}</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3 max-h-[740px] overflow-y-auto pr-1">
+                                                {activeDocs.map((doc) => (
+                                                    <DocumentListItem
+                                                        key={doc.id}
+                                                        doc={doc}
+                                                        isSelected={selectedDoc?.id === doc.id}
+                                                        onSelect={setSelectedDocId}
+                                                    />
+                                                ))}
+                                            </div>
                                         )}
-                                        {!loading && activeTab === 'approved' && approvedDocs.length === 0 && (
-                                            <p className="text-center text-white/55 py-6">No approved documentations</p>
-                                        )}
-                                        {!loading && activeTab === 'rejected' && rejectedDocs.length === 0 && (
-                                            <p className="text-center text-white/55 py-6">No rejected documentations</p>
-                                        )}
-
-                                        <div className="space-y-3 max-h-[700px] overflow-y-auto">
-                                            {activeTab === 'pending' && pendingDocs.map((doc) => (
-                                                <DocumentCard
-                                                    key={doc.id}
-                                                    doc={doc}
-                                                    isSelected={selectedDoc?.id === doc.id}
-                                                    onSelect={setSelectedDoc}
-                                                />
-                                            ))}
-                                            {activeTab === 'approved' && approvedDocs.map((doc) => (
-                                                <DocumentCard
-                                                    key={doc.id}
-                                                    doc={doc}
-                                                    isSelected={selectedDoc?.id === doc.id}
-                                                    onSelect={setSelectedDoc}
-                                                />
-                                            ))}
-                                            {activeTab === 'rejected' && rejectedDocs.map((doc) => (
-                                                <DocumentCard
-                                                    key={doc.id}
-                                                    doc={doc}
-                                                    isSelected={selectedDoc?.id === doc.id}
-                                                    onSelect={setSelectedDoc}
-                                                />
-                                            ))}
-                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Right: Documentation Details */}
                             <div className="lg:col-span-2">
                                 {selectedDoc ? (
-                                    <div className={cardClass}>
-                                        <div className="p-6 border-b border-white/10 space-y-4">
-                                            <div className="flex items-start justify-between">
-                                                <div>
-                                                    <h2 className="text-2xl font-bold text-white">{selectedDoc.title}</h2>
+                                    <section className={cardClass}>
+                                        <div className="p-6 border-b border-white/10">
+                                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                                                <div className="min-w-0">
+                                                    <h2 className="text-2xl font-semibold text-white break-words">{selectedDoc.title}</h2>
                                                     <p className="text-sm text-white/60 mt-2">
-                                                        Created by {selectedDoc.created_by_name} on {new Date(selectedDoc.created_at).toLocaleDateString()}
+                                                        Submitted by {selectedDoc.created_by_name || 'Unknown author'} on {formatDate(selectedDoc.created_at)}
                                                     </p>
                                                 </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleTabChange(statusMeta.tabId)}
+                                                    className="rounded-full"
+                                                    title={`Open ${statusMeta.label} tab`}
+                                                >
+                                                    <Badge tone={statusMeta.tone} className="cursor-pointer">{statusMeta.label}</Badge>
+                                                </button>
                                             </div>
 
-                                            <div className="flex gap-3 flex-wrap">
-                                                <Badge tone="neutral">{selectedDoc.doc_date}</Badge>
+                                            <div className="mt-4 flex flex-wrap gap-2">
+                                                <Badge tone="neutral">{formatDate(selectedDoc.doc_date)}</Badge>
                                                 <Badge tone="neutral">{getDisplayType(selectedDoc.doc_type)}</Badge>
+                                                <Badge tone="neutral">{attachmentCount} file{attachmentCount === 1 ? '' : 's'}</Badge>
                                             </div>
                                         </div>
 
                                         <div className="p-6 space-y-6">
-                                            {/* Approval Chain */}
-                                            <div className="space-y-3 p-4 rounded-lg bg-white/5 border border-white/10">
-                                                <h3 className="text-sm font-semibold text-white">📋 Approval Chain</h3>
-                                                <div className="space-y-2 text-xs">
-                                                    <div className="flex items-center gap-3">
-                                                        <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300">✓</span>
-                                                        <div>
-                                                            <p className="text-white font-semibold">{selectedDoc.created_by_name}</p>
-                                                            <p className="text-white/60">Created • {new Date(selectedDoc.created_at).toLocaleString()}</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        {selectedDoc.reviewed_by_studio_head_name ? (
-                                                            <>
-                                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300">✓</span>
-                                                                <div>
-                                                                    <p className="text-white font-semibold">{selectedDoc.reviewed_by_studio_head_name}</p>
-                                                                    <p className="text-white/60">Studio Head Approved • {new Date(selectedDoc.studio_head_reviewed_at).toLocaleString()}</p>
-                                                                    {selectedDoc.studio_head_comments && (
-                                                                        <p className="text-white/70 mt-1">{selectedDoc.studio_head_comments}</p>
-                                                                    )}
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-gray-500/20 text-gray-400">◯</span>
-                                                                <div>
-                                                                    <p className="text-white/60 font-semibold">Studio Head Review</p>
-                                                                    <p className="text-white/50">Pending...</p>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-3">
-                                                        {selectedDoc.reviewed_by_ceo_name ? (
-                                                            <>
-                                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-300">✓</span>
-                                                                <div>
-                                                                    <p className="text-white font-semibold">{selectedDoc.reviewed_by_ceo_name}</p>
-                                                                    <p className="text-white/60">CEO Approval • {new Date(selectedDoc.ceo_reviewed_at).toLocaleString()}</p>
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <>
-                                                                <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-500/20 text-blue-300">◯</span>
-                                                                <div>
-                                                                    <p className="text-white font-semibold">CEO Approval</p>
-                                                                    <p className="text-white/60">Awaiting your decision...</p>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-white mb-2">Description</h3>
+                                                <p className="text-sm text-white/72 whitespace-pre-wrap leading-7">
+                                                    {selectedDoc.description || 'No description was provided for this submission.'}
+                                                </p>
                                             </div>
 
-                                            {/* Description */}
-                                            {selectedDoc.description && (
-                                                <div>
-                                                    <h3 className="text-sm font-semibold text-white mb-3">Description</h3>
-                                                    <p className="text-sm text-white/70 whitespace-pre-wrap">{selectedDoc.description}</p>
-                                                </div>
-                                            )}
+                                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+                                                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/35">Studio Head Handoff Note</p>
+                                                <p className="mt-2 text-sm text-white/72 whitespace-pre-wrap leading-7">
+                                                    {selectedDoc.studio_head_comments || 'No additional Studio Head note was attached to this submission.'}
+                                                </p>
+                                            </div>
 
-                                            {/* Files */}
-                                            {(selectedDoc.files?.length ?? selectedDoc.file_count ?? 0) > 0 && (
-                                                <div>
-                                                    <h3 className="text-sm font-semibold text-white mb-3">📎 Attached Files ({selectedDoc.files?.length ?? selectedDoc.file_count ?? 0})</h3>
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-white mb-3">Attached Files</h3>
+                                                {attachmentCount > 0 ? (
                                                     <div className="space-y-2">
-                                                        {(selectedDoc.files || []).map((file) => (
-                                                            <div
-                                                                key={file.id}
-                                                                className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10"
-                                                            >
-                                                                <span className="text-lg">
-                                                                    {file.file_type === 'model' ? '📦' : '🖼️'}
-                                                                </span>
-                                                                <div className="flex-1 min-w-0">
-                                                                    <p className="text-sm text-white truncate">{file.file_name}</p>
-                                                                    <p className="text-xs text-white/50">
-                                                                        {(file.file_size / 1024 / 1024).toFixed(2)} MB • {new Date(file.uploaded_at).toLocaleDateString()}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
+                                                        {(selectedDoc.files || []).map((file) => {
+                                                            const fileHref = file.file_url || file.file || null;
+                                                            const previewableImage = Boolean(fileHref) && isImageFile(file);
+                                                            const displayFileName = getAttachmentDisplayName(file.file_name);
+                                                            const fileLine = (
+                                                                <>
+                                                                    <div className="grid h-9 w-9 place-items-center rounded-lg bg-white/5 text-white/70">
+                                                                        <FileText className="h-4 w-4" />
+                                                                    </div>
+                                                                    <div className="min-w-0 flex-1">
+                                                                        <p className="text-sm text-white truncate">{displayFileName}</p>
+                                                                        <p className="text-xs text-white/50">
+                                                                            {formatFileSize(file.file_size)} • {formatDate(file.uploaded_at)}
+                                                                        </p>
+                                                                    </div>
+                                                                </>
+                                                            );
 
-                                            {/* Approval Section */}
-                                            {selectedDoc.status === 'pending_review' && !selectedDoc.reviewed_by_ceo_name && (
-                                                <div className="space-y-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                                                    <h3 className="text-sm font-semibold text-white">Your Final Decision</h3>
-                                                    
+                                                            if (previewableImage) {
+                                                                return (
+                                                                    <button
+                                                                        key={file.id}
+                                                                        type="button"
+                                                                        onClick={() => openImagePreview(file)}
+                                                                        className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-[#FF7120]/35"
+                                                                    >
+                                                                        {fileLine}
+                                                                        <span className="text-xs font-semibold text-[#FFBE9B]">Preview</span>
+                                                                    </button>
+                                                                );
+                                                            }
+
+                                                            if (fileHref) {
+                                                                return (
+                                                                    <a
+                                                                        key={file.id}
+                                                                        href={fileHref}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-white/20"
+                                                                    >
+                                                                        {fileLine}
+                                                                        <span className="text-xs font-semibold text-white/60">Open</span>
+                                                                    </a>
+                                                                );
+                                                            }
+
+                                                            return (
+                                                                <div key={file.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
+                                                                    {fileLine}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-sm text-white/50">No attachments were included with this documentation.</p>
+                                                )}
+                                            </div>
+
+                                            {requiresDecision ? (
+                                                <div className="space-y-4 p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+                                                    <h3 className="text-sm font-semibold text-white">Your Decision</h3>
                                                     <div>
-                                                        <label className="block text-sm text-white/70 font-semibold mb-2">
-                                                            Comments (Required for rejection)
-                                                        </label>
+                                                        <label className="block text-sm text-white/70 font-semibold mb-2">CEO Note (required for rejection)</label>
                                                         <textarea
                                                             value={approvalComments}
                                                             onChange={(e) => setApprovalComments(e.target.value)}
                                                             rows={4}
-                                                            placeholder="Add your feedback or rejection reason..."
+                                                            placeholder="Add your note or rejection reason..."
                                                             className="w-full rounded-lg border border-white/15 bg-[#00273C]/60 px-3 py-2 text-sm text-white placeholder:text-white/45 outline-none focus:border-blue-500/50 resize-none"
                                                         />
                                                     </div>
-
-                                                    {message && (
-                                                        <p className={`text-xs ${
-                                                            message.includes('Error')
-                                                                ? 'text-red-400'
-                                                                : 'text-emerald-400'
-                                                        }`}>
-                                                            {message}
-                                                        </p>
-                                                    )}
-
-                                                    <div className="flex gap-3">
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                         <button
+                                                            type="button"
                                                             onClick={handleApprove}
-                                                            disabled={loading}
-                                                            className="flex-1 rounded-lg bg-emerald-600/20 text-emerald-300 font-semibold py-2.5 hover:bg-emerald-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            disabled={submittingDecision}
+                                                            className="rounded-lg bg-emerald-600/20 text-emerald-300 font-semibold py-2.5 hover:bg-emerald-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
-                                                            ✓ Approve Finalization
+                                                            {submittingDecision ? 'Processing...' : 'Approve Finalization'}
                                                         </button>
                                                         <button
+                                                            type="button"
                                                             onClick={handleReject}
-                                                            disabled={loading || !approvalComments.trim()}
-                                                            className="flex-1 rounded-lg bg-red-600/20 text-red-300 font-semibold py-2.5 hover:bg-red-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                                            disabled={submittingDecision || !approvalComments.trim()}
+                                                            className="rounded-lg bg-red-600/20 text-red-300 font-semibold py-2.5 hover:bg-red-600/30 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                                         >
-                                                            ✗ Reject
+                                                            {submittingDecision ? 'Processing...' : 'Reject and Return'}
                                                         </button>
                                                     </div>
                                                 </div>
-                                            )}
-
-                                            {/* Approved Status */}
-                                            {selectedDoc.reviewed_by_ceo_name && selectedDoc.status === 'approved' && (
-                                                <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                                                    <p className="text-sm text-emerald-300 font-semibold">✓ Approved by CEO</p>
-                                                    <p className="text-xs text-emerald-300/80 mt-2">{selectedDoc.ceo_comments}</p>
+                                            ) : (
+                                                <div className={`rounded-xl border px-4 py-4 ${
+                                                    selectedDoc.status === 'approved'
+                                                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-100'
+                                                        : 'border-red-500/20 bg-red-500/10 text-red-100'
+                                                }`}>
+                                                    <p className="text-sm font-semibold">
+                                                        {selectedDoc.status === 'approved' ? 'Approved by CEO' : 'Rejected by CEO'}
+                                                    </p>
+                                                    <p className="mt-2 text-sm leading-7 opacity-90 whitespace-pre-wrap">
+                                                        {selectedDoc.ceo_comments || 'No additional CEO note was saved for this decision.'}
+                                                    </p>
+                                                    <p className="mt-3 text-xs opacity-70">Recorded {formatDateTime(selectedDoc.ceo_reviewed_at)}</p>
                                                 </div>
                                             )}
 
-                                            {/* Rejected Status */}
-                                            {selectedDoc.reviewed_by_ceo_name && selectedDoc.status === 'rejected' && (
-                                                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
-                                                    <p className="text-sm text-red-300 font-semibold">✗ Rejected by CEO</p>
-                                                    <p className="text-xs text-red-300/80 mt-2">{selectedDoc.ceo_comments}</p>
-                                                </div>
-                                            )}
-
-                                            {/* Discussion Thread */}
                                             <div className="border-t border-white/10 pt-6">
+                                                <p className="text-sm font-semibold text-white mb-3">Discussion</p>
                                                 <CommentThread docId={selectedDoc.id} currentUser={user} />
                                             </div>
                                         </div>
-                                    </div>
+                                    </section>
                                 ) : (
                                     <div className={cardClass}>
                                         <div className="p-12 text-center">
-                                            <p className="text-white/55">Select a documentation to view details and take action</p>
+                                            <p className="text-white/55">Select a documentation to view details</p>
                                         </div>
                                     </div>
                                 )}
                             </div>
+                        </section>
+                    </main>
+                </div>
+            </div>
+
+            {previewImage && (
+                <div className="fixed inset-0 z-[90] bg-black/80 p-4 sm:p-8" onClick={closeImagePreview}>
+                    <div className="mx-auto flex h-full w-full max-w-5xl flex-col" onClick={(e) => e.stopPropagation()}>
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                            <p className="truncate text-sm font-semibold text-white">{previewImage.name}</p>
+                            <button
+                                type="button"
+                                onClick={closeImagePreview}
+                                className="rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm text-white hover:bg-white/20"
+                            >
+                                Close
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-auto rounded-xl border border-white/15 bg-black/40 p-4 grid place-items-center">
+                            <img
+                                src={previewImage.url}
+                                alt={previewImage.name}
+                                className="max-h-full max-w-full object-contain"
+                            />
                         </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

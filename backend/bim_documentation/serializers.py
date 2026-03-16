@@ -153,6 +153,9 @@ class BimDocumentationListSerializer(serializers.ModelSerializer):
         ]
     
     def get_file_count(self, obj):
+        prefetched = getattr(obj, '_prefetched_objects_cache', {})
+        if 'files' in prefetched:
+            return len(prefetched['files'])
         return obj.files.count()
 
 

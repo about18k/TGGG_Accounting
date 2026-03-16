@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import { ArrowUpDown, Bell, Check, Crown, Menu, Search, User } from 'lucide-react';
+import { ArrowUpDown, Bell, Check, Crown, Menu, User } from 'lucide-react';
 import { Button, Popover, PopoverContent, PopoverTrigger } from '../../../components/ui/accounting-ui';
 
 export default function CeoNavigation({ onNavigate, currentPage = 'attendance', user, onLogout }) {
   const [notificationFilter, setNotificationFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
-  const [search, setSearch] = useState('');
   const [notifications, setNotifications] = useState([
     { id: 1, title: 'Board Meeting', message: 'Quarterly board sync at 3:00 PM', time: '1h ago', read: false, type: 'meeting' },
     { id: 2, title: 'Payroll Approved', message: 'March payroll is ready for release', time: '4h ago', read: true, type: 'finance' },
@@ -28,12 +27,18 @@ export default function CeoNavigation({ onNavigate, currentPage = 'attendance', 
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
+  const toggleSidebarMenu = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('ceo-sidebar-toggle'));
+    }
+  };
+
   const handleNotificationClick = (notification) => {
     if (!notification.read) {
       setNotifications((prev) => prev.map((n) => (n.id === notification.id ? { ...n, read: true } : n)));
     }
     if (notification.type === 'people') onNavigate?.('attendance');
-    if (notification.type === 'finance') onNavigate?.('overtime');
+    if (notification.type === 'finance') onNavigate?.('ceo-dashboard');
   };
 
   return (
@@ -46,18 +51,6 @@ export default function CeoNavigation({ onNavigate, currentPage = 'attendance', 
           <div className="leading-tight">
             <p className="text-base sm:text-xl font-semibold text-white">CEO Dashboard</p>
             <p className="text-xs sm:text-sm text-white/55">Executive overview</p>
-          </div>
-        </div>
-
-        <div className="hidden md:flex items-center gap-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/40" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search projects, people, updates"
-              className="h-10 w-[260px] rounded-xl border border-white/10 bg-[#00273C]/70 pl-10 pr-4 text-sm text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/70 focus:ring-2 focus:ring-[#FF7120]/25"
-            />
           </div>
         </div>
 
@@ -187,9 +180,10 @@ export default function CeoNavigation({ onNavigate, currentPage = 'attendance', 
 
           <button
             type="button"
-            onClick={() => onNavigate?.('attendance')}
-            className="md:hidden border border-[#FF7120] text-[#FF7120] rounded-full w-9 h-9 flex items-center justify-center hover:bg-[#FF7120] hover:text-white transition-all"
-            aria-label="Go to attendance"
+            onClick={toggleSidebarMenu}
+            className="lg:hidden border border-[#FF7120] text-[#FF7120] rounded-full w-9 h-9 flex items-center justify-center hover:bg-[#FF7120] hover:text-white transition-all"
+            aria-label="Toggle sidebar menu"
+            aria-controls="ceo-sidebar-content"
           >
             <Menu className="h-4 w-4" />
           </button>

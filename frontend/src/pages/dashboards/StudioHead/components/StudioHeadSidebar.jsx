@@ -7,10 +7,10 @@ const PRIMARY_LINKS = [
 
 const DASHBOARD_LINKS = [
   { id: 'studio-head', label: 'Dashboard', icon: Home, page: 'studio-head' },
-  { id: 'bim-docs', label: 'BIM Documentation', icon: FolderKanban, page: 'studio-head-bim-docs' },
+  { id: 'bim-docs', label: 'BIM Docs', icon: FolderKanban, page: 'studio-head-bim-docs' },
+  { id: 'junior-architect-docs', label: 'Junior Architect Docs', icon: User, page: 'studio-head-junior-docs' },
   { id: 'approvals', label: 'User Approvals', icon: UserCheck },
   { id: 'users', label: 'Manage Users', icon: Users },
-  { id: 'reviews', label: 'Design Reviews', icon: FileText },
   { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge },
 ];
 

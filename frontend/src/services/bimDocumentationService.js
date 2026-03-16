@@ -47,11 +47,12 @@ const bimDocumentationService = {
 
   /**
    * Get all BIM documentations for current user (filtered by role)
+   * @param {object} params - Optional query params (e.g. { created_by_role: 'junior_architect' })
    * @returns {Promise<object>}
    */
-  getDocumentations: async () => {
+  getDocumentations: async (params = {}) => {
     try {
-      const response = await api.get('/bim-docs/');
+      const response = await api.get('/bim-docs/', { params });
       return { success: true, data: response.data };
     } catch (error) {
       return {

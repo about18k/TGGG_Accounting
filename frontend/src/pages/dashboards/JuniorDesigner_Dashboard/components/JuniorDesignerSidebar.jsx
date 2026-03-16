@@ -1,13 +1,17 @@
-import { Home, Calendar, Clock, CheckSquare, User } from 'lucide-react';
+import { Calendar, Clock, CheckSquare, FolderKanban } from 'lucide-react';
 
 const SECTION_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Calendar, section: 'attendance' },
 ];
 
 const PAGE_LINKS = [
-  { id: 'overtime', label: 'Overtime & Leave', icon: Clock, page: 'overtime' },
+  { id: 'documentation', label: 'Design Documentation', icon: FolderKanban, page: 'documentation' },
+  { id: 'overtime', label: 'Overtime', icon: Clock, page: 'overtime' },
   { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo' },
 ];
+
+const PRIORITY_PAGE_LINKS = PAGE_LINKS.filter((item) => item.page === 'overtime' || item.page === 'todo');
+const SECONDARY_PAGE_LINKS = PAGE_LINKS.filter((item) => item.page === 'documentation');
 
 export default function JuniorDesignerSidebar({
   currentPage = 'attendance',
@@ -47,9 +51,28 @@ export default function JuniorDesignerSidebar({
           );
         })}
 
+        {PRIORITY_PAGE_LINKS.map((item) => {
+          const Icon = item.icon;
+          const isActive = currentPage === item.page;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onNavigate?.(item.page)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive
+                ? 'bg-[#FF7120] text-white'
+                : 'text-white/70 hover:text-white hover:bg-white/5'
+                }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="font-medium">{item.label}</span>
+            </button>
+          );
+        })}
+
         <div className="pt-2 mt-2 border-t border-white/10" />
 
-        {PAGE_LINKS.map((item) => {
+        {SECONDARY_PAGE_LINKS.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === item.page;
           return (

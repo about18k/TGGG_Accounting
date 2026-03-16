@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import JuniorDesignerSidebar from './components/JuniorDesignerSidebar';
+import PrintAttendance from '../../globalattendancereport/PrintAttendance';
 import LocationAttendance from '../../../components/attendance/LocationAttendance';
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
 import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';
@@ -16,6 +17,7 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [workDoc, setWorkDoc] = useState('');
   const [workDocAttachments, setWorkDocAttachments] = useState([]);
+  const [showDTROverlay, setShowDTROverlay] = useState(false);
   const [attendanceReady, setAttendanceReady] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [lockMessage, setLockMessage] = useState(null);
@@ -51,9 +53,13 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-white/5 text-white/70 border-white/10"><ShieldCheck className="h-3.5 w-3.5 mr-1" />Attendance &amp; Work Logs</span>
-            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${attendanceReady ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : 'bg-[#FF7120]/10 text-[#FF7120] border-[#FF7120]/30'}`}>
-              {attendanceReady ? 'Location Ready' : 'Location Needed'}
-            </span>
+            <button
+              type="button"
+              onClick={() => setShowDTROverlay(true)}
+              className="px-3 py-2 rounded-xl border border-[#FF7120]/40 bg-[#FF7120]/10 text-[#FF7120] hover:bg-[#FF7120]/20 hover:text-white transition text-sm font-semibold"
+            >
+              Print DTR
+            </button>
           </div>
         </div>
       </div>
@@ -132,6 +138,16 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
           </main>
         </div>
       </div>
+
+      {showDTROverlay && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
+          <PrintAttendance
+            internId={user?.id}
+            internName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email || 'Employee'}
+            onClose={() => setShowDTROverlay(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }
