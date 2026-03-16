@@ -33,7 +33,7 @@ const tabMeta = {
     description: 'Manage employee records and profile information.',
   },
   attendance: {
-    title: 'Attendance',
+    title: 'Attendance Records',
     description: 'Track attendance logs and absences.',
   },
   payroll: {
@@ -297,13 +297,15 @@ export function DashboardLayout({
             </aside>
 
             <main className="flex-1 min-w-0">
-              <div className={cardClass}>
-                <div className="p-6 border-b border-white/10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <h1 className="text-2xl font-semibold text-white">{currentTab.title}</h1>
-                    <p className="text-white/60 text-sm mt-1">{currentTab.description}</p>
-                  </div>
-                  {activeSection === 'main' && (
+              {activeSection !== 'main' ? (
+                children
+              ) : (
+                <div className={cardClass}>
+                  <div className="p-6 border-b border-white/10 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h1 className="text-2xl font-semibold text-white">{currentTab.title}</h1>
+                      <p className="text-white/60 text-sm mt-1">{currentTab.description}</p>
+                    </div>
                     <div className="relative w-full md:w-80">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/45" />
                       <input
@@ -314,13 +316,13 @@ export function DashboardLayout({
                         className="h-10 w-full rounded-xl border border-white/15 bg-[#00273C]/60 pl-10 pr-4 text-sm text-white placeholder:text-white/45 outline-none focus:border-[#FF7120]/70 focus:ring-2 focus:ring-[#FF7120]/25"
                       />
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                <div className="p-6">
-                  {children}
+                  <div className="p-6">
+                    {children}
+                  </div>
                 </div>
-              </div>
+              )}
             </main>
           </div>
         </div>

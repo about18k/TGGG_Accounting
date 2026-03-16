@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import {
   getPayrollEmployees,
   getRecentPayroll,
@@ -674,7 +675,9 @@ export function PayrollManagement() {
       );
       setIsEditingModalContributions(false);
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to update contributions.');
+      toast.error('Update Failed', {
+        description: error.response?.data?.error || 'Failed to update contributions.',
+      });
     } finally {
       setIsSavingModalContributions(false);
     }
@@ -707,11 +710,15 @@ export function PayrollManagement() {
 
   const handleAddEmployeeContribution = async () => {
     if (!selectedContributionEmployee) {
-      alert('Please select an employee first.');
+      toast.error('Validation Error', {
+        description: 'Please select an employee first.',
+      });
       return;
     }
     if (!newContributionName.trim() || !newContributionAmount) {
-      alert('Contribution name and amount are required.');
+      toast.error('Validation Error', {
+        description: 'Contribution name and amount are required.',
+      });
       return;
     }
 
@@ -727,8 +734,7 @@ export function PayrollManagement() {
       setNewContributionAmount('');
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to save contribution.';
-      setContributionError(message);
-      alert(message);
+      toast.error('Update Failed', { description: message });
     } finally {
       setIsSavingEmployeeContribution(false);
     }
@@ -745,7 +751,7 @@ export function PayrollManagement() {
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to delete contribution.';
       setContributionError(message);
-      alert(message);
+      toast.error('Delete Failed', { description: message });
     }
   };
 
@@ -753,7 +759,9 @@ export function PayrollManagement() {
     const name = newDeductionName.trim();
     const rate = newDeductionRate;
     if (!name || rate === '') {
-      alert('Deduction name and rate/amount are required.');
+      toast.error('Validation Error', {
+        description: 'Deduction name and rate/amount are required.',
+      });
       return;
     }
 
@@ -772,7 +780,7 @@ export function PayrollManagement() {
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to save deduction.';
       setDeductionError(message);
-      alert(message);
+      toast.error('Save Failed', { description: message });
     } finally {
       setIsSavingDeduction(false);
     }
@@ -788,7 +796,7 @@ export function PayrollManagement() {
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to delete deduction.';
       setDeductionError(message);
-      alert(message);
+      toast.error('Delete Failed', { description: message });
     }
   };
 
@@ -842,7 +850,7 @@ export function PayrollManagement() {
           : statusCode === 403
             ? 'You are not authorized to view this payslip image.'
             : 'Unable to load payslip image right now.';
-      alert(message);
+      toast.error('Load Failed', { description: message });
     } finally {
       setLoadingPayslipImageId(null);
     }
@@ -1136,7 +1144,7 @@ export function PayrollManagement() {
   const handlePreviewPayslip = () => {
     const validationError = validatePayrollConditions();
     if (validationError) {
-      alert(validationError);
+      toast.error('Validation Error', { description: validationError });
       return;
     }
 
@@ -1149,7 +1157,7 @@ export function PayrollManagement() {
 
   const handleConfirmPayroll = async () => {
     if (!payslipPreviewData) {
-      alert('No payslip preview data');
+      toast.error('Preview Error', { description: 'No payslip preview data' });
       return;
     }
 
@@ -1196,7 +1204,7 @@ export function PayrollManagement() {
         }
       }
 
-      alert(successMessage);
+      toast.success('Payroll Processed', { description: successMessage });
       
       await fetchPayrollData();
       setIsPayslipPreviewOpen(false);
@@ -1209,7 +1217,9 @@ export function PayrollManagement() {
         status: error.response?.status,
         data: error.response?.data,
       });
-      alert(`❌ Failed to process payroll.\n\nError: ${error.response?.data?.error || error.message || 'Unknown error'}`);
+      toast.error('Payroll Processing Failed', {
+        description: error.response?.data?.error || error.message || 'Unknown error',
+      });
     } finally {
       setIsProcessingPayroll(false);
       console.log('='.repeat(80) + '\n');
@@ -1231,97 +1241,84 @@ export function PayrollManagement() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-bold tracking-tight">Payroll Management</h1>
-      </div>
-
       {/* Analytics Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Employees Card */}
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-500/10 to-blue-600/10 backdrop-blur-sm">
+        <Card className="border-0 shadow-lg bg-linear-to-br from-card to-card/50 backdrop-blur-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Employees</p>
-                <p className="text-3xl font-bold mt-2">{totalEmployees}</p>
+                <p className="text-sm text-muted-foreground">Total Employees</p>
+                <p className="text-2xl font-medium mt-2">{totalEmployees}</p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                <BarChart3 className="w-6 h-6 text-blue-500" />
-              </div>
+              <BarChart3 className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
 
         {/* Total Payroll Card */}
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-green-500/10 to-green-600/10 backdrop-blur-sm">
+        <Card className="border-0 shadow-lg bg-linear-to-br from-card to-card/50 backdrop-blur-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Payroll</p>
-                <p className="text-3xl font-bold mt-2 text-green-500">{formatCurrency(totalPayroll)}</p>
+                <p className="text-sm text-muted-foreground">Total Payroll</p>
+                <p className="text-2xl font-medium mt-2 text-primary">{formatCurrency(totalPayroll)}</p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-green-500/20 flex items-center justify-center">
-                <DollarSign className="w-6 h-6 text-green-500" />
-              </div>
+              <DollarSign className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
 
         {/* Average Salary Card */}
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-purple-500/10 to-purple-600/10 backdrop-blur-sm">
+        <Card className="border-0 shadow-lg bg-linear-to-br from-card to-card/50 backdrop-blur-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Average Salary</p>
-                <p className="text-3xl font-bold mt-2 text-purple-500">{formatCurrency(averageSalary)}</p>
+                <p className="text-sm text-muted-foreground">Average Salary</p>
+                <p className="text-2xl font-medium mt-2 text-primary">{formatCurrency(averageSalary)}</p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-purple-500/20 flex items-center justify-center">
-                <CheckCircle className="w-6 h-6 text-purple-500" />
-              </div>
+              <CheckCircle className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
 
         {/* Total Deductions Card */}
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-orange-500/10 to-orange-600/10 backdrop-blur-sm">
+        <Card className="border-0 shadow-lg bg-linear-to-br from-card to-card/50 backdrop-blur-sm">
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Deductions</p>
-                <p className="text-3xl font-bold mt-2 text-orange-500">{formatCurrency(totalDeductions)}</p>
+                <p className="text-sm text-muted-foreground">Total Deductions</p>
+                <p className="text-2xl font-medium mt-2 text-primary">{formatCurrency(totalDeductions)}</p>
               </div>
-              <div className="w-12 h-12 rounded-lg bg-orange-500/20 flex items-center justify-center">
-                <AlertCircle className="w-6 h-6 text-orange-500" />
-              </div>
+              <AlertCircle className="w-8 h-8 text-primary" />
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Payroll Actions */}
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
+      <Card className="border-0 shadow-lg bg-linear-to-br from-card to-card/50 backdrop-blur-sm">
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Payroll Actions</CardTitle>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex flex-wrap gap-3">
             <Button
               variant="outline"
-              className="h-20 flex-col gap-2"
+              className="gap-2"
               onClick={handleProcessPayroll}
             >
-              <DollarSign className="w-6 h-6" />
+              <Plus className="w-4 h-4" />
               Process Payroll
             </Button>
             <Button
               variant="outline"
-              className="h-20 flex-col gap-2"
+              className="gap-2"
               onClick={handleOpenTaxDeductions}
             >
-              <Settings className="w-6 h-6" />
+              <Settings className="w-4 h-4" />
               Government Contributions
             </Button>
           </div>
@@ -1329,7 +1326,7 @@ export function PayrollManagement() {
       </Card>
 
       {/* Recent Payroll Records */}
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
+      <Card className="border-0 shadow-lg bg-linear-to-br from-card to-card/50 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <span>Recent Payroll Records</span>
@@ -1338,11 +1335,11 @@ export function PayrollManagement() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filter Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 rounded-lg bg-background/20 border border-white/10">
             <div className="space-y-1.5">
-              <Label className="text-xs text-[#AEAAAA]">Filter by Employee</Label>
+              <Label className="text-xs text-white/60">Filter by Employee</Label>
               <Select value={filterEmployee} onValueChange={setFilterEmployee}>
-                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9">
+                <SelectTrigger className="bg-background border-white/10 text-white h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1356,9 +1353,9 @@ export function PayrollManagement() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-[#AEAAAA]">Filter by Period</Label>
+              <Label className="text-xs text-white/60">Filter by Period</Label>
               <Select value={filterPayrollPeriod} onValueChange={setFilterPayrollPeriod}>
-                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9">
+                <SelectTrigger className="bg-background border-white/10 text-white h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1533,7 +1530,7 @@ export function PayrollManagement() {
             <div className="space-y-2">
               <Label htmlFor="contribution-employee">Select Employee</Label>
               <Select value={selectedContributionEmployee} onValueChange={handleSelectContributionEmployee}>
-                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                <SelectTrigger className="bg-background border-white/10 text-white">
                   <SelectValue placeholder="Choose an employee to manage contributions" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1557,26 +1554,26 @@ export function PayrollManagement() {
                 {/* Employee Contributions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Add New Contribution */}
-                  <div className="p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10">
+                  <div className="p-4 rounded-lg bg-background/20 border border-white/10">
                     <h3 className="text-sm font-semibold text-white mb-4">Add Contribution</h3>
                     <div className="space-y-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-[#AEAAAA]">Contribution Type</Label>
+                        <Label className="text-xs text-white/60">Contribution Type</Label>
                         <Input
                           placeholder="e.g., SSS, PhilHealth, Pag-IBIG"
                           value={newContributionName}
                           onChange={(e) => setNewContributionName(e.target.value)}
-                          className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9"
+                          className="bg-background border-white/10 text-white h-9"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs text-[#AEAAAA]">Amount (₱)</Label>
+                        <Label className="text-xs text-white/60">Amount (₱)</Label>
                         <Input
                           type="number"
                           placeholder="0.00"
                           value={newContributionAmount}
                           onChange={(e) => setNewContributionAmount(e.target.value)}
-                          className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9"
+                          className="bg-background border-white/10 text-white h-9"
                           min="0"
                           step="0.01"
                         />
@@ -1593,7 +1590,7 @@ export function PayrollManagement() {
                   </div>
 
                   {/* Current Contributions */}
-                  <div className="p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/10">
+                  <div className="p-4 rounded-lg bg-background/20 border border-white/10">
                     <h3 className="text-sm font-semibold text-white mb-4">Current Contributions</h3>
                     {contributionError && <p className="text-xs text-red-500 mb-3">{contributionError}</p>}
                     {isLoadingEmployeeContributions ? (
@@ -1606,7 +1603,7 @@ export function PayrollManagement() {
                           <div key={contribution.id} className="p-2 rounded bg-[#021B2C] flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-white truncate">{contribution.name}</p>
-                              <p className="text-xs text-[#AEAAAA]">₱{parseFloat(contribution.amount).toFixed(2)}</p>
+                              <p className="text-xs text-white/60">₱{parseFloat(contribution.amount).toFixed(2)}</p>
                             </div>
                             <Button
                               variant="ghost"
@@ -1649,7 +1646,7 @@ export function PayrollManagement() {
             <div className="space-y-2">
               <Label htmlFor="employee">Employee Name</Label>
               <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                <SelectTrigger className="bg-background border-white/10 text-white">
                   <SelectValue placeholder="Choose an employee" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1670,7 +1667,7 @@ export function PayrollManagement() {
               <div className="space-y-2">
                 <Label htmlFor="monthSelect">Month</Label>
                 <Select value={selectedMonth.toString()} onValueChange={(val) => setSelectedMonth(parseInt(val))}>
-                  <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                  <SelectTrigger className="bg-background border-white/10 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1685,7 +1682,7 @@ export function PayrollManagement() {
               <div className="space-y-2">
                 <Label htmlFor="yearSelect">Year</Label>
                 <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
-                  <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                  <SelectTrigger className="bg-background border-white/10 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1700,7 +1697,7 @@ export function PayrollManagement() {
               <div className="space-y-2">
                 <Label htmlFor="periodSelect">Payroll Period</Label>
                 <Select value={selectedPayrollPeriod} onValueChange={setSelectedPayrollPeriod}>
-                  <SelectTrigger className="bg-[#021B2C] border-[#AEAAAA]/20 text-white">
+                  <SelectTrigger className="bg-background border-white/10 text-white">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1718,7 +1715,7 @@ export function PayrollManagement() {
                   value={selectedEmployeeData?.position || ''}
                   readOnly
                   placeholder="Employee role"
-                  className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                  className="bg-background border-white/10 text-white"
                 />
               </div>
               <div className="space-y-2">
@@ -1728,14 +1725,14 @@ export function PayrollManagement() {
                   type="number"
                   value={payslipForm.monthly}
                   onChange={(e) => handlePayslipFieldChange('monthly', e.target.value)}
-                  className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                  className="bg-background border-white/10 text-white"
                   min="0"
                   step="0.01"
                 />
               </div>
             </div>
 
-            <Card className="border border-[#AEAAAA]/20 bg-[#002035]">
+            <Card className="border border-white/10 bg-card">
               <CardHeader>
                 <CardTitle className="text-base">Earnings</CardTitle>
               </CardHeader>
@@ -1747,7 +1744,7 @@ export function PayrollManagement() {
                     type="number"
                     value={payslipForm.basicSalary}
                     onChange={(e) => handlePayslipFieldChange('basicSalary', e.target.value)}
-                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    className="bg-background border-white/10 text-white"
                     min="0"
                     step="0.01"
                   />
@@ -1759,7 +1756,7 @@ export function PayrollManagement() {
                     type="number"
                     value={payslipForm.regularOvertime}
                     onChange={(e) => handlePayslipFieldChange('regularOvertime', e.target.value)}
-                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    className="bg-background border-white/10 text-white"
                     min="0"
                     step="0.01"
                   />
@@ -1771,7 +1768,7 @@ export function PayrollManagement() {
                     type="number"
                     value={payslipForm.lateUndertime}
                     onChange={(e) => handlePayslipFieldChange('lateUndertime', e.target.value)}
-                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    className="bg-background border-white/10 text-white"
                     min="0"
                     step="0.01"
                   />
@@ -1782,7 +1779,7 @@ export function PayrollManagement() {
                     value=""
                     readOnly
                     placeholder=""
-                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    className="bg-background border-white/10 text-white"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1792,7 +1789,7 @@ export function PayrollManagement() {
                     type="number"
                     value={payslipForm.restDayOt}
                     onChange={(e) => handlePayslipFieldChange('restDayOt', e.target.value)}
-                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    className="bg-background border-white/10 text-white"
                     min="0"
                     step="0.01"
                   />
@@ -1803,13 +1800,13 @@ export function PayrollManagement() {
                     value=""
                     readOnly
                     placeholder=""
-                    className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                    className="bg-background border-white/10 text-white"
                   />
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border border-[#AEAAAA]/20 bg-[#002035]">
+            <Card className="border border-white/10 bg-card">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between gap-3">
                   <CardTitle className="text-base">Deductions</CardTitle>
@@ -1850,7 +1847,7 @@ export function PayrollManagement() {
                               step="0.01"
                               value={item.amount}
                               onChange={(e) => handleModalContributionAmountChange(item.id, e.target.value)}
-                              className="bg-[#021B2C] border-[#AEAAAA]/20 text-white h-9"
+                              className="bg-background border-white/10 text-white h-9"
                             />
                           ) : (
                             <p className="text-sm font-medium text-right">₱{toNumber(item.amount).toFixed(2)}</p>
@@ -1869,7 +1866,7 @@ export function PayrollManagement() {
                       type="number"
                       value={payslipForm.netTaxableSalary}
                       onChange={(e) => handlePayslipFieldChange('netTaxableSalary', e.target.value)}
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      className="bg-background border-white/10 text-white"
                       min="0"
                       step="0.01"
                     />
@@ -1881,7 +1878,7 @@ export function PayrollManagement() {
                       type="number"
                       value={payslipForm.payrollTax}
                       onChange={(e) => handlePayslipFieldChange('payrollTax', e.target.value)}
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      className="bg-background border-white/10 text-white"
                       min="0"
                       step="0.01"
                     />
@@ -1902,7 +1899,7 @@ export function PayrollManagement() {
               </CardContent>
             </Card>
 
-            <Card className="border border-[#AEAAAA]/20 bg-[#002035]">
+            <Card className="border border-white/10 bg-card">
               <CardContent className="pt-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
@@ -1912,7 +1909,7 @@ export function PayrollManagement() {
                       type="number"
                       value={payslipForm.grossAmount}
                       onChange={(e) => handlePayslipFieldChange('grossAmount', e.target.value)}
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      className="bg-background border-white/10 text-white"
                       min="0"
                       step="0.01"
                     />
@@ -1924,7 +1921,7 @@ export function PayrollManagement() {
                       type="number"
                       value={payslipForm.payrollAllowance}
                       onChange={(e) => handlePayslipFieldChange('payrollAllowance', e.target.value)}
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      className="bg-background border-white/10 text-white"
                       min="0"
                       step="0.01"
                     />
@@ -1936,7 +1933,7 @@ export function PayrollManagement() {
                       type="number"
                       value={payslipForm.companyLoanCashAdvance}
                       onChange={(e) => handlePayslipFieldChange('companyLoanCashAdvance', e.target.value)}
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      className="bg-background border-white/10 text-white"
                       min="0"
                       step="0.01"
                     />
@@ -1963,7 +1960,7 @@ export function PayrollManagement() {
                       id="preparedBy"
                       value={payslipForm.preparedBy}
                       readOnly
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      className="bg-background border-white/10 text-white"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1973,7 +1970,7 @@ export function PayrollManagement() {
                       value={payslipForm.approvedByTopManagement}
                       onChange={(e) => handlePayslipFieldChange('approvedByTopManagement', e.target.value)}
                       placeholder=""
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      className="bg-background border-white/10 text-white"
                     />
                   </div>
                   <div className="space-y-2">
@@ -1983,7 +1980,7 @@ export function PayrollManagement() {
                       value={payslipForm.approvedBy}
                       onChange={(e) => handlePayslipFieldChange('approvedBy', e.target.value)}
                       placeholder=""
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white"
+                      className="bg-background border-white/10 text-white"
                     />
                   </div>
                 </div>
@@ -2042,7 +2039,7 @@ export function PayrollManagement() {
           {payslipPreviewData && selectedEmployeeData && !showPayslipPrintPreview && (
             <div className="space-y-4 py-4">
               {/* Employee & Period Info */}
-              <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/20">
+              <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-background/20 border border-white/10">
                 <div>
                   <p className="text-xs text-muted-foreground">Employee</p>
                   <p className="font-semibold text-white">{selectedEmployeeData.name}</p>
@@ -2055,7 +2052,7 @@ export function PayrollManagement() {
               </div>
 
               {/* Earnings Section */}
-              <Card className="border border-[#AEAAAA]/20 bg-[#002035]">
+              <Card className="border border-white/10 bg-card">
                 <CardHeader>
                   <CardTitle className="text-base">Earnings</CardTitle>
                 </CardHeader>
@@ -2086,7 +2083,7 @@ export function PayrollManagement() {
               </Card>
 
               {/* Deductions Section */}
-              <Card className="border border-[#AEAAAA]/20 bg-[#002035]">
+              <Card className="border border-white/10 bg-card">
                 <CardHeader>
                   <CardTitle className="text-base">Deductions</CardTitle>
                 </CardHeader>
@@ -2136,7 +2133,7 @@ export function PayrollManagement() {
               </div>
 
               {/* Approvals */}
-              <div className="grid grid-cols-3 gap-3 p-4 rounded-lg bg-[#021B2C]/30 border border-[#AEAAAA]/20">
+              <div className="grid grid-cols-3 gap-3 p-4 rounded-lg bg-background/20 border border-white/10">
                 <div>
                   <p className="text-xs text-muted-foreground">Prepared By</p>
                   <p className="text-sm font-semibold text-white">{payslipPreviewData.payslipFormPayload.prepared_by || 'Accounting'}</p>

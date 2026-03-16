@@ -165,10 +165,58 @@ export default function AttendanceHistoryTable({
                             <span className="text-emerald-300">On time</span>
                           )}
                         </td>
-                        <td className="px-4 py-4 text-white/70 text-sm max-w-[180px]">
-                          <span className="truncate block" title={address}>
-                            {address}
-                          </span>
+                        <td className="px-4 py-4 text-white/70 text-sm max-w-[200px]">
+                          <div className="flex flex-col gap-1.5">
+                            {(am || pm || ot) && (
+                              <>
+                                {am && (
+                                  <div className="border-l-2 border-emerald-500/30 pl-2 py-0.5">
+                                    <div className="text-[10px] text-white/40 uppercase font-bold mb-0.5 tracking-tight">AM Session</div>
+                                    <div className="flex flex-col gap-0.5" title={`In: ${am.clock_in_address || am.location}\nOut: ${am.clock_out_address || am.location}`}>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] text-emerald-400/70 font-bold w-6">IN:</span>
+                                        <span className="truncate text-[11px] block">{am.clock_in_address || am.location || '-'}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] text-orange-400/70 font-bold w-6">OUT:</span>
+                                        <span className="truncate text-[11px] block">{am.time_out ? (am.clock_out_address || am.location || '-') : '---'}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {pm && (
+                                  <div className="border-l-2 border-blue-500/30 pl-2 py-0.5 mt-1">
+                                    <div className="text-[10px] text-white/40 uppercase font-bold mb-0.5 tracking-tight">PM Session</div>
+                                    <div className="flex flex-col gap-0.5" title={`In: ${pm.clock_in_address || pm.location}\nOut: ${pm.clock_out_address || pm.location}`}>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] text-emerald-400/70 font-bold w-6">IN:</span>
+                                        <span className="truncate text-[11px] block">{pm.clock_in_address || pm.location || '-'}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] text-orange-400/70 font-bold w-6">OUT:</span>
+                                        <span className="truncate text-[11px] block">{pm.time_out ? (pm.clock_out_address || pm.location || '-') : '---'}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {!(am || pm) && ot && (
+                               <div className="border-l-2 border-purple-500/30 pl-2 py-0.5">
+                                 <div className="text-[10px] text-white/40 uppercase font-bold mb-0.5 tracking-tight">OT Session</div>
+                                 <div className="flex flex-col gap-0.5">
+                                   <div className="flex items-center gap-1">
+                                      <span className="text-[10px] text-emerald-400/70 font-bold w-6">IN:</span>
+                                      <span className="truncate text-[11px] block">{ot.clock_in_address || ot.location || '-'}</span>
+                                   </div>
+                                   <div className="flex items-center gap-1">
+                                      <span className="text-[10px] text-orange-400/70 font-bold w-6">OUT:</span>
+                                      <span className="truncate text-[11px] block">{ot.time_out ? (ot.clock_out_address || ot.location || '-') : '---'}</span>
+                                   </div>
+                                 </div>
+                               </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-4 text-white/85 text-sm max-w-[180px]">
                           <div className="flex items-center gap-2">

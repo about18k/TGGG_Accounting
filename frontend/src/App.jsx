@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-
 import { Toaster } from 'sonner';
 
 // Extracted modules
-import { isTokenExpired, getPageFromPath } from './utils/authUtils';
+import { isTokenExpired, getPageFromPath, getDefaultPage } from './utils/authUtils';
 import './services/api'; // registers shared axios instance + interceptors
 import Login from './pages/Login';
 import { renderDashboard } from './routes/routeConfig';
@@ -104,8 +104,9 @@ export default function App() {
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);
-    setCurrentPage('attendance');
-    navigate('/dashboard/attendance', { replace: true });
+    const defaultPage = getDefaultPage(userData);
+    setCurrentPage(defaultPage);
+    navigate(`/dashboard/${defaultPage}`, { replace: true });
   };
 
   const handleLogout = () => {
@@ -161,7 +162,7 @@ export default function App() {
       />
       <Route
         path="/dashboard"
-        element={user ? <Navigate to="/dashboard/attendance" replace /> : <Navigate to="/login" replace />}
+        element={user ? <Navigate to={`/dashboard/${getDefaultPage(user)}`} replace /> : <Navigate to="/login" replace />}
       />
       <Route
         path="/dashboard/:page"

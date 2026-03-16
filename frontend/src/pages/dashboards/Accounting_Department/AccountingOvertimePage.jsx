@@ -47,7 +47,7 @@ const AccountingOvertimePage = ({ user, token, onNavigate, embedded = false }) =
   );
 
   const content = (
-    <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-4 sm:p-6">
+    <div className={embedded ? "" : "rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-4 sm:p-6"}>
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
         {renderTabButton('ot-form', 'Request Overtime')}
         {renderTabButton('ot-status', 'OT Status')}

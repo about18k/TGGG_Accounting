@@ -4,12 +4,12 @@ import { Calendar, Clock, DollarSign, Home, Users } from 'lucide-react';
 const MAIN_LINKS = [
   { id: 'dashboard', label: 'Dashboard', icon: Home },
   { id: 'employees', label: 'Employees', icon: Users },
-  { id: 'attendance', label: 'Attendance', icon: Clock },
+  { id: 'personal_attendance', label: 'Attendance', icon: Calendar, page: 'personal-attendance' },
   { id: 'payroll', label: 'Payroll', icon: DollarSign },
 ];
 
 const SECTION_LINKS = [
-  { id: 'personal_attendance', label: 'Attendance', icon: Calendar, page: 'personal-attendance' },
+  { id: 'attendance', label: 'Attendance Records', icon: Clock, page: 'attendance' },
   { id: 'overtime', label: 'Overtime Requests', icon: Clock, page: 'overtime' },
 ];
 
@@ -28,8 +28,13 @@ export default function AccountingSidebar({
     ? `${cardClass} p-4 ${sticky ? 'sticky top-24' : ''} ${className}`.trim()
     : className;
 
-  const handleSelect = (tab) => {
-    onNavigate?.(tab);
+  const handleSelect = (itemId) => {
+    const item = MAIN_LINKS.find(l => l.id === itemId);
+    if (item?.page) {
+      onNavigate?.(item.page);
+    } else {
+      onNavigate?.(itemId);
+    }
   };
 
   const handleSectionClick = (item) => onNavigate?.(item.page);
@@ -39,7 +44,9 @@ export default function AccountingSidebar({
       <nav className="space-y-2">
         {MAIN_LINKS.map((item) => {
           const Icon = item.icon;
-          const isActive = activeSection === 'main' && activeTab === item.id;
+          const isActive = item.page 
+            ? currentPage === item.page
+            : (activeSection === 'main' && activeTab === item.id);
           return (
             <button
               key={item.id}
@@ -62,7 +69,7 @@ export default function AccountingSidebar({
           <nav className="space-y-2">
             {SECTION_LINKS.map((item) => {
               const Icon = item.icon;
-              const isActive = activeSection === item.page;
+              const isActive = currentPage === item.page;
               return (
                 <button
                   key={item.id}

@@ -23,3 +23,19 @@ export const getPageFromPath = (pathname) => {
     const parts = pathname.split('/').filter(Boolean);
     return parts[1] || 'attendance';
 };
+
+export const getDefaultPage = (user) => {
+    if (!user) return 'attendance';
+    const role = user.role;
+    const dept = (user.department_name || '').toLowerCase();
+
+    if (role === 'accounting' || dept === 'accounting department' || dept === 'accounting') {
+        return 'dashboard';
+    }
+
+    if (role === 'studio_head' || role === 'admin') {
+        return 'approvals';
+    }
+
+    return 'attendance';
+};

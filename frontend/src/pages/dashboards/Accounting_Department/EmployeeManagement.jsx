@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { getAccountingEmployees, addAccountingEmployee, updateAccountingEmployee } from '../../../services/adminService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -110,12 +111,16 @@ export function EmployeeManagement() {
     const temporaryPassword = formData.temporary_password;
 
     if (!firstName || !lastName || !email) {
-      alert('First name, last name, and email are required.');
+      toast.error('Validation Error', {
+        description: 'First name, last name, and email are required.',
+      });
       return;
     }
 
     if (!temporaryPassword || temporaryPassword.length < 8) {
-      alert('Temporary password is required and must be at least 8 characters.');
+      toast.error('Validation Error', {
+        description: 'Temporary password is required and must be at least 8 characters.',
+      });
       return;
     }
 
@@ -142,9 +147,13 @@ export function EmployeeManagement() {
         temporary_password: '',
       });
       fetchEmployees();
-      alert('Employee submitted successfully. The account is pending Studio Head/Admin approval and a confirmation email has been sent.');
+      toast.success('Employee Submitted', {
+        description: 'The account is pending Studio Head/Admin approval and a confirmation email has been sent.',
+      });
     } catch (error) {
-      alert("Failed to add employee: " + (error.response?.data?.error || error.message));
+      toast.error('Addition Failed', {
+        description: error.response?.data?.error || error.message,
+      });
     } finally {
       setIsAddingEmployee(false);
     }
@@ -155,7 +164,7 @@ export function EmployeeManagement() {
     try {
       const allEmployees = await getAccountingEmployees({ active_only: true });
       if (!allEmployees?.length) {
-        alert('No employees available to export.');
+        toast.error('Export Failed', { description: 'No employees available to export.' });
         return;
       }
 
@@ -206,7 +215,9 @@ export function EmployeeManagement() {
 
       doc.save(`employees-${now.toISOString().slice(0, 10)}.pdf`);
     } catch (error) {
-      alert(`Failed to export employees: ${error.response?.data?.error || error.message}`);
+      toast.error('Export Failed', {
+        description: error.response?.data?.error || error.message,
+      });
     } finally {
       setIsExporting(false);
     }
@@ -246,7 +257,9 @@ export function EmployeeManagement() {
     const email = editFormData.email.trim();
 
     if (!firstName || !lastName || !email) {
-      alert('First name, last name, and email are required.');
+      toast.error('Validation Error', {
+        description: 'First name, last name, and email are required.',
+      });
       return;
     }
 
@@ -261,12 +274,14 @@ export function EmployeeManagement() {
         salary: editFormData.salary || null,
       });
 
-      alert('Employee updated successfully.');
+      toast.success('Employee Updated', { description: 'Employee updated successfully.' });
       setIsEditingEmployee(false);
       closeEmployeeDialog();
       fetchEmployees();
     } catch (error) {
-      alert(`Failed to update employee: ${error.response?.data?.error || error.message}`);
+      toast.error('Update Failed', {
+        description: error.response?.data?.error || error.message,
+      });
     } finally {
       setIsUpdatingEmployee(false);
     }
