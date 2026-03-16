@@ -58,10 +58,8 @@ const sectionMeta = {
 };
 
 export function DashboardLayout({
-  activeTab,
-  setActiveTab,
+  activeTab = 'dashboard',
   activeSection = 'main',
-  setActiveSection,
   children,
   onLogout,
   onNavigate,
@@ -139,16 +137,6 @@ export function DashboardLayout({
                   activeTab={activeTab}
                   activeSection={activeSection}
                   currentPage={currentPage}
-                  onSelectTab={(tabId) => {
-                    setActiveTab(tabId);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  onSelectSection={(section) => {
-                    setActiveSection?.(section);
-                    if (section !== 'main') {
-                      setIsMobileMenuOpen(false);
-                    }
-                  }}
                   onNavigate={(page) => {
                     onNavigate?.(page);
                     setIsMobileMenuOpen(false);
@@ -278,7 +266,7 @@ export function DashboardLayout({
                 </div>
                 <div className="p-2">
                   <button
-                    onClick={() => setActiveTab('settings')}
+                    onClick={() => onNavigate('settings')}
                     className="w-full rounded-lg px-3 py-2 text-left text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white"
                   >
                     Settings
@@ -304,8 +292,7 @@ export function DashboardLayout({
                 activeTab={activeTab}
                 activeSection={activeSection}
                 currentPage={currentPage}
-                onSelectTab={setActiveTab}
-                onSelectSection={setActiveSection}
+                onNavigate={onNavigate}
               />
             </aside>
 

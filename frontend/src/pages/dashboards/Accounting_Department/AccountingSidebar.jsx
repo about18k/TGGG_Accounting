@@ -17,10 +17,9 @@ const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-b
 
 export default function AccountingSidebar({
   activeTab,
-  onSelectTab,
   activeSection = 'main',
   currentPage = 'dashboard',
-  onSelectSection,
+  onNavigate,
   withFrame = true,
   sticky = true,
   className = '',
@@ -30,18 +29,17 @@ export default function AccountingSidebar({
     : className;
 
   const handleSelect = (tab) => {
-    if (onSelectTab) onSelectTab(tab);
-    if (onSelectSection) onSelectSection('main');
+    onNavigate?.(tab);
   };
 
-  const handleSectionClick = (item) => onSelectSection?.(item.page);
+  const handleSectionClick = (item) => onNavigate?.(item.page);
 
   return (
     <div className={wrapperClass}>
       <nav className="space-y-2">
         {MAIN_LINKS.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id;
+          const isActive = activeSection === 'main' && activeTab === item.id;
           return (
             <button
               key={item.id}

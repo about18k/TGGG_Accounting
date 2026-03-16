@@ -54,17 +54,21 @@ import AccountingOvertimePage from '../pages/dashboards/Accounting_Department/Ac
  * Renders the accounting dashboard with its own layout and tabs.
  */
 export function renderAccountingDashboard({
-    user, token, currentPage, accountingSection, activeTab,
-    setActiveTab, setAccountingSection, handleLogout, handleNavigate,
+    user, token, currentPage, handleLogout, handleNavigate,
 }) {
-    const effectiveSection =
-        accountingSection !== 'main'
-            ? accountingSection
-            : currentPage === 'personal-attendance'
-                ? 'personal-attendance'
-                : currentPage === 'overtime'
-                    ? 'overtime'
-                    : 'main';
+    // Standard accounting tabs that map directly to pages
+    const accountingTabs = ['dashboard', 'employees', 'attendance', 'payroll', 'settings'];
+    
+    // Determine the active tab from the URL (currentPage)
+    const activeTab = accountingTabs.includes(currentPage) ? currentPage : 'dashboard';
+    
+    // Determine if we are in a sub-section (Personal Attendance or Overtime)
+    const effectiveSection = 
+        currentPage === 'personal-attendance'
+            ? 'personal-attendance'
+            : currentPage === 'overtime'
+                ? 'overtime'
+                : 'main';
 
     const renderContent = () => {
         if (effectiveSection === 'personal-attendance') {
@@ -103,9 +107,7 @@ export function renderAccountingDashboard({
     return (
         <DashboardLayout
             activeTab={activeTab}
-            setActiveTab={setActiveTab}
             activeSection={effectiveSection}
-            setActiveSection={setAccountingSection}
             onLogout={handleLogout}
             onNavigate={handleNavigate}
             currentPage={currentPage}
