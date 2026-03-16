@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as notifService from '../../../services/notificationService';
 import { 
-  Bell, User, Home, Clock, CheckSquare, FolderKanban, ArrowUpDown, Check, Menu, 
+  Bell, User, Home, Clock, CheckSquare, FolderKanban, ArrowUpDown, Check, Menu, Grip,
   LayoutDashboard, Users, CalendarCheck, ClipboardCheck, Calendar, FileText, GitMerge 
 } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
@@ -87,311 +87,18 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
 
   return (
     <nav className="fixed top-0 w-full z-50 px-3 sm:px-6 py-3 sm:py-4" style={{ background: '#001f35' }}>
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full mx-auto px-2 sm:px-4 gap-2 sm:gap-0">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between w-full mx-auto px-2 sm:px-4 gap-4">
+        {/* Logo & Title: Row 1 on mobile, Left side on desktop */}
         <div className="flex items-center gap-2 sm:gap-4">
           <img src="/logo.png" alt="Triple G AOC" className="h-8 sm:h-10" />
-          <span className="text-base sm:text-2xl font-semibold hidden sm:inline">Triple G AOC</span>
-          <span className="text-base font-semibold sm:hidden">TG AOC</span>
+          <span className="text-base sm:text-2xl font-semibold hidden sm:inline text-white">Triple G AOC</span>
+          <span className="text-base font-semibold sm:hidden text-white">TG AOC</span>
         </div>
-        <div className="flex flex-wrap items-center gap-2 sm:gap-4">
-          {user?.role === 'studio_head' && (
-            <div className="flex lg:hidden items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    style={{
-                      background: 'transparent',
-                      border: '1px solid #FF7120',
-                      color: '#FF7120',
-                      padding: '0.4rem',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <Menu className="h-5 w-5" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-56 p-2 bg-[#001f35] border-[#AEAAAA]/20 shadow-xl z-[60]" align="start" sideOffset={8}>
-                  <div className="flex flex-col gap-1">
-                    {[
-                      { id: 'attendance', label: 'Attendance', icon: Home, path: 'attendance' },
-                      { id: 'overtime', label: 'Overtime & Leave', icon: Clock, path: 'overtime' },
-                      { id: 'events', label: 'Calendar / Events', icon: Calendar, path: 'events' },
-                      { id: 'approvals', label: 'User Approvals', icon: ClipboardCheck, path: 'approvals' },
-                      { id: 'users', label: 'Manage Users', icon: Users, path: 'users' },
-                      { id: 'reviews', label: 'Design Reviews', icon: FileText, path: 'reviews' },
-                      { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge, path: 'coordination' },
-                    ].map((item) => (
-                      <button
-                        key={item.id}
-                        onClick={() => onNavigate(item.path)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
-                          currentPage === item.id
-                            ? 'bg-[#FF7120] text-white' 
-                            : 'text-[#AEAAAA] hover:bg-[#FF7120]/10 hover:text-[#FF7120]'
-                        }`}
-                      >
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
-            </div>
-          )}
-          {user?.role !== 'studio_head' && user?.role !== 'admin' && !isSidebarDrivenRole && (
-            <button
-              onClick={() => onNavigate('attendance')}
-              style={{
-                background: currentPage === 'attendance' ? '#FF7120' : 'transparent',
-                border: '1px solid #FF7120',
-                color: currentPage === 'attendance' ? 'white' : '#FF7120',
-                padding: '0.4rem 0.6rem',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                fontWeight: '500',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                if (currentPage !== 'attendance') {
-                  e.currentTarget.style.background = '#FF7120';
-                  e.currentTarget.style.borderColor = '#FF7120';
-                  e.currentTarget.style.color = 'white';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (currentPage !== 'attendance') {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.borderColor = '#FF7120';
-                  e.currentTarget.style.color = '#FF7120';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }
-              }}
-            >
-              <Home className="h-3 w-3 sm:h-4 sm:w-4" />
-              <span>Dashboard</span>
-            </button>
-          )}
-          {user?.role !== 'studio_head' && user?.role !== 'admin' && !isSidebarDrivenRole && (
-            <>
-              <button
-                onClick={() => onNavigate('overtime')}
-                style={{
-                  background: currentPage === 'overtime' ? '#FF7120' : 'transparent',
-                  border: '1px solid #FF7120',
-                  color: currentPage === 'overtime' ? 'white' : '#FF7120',
-                  padding: '0.4rem 0.6rem',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '0.75rem',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  if (currentPage !== 'overtime') {
-                    e.currentTarget.style.background = '#FF7120';
-                    e.currentTarget.style.borderColor = '#FF7120';
-                    e.currentTarget.style.color = 'white';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (currentPage !== 'overtime') {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.borderColor = '#FF7120';
-                    e.currentTarget.style.color = '#FF7120';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }
-                }}
-              >
-                <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span>OT</span>
-              </button>
-              <button
-                onClick={() => onNavigate('todo')}
-                style={{
-                  background: currentPage === 'todo' ? '#FF7120' : 'transparent',
-                  border: '1px solid #FF7120',
-                  color: currentPage === 'todo' ? 'white' : '#FF7120',
-                  padding: '0.4rem 0.6rem',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '0.75rem',
-                  fontWeight: '500',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.3rem',
-                  transition: 'all 0.2s'
-                }}
-                onMouseEnter={(e) => {
-                  if (currentPage !== 'todo') {
-                    e.currentTarget.style.background = '#FF7120';
-                    e.currentTarget.style.borderColor = '#FF7120';
-                    e.currentTarget.style.color = 'white';
-                    e.currentTarget.style.transform = 'translateY(-1px)';
-                    e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (currentPage !== 'todo') {
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.style.borderColor = '#FF7120';
-                    e.currentTarget.style.color = '#FF7120';
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }
-                }}
-              >
-                <CheckSquare className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span>Todo</span>
-              </button>
-            </>
-          )}
-          {user?.role === 'bim_specialist' && (
-            <div className="flex lg:hidden flex-wrap items-center gap-2">
-              {[
-                { id: 'attendance', label: 'Dashboard', icon: Home },
-                { id: 'overtime', label: 'OT', icon: Clock },
-                { id: 'todo', label: 'Todo', icon: CheckSquare },
-                { id: 'documentation', label: 'Docs', icon: FolderKanban },
-              ].map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => onNavigate(id)}
-                  style={{
-                    background: currentPage === id ? '#FF7120' : 'transparent',
-                    border: '1px solid #FF7120',
-                    color: currentPage === id ? 'white' : '#FF7120',
-                    padding: '0.4rem 0.6rem',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.75rem',
-                    fontWeight: '500',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Icon className="h-3 w-3" />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {user?.role === 'junior_architect' && (
-            <div className="flex lg:hidden flex-wrap items-center gap-2">
-              {[
-                { id: 'attendance', label: 'Dashboard', icon: Home },
-                { id: 'overtime', label: 'OT', icon: Clock },
-                { id: 'todo', label: 'Todo', icon: CheckSquare },
-              ].map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => onNavigate(id)}
-                  style={{
-                    background: currentPage === id ? '#FF7120' : 'transparent',
-                    border: '1px solid #FF7120',
-                    color: currentPage === id ? 'white' : '#FF7120',
-                    padding: '0.4rem 0.6rem',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.75rem',
-                    fontWeight: '500',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Icon className="h-3 w-3" />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {user?.role === 'site_engineer' && (
-            <div className="flex lg:hidden flex-wrap items-center gap-2">
-              {[
-                { id: 'attendance', label: 'Dashboard', icon: Home },
-                { id: 'engineer-hub', label: 'MatReq', icon: FolderKanban },
-                { id: 'overtime', label: 'OT', icon: Clock },
-                { id: 'todo', label: 'Todo', icon: CheckSquare },
-              ].map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => onNavigate(id)}
-                  style={{
-                    background: currentPage === id ? '#FF7120' : 'transparent',
-                    border: '1px solid #FF7120',
-                    color: currentPage === id ? 'white' : '#FF7120',
-                    padding: '0.4rem 0.6rem',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.75rem',
-                    fontWeight: '500',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Icon className="h-3 w-3" />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {user?.role === 'site_coordinator' && (
-            <div className="flex lg:hidden flex-wrap items-center gap-2">
-              {[
-                { id: 'attendance', label: 'Dashboard', icon: Home },
-                { id: 'coordinator-hub', label: 'MatReq', icon: FolderKanban },
-                { id: 'overtime', label: 'OT', icon: Clock },
-                { id: 'todo', label: 'Todo', icon: CheckSquare },
-              ].map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  onClick={() => onNavigate(id)}
-                  style={{
-                    background: currentPage === id ? '#FF7120' : 'transparent',
-                    border: '1px solid #FF7120',
-                    color: currentPage === id ? 'white' : '#FF7120',
-                    padding: '0.4rem 0.6rem',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.75rem',
-                    fontWeight: '500',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                    transition: 'all 0.2s'
-                  }}
-                >
-                  <Icon className="h-3 w-3" />
-                  <span>{label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="hidden sm:flex items-center gap-2 sm:gap-4">
+
+        {/* Actions & Menu Trigger: Row 2 on mobile, Right side on desktop */}
+        <div className="flex items-center justify-between lg:justify-end w-full lg:w-auto lg:gap-4">
+          {/* Notifications & Profile - Left side on mobile, Right side on desktop */}
+          <div className="flex items-center gap-2 sm:gap-4 lg:order-2">
             <Popover>
               <PopoverTrigger asChild>
                 <button
@@ -405,23 +112,13 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '36px',
-                    height: '36px',
+                    width: '32px',
+                    height: '32px',
                     transition: 'all 0.2s',
                     position: 'relative'
                   }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = '#FF7120';
-                    e.currentTarget.style.background = '#FF7120';
-                    e.currentTarget.querySelector('svg').style.color = 'white';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = '#FF7120';
-                    e.currentTarget.style.background = 'transparent';
-                    e.currentTarget.querySelector('svg').style.color = '#FF7120';
-                  }}
                 >
-                  <Bell className="h-5 w-5" style={{ transition: 'color 0.2s' }} />
+                  <Bell className="h-4 w-4" style={{ transition: 'color 0.2s' }} />
                   {unreadCount > 0 && (
                     <div style={{
                       position: 'absolute',
@@ -443,7 +140,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                   )}
                 </button>
               </PopoverTrigger>
-              <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 p-0 bg-[#002035] border-[#AEAAAA]/20 shadow-lg shadow-black/20 z-50" align="end" sideOffset={8}>
+              <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 p-0 bg-[#002035] border-[#AEAAAA]/20 shadow-lg shadow-black/20 z-50" align="start" sideOffset={8}>
                 <div className="p-4">
                   <h3 className="font-semibold text-white mb-4">Notifications</h3>
 
@@ -507,128 +204,281 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                 </div>
               </PopoverContent>
             </Popover>
+
             <button
               onClick={() => onNavigate('profile')}
               style={{
                 background: currentPage === 'profile' ? '#FF7120' : 'transparent',
                 border: '1px solid #FF7120',
                 color: currentPage === 'profile' ? 'white' : '#FF7120',
-                padding: '0.5rem',
+                padding: '0.4rem',
                 borderRadius: '50%',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '40px',
-                height: '40px',
+                width: '32px',
+                height: '32px',
                 transition: 'all 0.2s'
               }}
-              onMouseEnter={(e) => {
-                if (currentPage !== 'profile') {
-                  e.currentTarget.style.borderColor = '#FF7120';
-                  e.currentTarget.style.background = '#FF7120';
-                  e.currentTarget.querySelector('svg').style.color = 'white';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (currentPage !== 'profile') {
-                  e.currentTarget.style.borderColor = '#FF7120';
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.querySelector('svg').style.color = '#FF7120';
-                }
-              }}
             >
-              <User className="h-5 w-5" style={{ transition: 'color 0.2s' }} />
+              <User className="h-4 w-4" style={{ transition: 'color 0.2s' }} />
             </button>
           </div>
-        </div>
-        <div className="flex sm:hidden items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                style={{
-                  background: 'transparent',
-                  border: '1px solid #FF7120',
-                  color: '#FF7120',
-                  padding: '0.4rem',
-                  borderRadius: '50%',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: '32px',
-                  height: '32px',
-                  transition: 'all 0.2s',
-                  position: 'relative'
-                }}
-              >
-                <Bell className="h-4 w-4" style={{ transition: 'color 0.2s' }} />
-                {unreadCount > 0 && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '-4px',
-                    right: '-4px',
-                    width: '18px',
-                    height: '18px',
-                    background: '#F27229',
-                    borderRadius: '50%',
+
+          {/* Navigation Buttons - Middle on mobile, Right-aligned on desktop */}
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 overflow-x-auto scrollbar-hide py-1 lg:order-1">
+            {user?.role !== 'studio_head' && user?.role !== 'admin' && !isSidebarDrivenRole && (
+              <>
+                <button
+                  onClick={() => onNavigate('attendance')}
+                  style={{
+                    background: currentPage === 'attendance' ? '#FF7120' : 'transparent',
+                    border: '1px solid #FF7120',
+                    color: currentPage === 'attendance' ? 'white' : '#FF7120',
+                    padding: '0.4rem 0.6rem',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: '500',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '10px',
-                    color: 'white',
-                    fontWeight: '600'
-                  }}>
-                    {unreadCount}
-                  </div>
-                )}
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-[calc(100vw-2rem)] p-0 bg-[#002035] border-[#AEAAAA]/20 shadow-lg shadow-black/20 z-50" align="center" sideOffset={8}>
-              <div className="p-4">
-                <h3 className="font-semibold text-white mb-4">Notifications</h3>
-                <div className="flex gap-2 mb-3">
-                  <button onClick={() => setNotificationFilter('all')} className={`px-2 py-1 text-xs rounded ${notificationFilter === 'all' ? 'bg-[#FF7120] text-white' : 'bg-[#003050] text-gray-300'}`}>All</button>
-                  <button onClick={() => setNotificationFilter('unread')} className={`px-2 py-1 text-xs rounded ${notificationFilter === 'unread' ? 'bg-[#FF7120] text-white' : 'bg-[#003050] text-gray-300'}`}>Unread</button>
-                  <button onClick={() => setNotificationFilter('read')} className={`px-2 py-1 text-xs rounded ${notificationFilter === 'read' ? 'bg-[#FF7120] text-white' : 'bg-[#003050] text-gray-300'}`}>Read</button>
-                </div>
-                {unreadCount > 0 && <button onClick={markAllAsRead} className="text-xs text-[#FF7120] hover:underline mb-2 flex items-center gap-1"><Check className="h-3 w-3" />Mark all as read</button>}
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {filteredNotifications.map(notif => (
-                    <div key={notif.id} onClick={() => handleNotificationClick(notif)} className={`p-3 rounded-lg cursor-pointer ${notif.is_read ? 'bg-[#003050]/50' : 'bg-[#003050]'} border border-[#AEAAAA]/10`}>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-white">{notif.title}</p>
-                          <p className="text-xs text-gray-400 mt-1">{notif.message}</p>
-                          <p className="text-xs text-gray-500 mt-1">{formatTime(notif.created_at)}</p>
-                        </div>
-                        {!notif.is_read && <div className="w-2 h-2 bg-[#FF7120] rounded-full mt-1"></div>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    gap: '0.3rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Home className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span>Dashboard</span>
+                </button>
+                <button
+                  onClick={() => onNavigate('overtime')}
+                  style={{
+                    background: currentPage === 'overtime' ? '#FF7120' : 'transparent',
+                    border: '1px solid #FF7120',
+                    color: currentPage === 'overtime' ? 'white' : '#FF7120',
+                    padding: '0.4rem 0.6rem',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span>OT</span>
+                </button>
+                <button
+                  onClick={() => onNavigate('todo')}
+                  style={{
+                    background: currentPage === 'todo' ? '#FF7120' : 'transparent',
+                    border: '1px solid #FF7120',
+                    color: currentPage === 'todo' ? 'white' : '#FF7120',
+                    padding: '0.4rem 0.6rem',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.75rem',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.3rem',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <CheckSquare className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span>Todo</span>
+                </button>
+              </>
+            )}
+            {user?.role === 'bim_specialist' && (
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: 'attendance', label: 'Dashboard', icon: Home },
+                  { id: 'overtime', label: 'OT', icon: Clock },
+                  { id: 'todo', label: 'Todo', icon: CheckSquare },
+                  { id: 'documentation', label: 'Docs', icon: FolderKanban },
+                ].map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => onNavigate(id)}
+                    style={{
+                      background: currentPage === id ? '#FF7120' : 'transparent',
+                      border: '1px solid #FF7120',
+                      color: currentPage === id ? 'white' : '#FF7120',
+                      padding: '0.4rem 0.6rem',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Icon className="h-3 w-3" />
+                    <span>{label}</span>
+                  </button>
+                ))}
               </div>
-            </PopoverContent>
-          </Popover>
-          <button
-            onClick={() => onNavigate('profile')}
-            style={{
-              background: currentPage === 'profile' ? '#FF7120' : 'transparent',
-              border: '1px solid #FF7120',
-              color: currentPage === 'profile' ? 'white' : '#FF7120',
-              padding: '0.4rem',
-              borderRadius: '50%',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              transition: 'all 0.2s'
-            }}
-          >
-            <User className="h-4 w-4" style={{ transition: 'color 0.2s' }} />
-          </button>
+            )}
+            {user?.role === 'junior_architect' && (
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: 'attendance', label: 'Dashboard', icon: Home },
+                  { id: 'overtime', label: 'OT', icon: Clock },
+                  { id: 'todo', label: 'Todo', icon: CheckSquare },
+                ].map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => onNavigate(id)}
+                    style={{
+                      background: currentPage === id ? '#FF7120' : 'transparent',
+                      border: '1px solid #FF7120',
+                      color: currentPage === id ? 'white' : '#FF7120',
+                      padding: '0.4rem 0.6rem',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Icon className="h-3 w-3" />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {user?.role === 'site_engineer' && (
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: 'attendance', label: 'Dashboard', icon: Home },
+                  { id: 'engineer-hub', label: 'MatReq', icon: FolderKanban },
+                  { id: 'overtime', label: 'OT', icon: Clock },
+                  { id: 'todo', label: 'Todo', icon: CheckSquare },
+                ].map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => onNavigate(id)}
+                    style={{
+                      background: currentPage === id ? '#FF7120' : 'transparent',
+                      border: '1px solid #FF7120',
+                      color: currentPage === id ? 'white' : '#FF7120',
+                      padding: '0.4rem 0.6rem',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Icon className="h-3 w-3" />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {user?.role === 'site_coordinator' && (
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: 'attendance', label: 'Dashboard', icon: Home },
+                  { id: 'coordinator-hub', label: 'MatReq', icon: FolderKanban },
+                  { id: 'overtime', label: 'OT', icon: Clock },
+                  { id: 'todo', label: 'Todo', icon: CheckSquare },
+                ].map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => onNavigate(id)}
+                    style={{
+                      background: currentPage === id ? '#FF7120' : 'transparent',
+                      border: '1px solid #FF7120',
+                      color: currentPage === id ? 'white' : '#FF7120',
+                      padding: '0.4rem 0.6rem',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      fontWeight: '500',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <Icon className="h-3 w-3" />
+                    <span>{label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+            {/* Right side on mobile, Hidden on desktop: Hamburger Menu Trigger */}
+          <div className="flex items-center gap-2 lg:hidden lg:order-2">
+            {user?.role === 'studio_head' && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#FF7120',
+                      width: '32px',
+                      height: '32px',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s',
+                      borderRadius: '6px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 113, 32, 0.1)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'transparent';
+                    }}
+                  >
+                    <Grip className="h-6 w-6" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2 bg-[#001f35] border-[#AEAAAA]/20 shadow-xl z-[60]" align="end" sideOffset={8}>
+                  <div className="flex flex-col gap-1">
+                    {[
+                      { id: 'attendance', label: 'Attendance', icon: Home, path: 'attendance' },
+                      { id: 'overtime', label: 'Overtime & Leave', icon: Clock, path: 'overtime' },
+                      { id: 'events', label: 'Calendar / Events', icon: Calendar, path: 'events' },
+                      { id: 'approvals', label: 'User Approvals', icon: ClipboardCheck, path: 'approvals' },
+                      { id: 'users', label: 'Manage Users', icon: Users, path: 'users' },
+                      { id: 'reviews', label: 'Design Reviews', icon: FileText, path: 'reviews' },
+                      { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge, path: 'coordination' },
+                    ].map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => onNavigate(item.path)}
+                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                          currentPage === item.id
+                            ? 'bg-[#FF7120] text-white' 
+                            : 'text-[#AEAAAA] hover:bg-[#FF7120]/10 hover:text-[#FF7120]'
+                        }`}
+                      >
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         </div>
       </div>
     </nav>
