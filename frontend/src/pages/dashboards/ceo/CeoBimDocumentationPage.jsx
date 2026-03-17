@@ -295,7 +295,17 @@ const CeoBimDocumentationPage = ({
         if (result.success) {
             const docs = Array.isArray(result.data) ? result.data : (result.data?.results || []);
             const ceoDocs = docs.filter(
-                (doc) => doc.reviewed_by_studio_head !== null && doc.reviewed_by_studio_head !== undefined
+                (doc) => {
+                    if (doc.status === 'pending_review') {
+                        return doc.reviewed_by_studio_head !== null && doc.reviewed_by_studio_head !== undefined;
+                    }
+
+                    if (doc.status === 'approved' || doc.status === 'rejected') {
+                        return doc.reviewed_by_ceo !== null && doc.reviewed_by_ceo !== undefined;
+                    }
+
+                    return false;
+                }
             );
 
             setPendingDocs(ceoDocs.filter((doc) => doc.status === 'pending_review'));

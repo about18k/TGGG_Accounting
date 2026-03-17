@@ -15,11 +15,15 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
     const [modelFiles, setModelFiles] = useState([]);
     const [imageFiles, setImageFiles] = useState([]);
     const [savedDocs, setSavedDocs] = useState([]);
+    const [juniorApprovedDocs, setJuniorApprovedDocs] = useState([]);
     const [docMessage, setDocMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [zoomedImage, setZoomedImage] = useState(null);
     const [zoomScale, setZoomScale] = useState(1);
     const [openThreadDocId, setOpenThreadDocId] = useState(null);
+    const [openJuniorThreadDocId, setOpenJuniorThreadDocId] = useState(null);
+    const [editingDocId, setEditingDocId] = useState(null);
+    const [editingRejectedDoc, setEditingRejectedDoc] = useState(false);
 
     const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -36,10 +40,14 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
         return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${cls}`}>{children}</span>;
     };
 
-    // Load documentation on mount
+    // Load documentation when account changes
     useEffect(() => {
+        setSavedDocs([]);
+        setJuniorApprovedDocs([]);
+        setOpenThreadDocId(null);
+        setOpenJuniorThreadDocId(null);
         fetchDocumentations();
-    }, []);
+    }, [user?.id, user?.email]);
 
     const fetchDocumentations = async ({ silent = false } = {}) => {
         if (!silent) {
@@ -49,7 +57,27 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
         const result = await bimDocumentationService.getDocumentations();
         if (result.success) {
             const docs = Array.isArray(result.data) ? result.data : (result.data?.results || []);
-            setSavedDocs(docs);
+
+            const isOwnedByCurrentUser = (doc) => {
+                if (user?.id && doc?.created_by === user.id) {
+                    return true;
+                }
+                if (user?.email && doc?.created_by_email === user.email) {
+                    return true;
+                }
+                return false;
+            };
+
+            const ownDocs = docs.filter((doc) => isOwnedByCurrentUser(doc));
+            const juniorFinalApprovedDocs = docs.filter((doc) => (
+                !isOwnedByCurrentUser(doc)
+                && doc.status === 'approved'
+                && !!doc.reviewed_by_studio_head
+                && !!doc.reviewed_by_ceo
+            ));
+
+            setSavedDocs(ownDocs);
+            setJuniorApprovedDocs(juniorFinalApprovedDocs);
         } else {
             setDocMessage('Failed to load documentations: ' + result.error);
         }
@@ -81,9 +109,42 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
             return {
                 ...doc,
                 status: 'pending_review',
+                reviewed_by_studio_head: null,
+                studio_head_reviewed_at: null,
+                studio_head_comments: '',
                 updated_at: updatedAt,
             };
         }));
+    };
+
+    const isStudioHeadRejected = (doc) => {
+        return doc?.status === 'rejected' && !!doc?.reviewed_by_studio_head && !doc?.reviewed_by_ceo;
+    };
+
+    const resetDocumentationForm = () => {
+        setDocTitle('');
+        setDocDate(new Date().toISOString().split('T')[0]);
+        setDocType('model-update');
+        setDocDescription('');
+        setModelFiles([]);
+        setImageFiles([]);
+        setEditingDocId(null);
+        setEditingRejectedDoc(false);
+    };
+
+    const startEditingDocumentation = (doc) => {
+        setDocTitle(doc.title || '');
+        setDocDate(doc.doc_date || new Date().toISOString().split('T')[0]);
+        setDocType(doc.doc_type || 'model-update');
+        setDocDescription(doc.description || '');
+        setModelFiles([]);
+        setImageFiles([]);
+        setEditingDocId(doc.id);
+        setEditingRejectedDoc(isStudioHeadRejected(doc));
+        setActiveTab('create');
+        setDocMessage(isStudioHeadRejected(doc)
+            ? 'Editing rejected documentation. Save your changes, then resubmit for review.'
+            : 'Editing draft documentation.');
     };
 
     const isForwardedToCeo = (doc) => {
@@ -134,29 +195,41 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
             setDocMessage('Please select a date.');
             return;
         }
-        if (!modelFiles.length && !imageFiles.length) {
+        if (!editingDocId && !modelFiles.length && !imageFiles.length) {
             setDocMessage('Upload at least one file.');
             return;
         }
 
         setLoading(true);
-        const result = await bimDocumentationService.createDocumentation({
-            title: docTitle.trim(),
-            description: docDescription.trim(),
-            doc_type: docType,
-            doc_date: docDate,
-            modelFiles,
-            imageFiles,
-        });
+        const result = editingDocId
+            ? await bimDocumentationService.updateDocumentation(editingDocId, {
+                title: docTitle.trim(),
+                description: docDescription.trim(),
+                doc_type: docType,
+                doc_date: docDate,
+            })
+            : await bimDocumentationService.createDocumentation({
+                title: docTitle.trim(),
+                description: docDescription.trim(),
+                doc_type: docType,
+                doc_date: docDate,
+                modelFiles,
+                imageFiles,
+            });
 
         if (result.success) {
-            setDocMessage('Documentation saved successfully!');
-            setDocTitle('');
-            setDocDescription('');
-            setModelFiles([]);
-            setImageFiles([]);
+            setDocMessage(editingDocId ? 'Documentation updated successfully!' : 'Documentation saved successfully!');
+            const wasEditing = Boolean(editingDocId);
+            const wasRejectedRevision = editingRejectedDoc;
             upsertSavedDoc(result.data);
             fetchDocumentations({ silent: true });
+            resetDocumentationForm();
+            if (wasEditing) {
+                setActiveTab('manage');
+                if (wasRejectedRevision) {
+                    setDocMessage('Documentation updated. Click "Resubmit for Review" in Manage Documentation.');
+                }
+            }
             setTimeout(() => setDocMessage(''), 3000);
         } else {
             setDocMessage('Error: ' + result.error);
@@ -164,12 +237,14 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
         setLoading(false);
     };
 
-    const submitForReview = async (docId) => {
+    const submitForReview = async (doc) => {
         setLoading(true);
-        const result = await bimDocumentationService.submitForReview(docId);
+        const result = await bimDocumentationService.submitForReview(doc.id);
         if (result.success) {
-            setDocMessage('Documentation submitted for review!');
-            markSubmittedLocally(docId);
+            setDocMessage(isStudioHeadRejected(doc)
+                ? 'Documentation resubmitted for Studio Head review!'
+                : 'Documentation submitted for review!');
+            markSubmittedLocally(doc.id);
             fetchDocumentations({ silent: true });
             setTimeout(() => setDocMessage(''), 3000);
         } else {
@@ -241,7 +316,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                             <div className="flex gap-1 p-2 border-b border-white/10">
                                 <button
                                     onClick={() => setActiveTab('create')}
-                                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition ${
+                                    className={`py-3 px-4 rounded-xl text-sm font-semibold transition ${
                                         activeTab === 'create'
                                             ? 'bg-[#FF7120] text-white'
                                             : 'text-white/60 hover:text-white'
@@ -251,13 +326,23 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                 </button>
                                 <button
                                     onClick={() => setActiveTab('manage')}
-                                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition ${
+                                    className={`py-3 px-4 rounded-xl text-sm font-semibold transition ${
                                         activeTab === 'manage'
                                             ? 'bg-[#FF7120] text-white'
                                             : 'text-white/60 hover:text-white'
                                     }`}
                                 >
                                     📁 Manage Documentation
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('junior-approved')}
+                                    className={`py-3 px-4 rounded-xl text-sm font-semibold transition ${
+                                        activeTab === 'junior-approved'
+                                            ? 'bg-[#FF7120] text-white'
+                                            : 'text-white/60 hover:text-white'
+                                    }`}
+                                >
+                                    🧩 Junior Architect Approved
                                 </button>
                             </div>
                         </div>
@@ -266,10 +351,27 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                         {activeTab === 'create' && (
                             <div className={cardClass}>
                                 <div className="p-6 border-b border-white/10">
-                                    <h2 className="text-2xl font-semibold text-white">Create New Documentation</h2>
-                                    <p className="text-white/60 text-sm mt-1">Upload model files/images and document BIM updates. Save as draft or submit for review.</p>
+                                    <h2 className="text-2xl font-semibold text-white">
+                                        {editingDocId ? 'Edit Documentation' : 'Create New Documentation'}
+                                    </h2>
+                                    <p className="text-white/60 text-sm mt-1">
+                                        {editingRejectedDoc
+                                            ? 'This submission was rejected by Studio Head. Update details, then resubmit from Manage Documentation.'
+                                            : 'Upload model files/images and document BIM updates. Save as draft or submit for review.'}
+                                    </p>
                                 </div>
                                 <form onSubmit={saveDocumentation} className="p-6 space-y-5">
+                                    {editingDocId && (
+                                        <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
+                                            <p className="text-sm font-semibold text-cyan-100">
+                                                {editingRejectedDoc ? 'Revising Studio Head-rejected documentation' : 'Editing draft documentation'}
+                                            </p>
+                                            <p className="text-xs text-cyan-200/80 mt-1">
+                                                Existing files remain attached. Save your changes, then use Manage Documentation to submit.
+                                            </p>
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="md:col-span-2">
                                             <label className="block text-white/70 text-sm font-semibold mb-2">Title *</label>
@@ -348,12 +450,22 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 pt-2">
+                                        {editingDocId && (
+                                            <button
+                                                type="button"
+                                                onClick={resetDocumentationForm}
+                                                disabled={loading}
+                                                className="rounded-xl border border-white/20 px-6 py-2.5 text-sm font-semibold text-white hover:bg-white/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
                                         <button
                                             type="submit"
                                             disabled={loading}
                                             className="rounded-xl bg-[#FF7120] px-6 py-2.5 text-sm font-semibold text-white hover:brightness-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {loading ? 'Saving...' : 'Save as Draft'}
+                                            {loading ? 'Saving...' : (editingDocId ? 'Save Changes' : 'Save as Draft')}
                                         </button>
                                         {docMessage && (
                                             <p className={`text-xs ${
@@ -396,6 +508,9 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                             {savedDocs.map((doc) => {
                                                 const files = doc.files || [];
                                                 const previewableImages = files.filter((file) => (file.is_image || file.file_type === 'image') && file.file_url);
+                                                const rejectedByStudioHead = isStudioHeadRejected(doc);
+                                                const canSubmitForReview = doc.status === 'draft' || rejectedByStudioHead;
+                                                const canEdit = doc.status === 'draft' || rejectedByStudioHead;
 
                                                 return (
                                                 <div key={doc.id} className="rounded-xl border border-white/10 bg-[#00273C]/40 p-5 space-y-4 hover:border-white/20 transition">
@@ -458,22 +573,35 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                                         </div>
                                                     )}
 
-                                                    {doc.status === 'draft' && (
+                                                    {(canSubmitForReview || canEdit) && (
                                                         <div className="flex gap-2 pt-2 border-t border-white/10">
-                                                            <button
-                                                                onClick={() => submitForReview(doc.id)}
-                                                                disabled={loading}
-                                                                className="flex-1 rounded-lg bg-emerald-600/20 text-emerald-300 text-xs font-semibold py-2 hover:bg-emerald-600/30 transition disabled:opacity-50"
-                                                            >
-                                                                ✓ Submit for Review
-                                                            </button>
-                                                            <button
-                                                                onClick={() => deleteDocumentation(doc.id)}
-                                                                disabled={loading}
-                                                                className="px-4 rounded-lg bg-red-600/20 text-red-300 text-xs font-semibold py-2 hover:bg-red-600/30 transition disabled:opacity-50"
-                                                            >
-                                                                🗑️ Delete
-                                                            </button>
+                                                            {canEdit && (
+                                                                <button
+                                                                    onClick={() => startEditingDocumentation(doc)}
+                                                                    disabled={loading}
+                                                                    className="px-4 rounded-lg border border-cyan-400/35 text-cyan-200 text-xs font-semibold py-2 hover:bg-cyan-500/10 transition disabled:opacity-50"
+                                                                >
+                                                                    {rejectedByStudioHead ? 'Edit Rejected' : 'Edit Draft'}
+                                                                </button>
+                                                            )}
+                                                            {canSubmitForReview && (
+                                                                <button
+                                                                    onClick={() => submitForReview(doc)}
+                                                                    disabled={loading}
+                                                                    className="flex-1 rounded-lg bg-emerald-600/20 text-emerald-300 text-xs font-semibold py-2 hover:bg-emerald-600/30 transition disabled:opacity-50"
+                                                                >
+                                                                    {rejectedByStudioHead ? 'Resubmit for Review' : 'Submit for Review'}
+                                                                </button>
+                                                            )}
+                                                            {doc.status === 'draft' && (
+                                                                <button
+                                                                    onClick={() => deleteDocumentation(doc.id)}
+                                                                    disabled={loading}
+                                                                    className="px-4 rounded-lg bg-red-600/20 text-red-300 text-xs font-semibold py-2 hover:bg-red-600/30 transition disabled:opacity-50"
+                                                                >
+                                                                    🗑️ Delete
+                                                                </button>
+                                                            )}
                                                         </div>
                                                     )}
 
@@ -497,9 +625,13 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
 
                                                     {doc.status === 'rejected' && (
                                                         <div className="pt-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-                                                            <p className="text-xs text-red-300">✗ Documentation rejected</p>
-                                                            {doc.studio_head_comments && (
-                                                                <p className="text-xs text-red-300/80 mt-1 line-clamp-2">{doc.studio_head_comments}</p>
+                                                            <p className="text-xs text-red-300">
+                                                                {rejectedByStudioHead
+                                                                    ? '✗ Rejected by Studio Head. Please revise and resubmit.'
+                                                                    : '✗ Rejected at final review.'}
+                                                            </p>
+                                                            {(doc.studio_head_comments || doc.ceo_comments) && (
+                                                                <p className="text-xs text-red-300/80 mt-1 line-clamp-2">{doc.ceo_comments || doc.studio_head_comments}</p>
                                                             )}
                                                         </div>
                                                     )}
@@ -522,6 +654,139 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                                         </div>
                                                     )}
                                                 </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'junior-approved' && (
+                            <div className={cardClass}>
+                                <div className="p-6 border-b border-white/10">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h2 className="text-2xl font-semibold text-white">Junior Architect Approved Designs</h2>
+                                            <p className="text-white/60 text-sm mt-1">
+                                                View Junior Architect documentations that were approved by both Studio Head and CEO, then comment on them.
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={fetchDocumentations}
+                                            className="px-4 py-2 rounded-xl bg-white/10 text-white/70 text-sm hover:bg-white/20 transition"
+                                        >
+                                            🔄 Refresh
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="p-6">
+                                    {loading && <p className="text-center text-white/60">Loading...</p>}
+
+                                    {!loading && juniorApprovedDocs.length === 0 && (
+                                        <p className="text-center text-white/55 py-8">
+                                            No Junior Architect documentations are fully approved yet.
+                                        </p>
+                                    )}
+
+                                    {!loading && juniorApprovedDocs.length > 0 && (
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                            {juniorApprovedDocs.map((doc) => {
+                                                const files = doc.files || [];
+                                                const previewableImages = files.filter((file) => (file.is_image || file.file_type === 'image') && file.file_url);
+
+                                                return (
+                                                    <div key={doc.id} className="rounded-xl border border-white/10 bg-[#00273C]/40 p-5 space-y-4 hover:border-white/20 transition">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="flex-1">
+                                                                <h3 className="text-lg font-semibold text-white">{doc.title}</h3>
+                                                                <p className="text-xs text-white/50 mt-1">Created: {new Date(doc.created_at).toLocaleDateString()}</p>
+                                                                <p className="text-xs text-white/45 mt-1">By: {doc.created_by_name || doc.created_by_email || 'Junior Architect'}</p>
+                                                            </div>
+                                                            <Badge tone={getStatusColor(doc)}>
+                                                                {getStatusLabel(doc)}
+                                                            </Badge>
+                                                        </div>
+
+                                                        <div className="flex gap-2 flex-wrap">
+                                                            <Badge tone="neutral">{doc.doc_date}</Badge>
+                                                            <Badge tone="neutral">{getDisplayType(doc.doc_type)}</Badge>
+                                                        </div>
+
+                                                        {doc.description && (
+                                                            <p className="text-xs text-white/70 line-clamp-2">{doc.description}</p>
+                                                        )}
+
+                                                        {previewableImages.length > 0 && (
+                                                            <div className="space-y-2">
+                                                                <p className="text-xs font-semibold text-white/70">Image Preview</p>
+                                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                                    {previewableImages.slice(0, 6).map((file) => (
+                                                                        <button
+                                                                            key={file.id}
+                                                                            type="button"
+                                                                            onClick={() => openImageZoom(file)}
+                                                                            className="group overflow-hidden rounded-lg border border-white/10 bg-black/20"
+                                                                            title={`Open ${file.file_name}`}
+                                                                        >
+                                                                            <img
+                                                                                src={file.file_url}
+                                                                                alt={file.file_name}
+                                                                                className="h-24 w-full object-cover transition group-hover:scale-105"
+                                                                                loading="lazy"
+                                                                            />
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {(doc.files?.length ?? doc.file_count ?? 0) > 0 && (
+                                                            <div className="space-y-2">
+                                                                <p className="text-xs font-semibold text-white/70">📎 Files ({doc.files?.length ?? doc.file_count ?? 0})</p>
+                                                                <div className="space-y-1">
+                                                                    {(doc.files || []).slice(0, 3).map((file) => (
+                                                                        <p key={file.id} className="text-xs text-white/60 truncate">
+                                                                            {file.file_type === 'model' ? '📦' : '🖼️'} {file.file_name}
+                                                                        </p>
+                                                                    ))}
+                                                                    {(doc.files?.length ?? 0) > 3 && (
+                                                                        <p className="text-xs text-white/50">+ {(doc.files?.length ?? 0) - 3} more file(s)</p>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {doc.studio_head_comments && (
+                                                            <div className="pt-2 px-3 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
+                                                                <p className="text-xs text-cyan-300">Studio Head Note</p>
+                                                                <p className="text-xs text-cyan-200/80 mt-1 line-clamp-2">{doc.studio_head_comments}</p>
+                                                            </div>
+                                                        )}
+
+                                                        {doc.ceo_comments && (
+                                                            <div className="pt-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
+                                                                <p className="text-xs text-green-300">CEO Note</p>
+                                                                <p className="text-xs text-green-200/80 mt-1 line-clamp-2">{doc.ceo_comments}</p>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="pt-2 border-t border-white/10">
+                                                            <button
+                                                                onClick={() => setOpenJuniorThreadDocId(openJuniorThreadDocId === doc.id ? null : doc.id)}
+                                                                className="w-full text-left text-xs font-semibold text-white/60 hover:text-white/90 transition flex items-center gap-2 py-1"
+                                                            >
+                                                                <span>💬 Discussion</span>
+                                                                <span className="text-white/40">{openJuniorThreadDocId === doc.id ? '▲ Hide' : '▼ Show'}</span>
+                                                            </button>
+                                                            {openJuniorThreadDocId === doc.id && (
+                                                                <div className="mt-3">
+                                                                    <CommentThread docId={doc.id} currentUser={user} />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 );
                                             })}
                                         </div>

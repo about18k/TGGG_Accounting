@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'payroll',
     'todos',
     'bim_documentation',
+    'material_requests',
 ]
 
 MIDDLEWARE = [

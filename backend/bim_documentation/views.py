@@ -31,30 +31,71 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     """
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
+    junior_architect_role_aliases = ('junior_architect', 'junior_designer')
+
+    @staticmethod
+    def _is_studio_head_rejected(doc):
+        return (
+            doc.status == 'rejected'
+            and doc.reviewed_by_studio_head_id is not None
+            and doc.reviewed_by_ceo_id is None
+        )
+
+    @staticmethod
+    def _visible_to_ceo_queryset():
+        return BimDocumentation.objects.filter(
+            Q(status='pending_review', reviewed_by_studio_head__isnull=False)
+            | Q(status='approved', reviewed_by_ceo__isnull=False)
+            | Q(status='rejected', reviewed_by_ceo__isnull=False)
+        )
+
+    @staticmethod
+    def _normalize_junior_role_filter(role):
+        if role in ['junior_architect', 'junior_designer']:
+            return ['junior_architect', 'junior_designer']
+        return [role]
+
+    def _approved_junior_docs_queryset(self):
+        return BimDocumentation.objects.filter(
+            created_by__role__in=self.junior_architect_role_aliases,
+            status='approved',
+            reviewed_by_studio_head__isnull=False,
+            reviewed_by_ceo__isnull=False,
+        )
     
     def get_queryset(self):
         """
         Filter based on user role:
-        - BIM Specialist / Junior Architect: Can see their own docs
-        - Studio Head: Can see all pending docs + approved docs
-        - CEO: Can see all docs
+        - BIM Specialist: Can see own docs + Junior Architect docs approved by Studio Head and CEO
+        - Junior Architect: Can see own docs
+        - Studio Head: Can see all pending, approved, and rejected docs
+        - CEO / President: Can only see docs forwarded to CEO or already decided by CEO
         - Admin: Can see all docs
         """
         user = self.request.user
         created_by_role = (self.request.query_params.get('created_by_role') or '').strip()
         queryset = BimDocumentation.objects.none()
         
-        if user.role in ['bim_specialist', 'junior_architect']:
+        if user.role == 'bim_specialist':
+            approved_junior_doc_ids = self._approved_junior_docs_queryset().values_list('id', flat=True)
+            queryset = BimDocumentation.objects.filter(
+                Q(created_by=user)
+                | Q(id__in=approved_junior_doc_ids)
+            )
+        elif user.role in self.junior_architect_role_aliases:
             queryset = BimDocumentation.objects.filter(created_by=user)
         elif user.role == 'studio_head':
             queryset = BimDocumentation.objects.filter(
                 Q(status__in=['pending_review', 'approved', 'rejected'])
             )
-        elif user.role in ['ceo', 'admin', 'president']:
+        elif user.role in ['ceo', 'president']:
+            queryset = self._visible_to_ceo_queryset()
+        elif user.role == 'admin':
             queryset = BimDocumentation.objects.all()
 
         if created_by_role:
-            queryset = queryset.filter(created_by__role=created_by_role)
+            role_filters = self._normalize_junior_role_filter(created_by_role)
+            queryset = queryset.filter(created_by__role__in=role_filters)
 
         queryset = queryset.select_related(
             'created_by',
@@ -79,7 +120,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         Create new BIM documentation.
         BIM Specialists and Junior Architects can create documentation.
         """
-        if request.user.role not in ['bim_specialist', 'junior_architect']:
+        if request.user.role not in ['bim_specialist', 'junior_architect', 'junior_designer']:
             return Response(
                 {'error': 'Only BIM Specialists and Junior Architects can create documentation'},
                 status=status.HTTP_403_FORBIDDEN
@@ -109,8 +150,8 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     
     def update(self, request, *args, **kwargs):
         """
-        Update BIM documentation (draft only).
-        Only the creator can update draft documentation.
+        Update BIM documentation.
+        Only the creator can update draft docs or docs rejected by Studio Head.
         """
         doc = self.get_object()
         
@@ -120,9 +161,11 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        if doc.status != 'draft':
+        can_edit = doc.status == 'draft' or self._is_studio_head_rejected(doc)
+
+        if not can_edit:
             return Response(
-                {'error': 'Can only edit draft documentation'},
+                {'error': 'Can only edit draft or Studio Head-rejected documentation'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -158,7 +201,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     def submit(self, request, pk=None):
         """
         Submit documentation for review.
-        Changes status from draft to pending_review.
+        Changes status from draft/rejected to pending_review.
         """
         doc = self.get_object()
         
@@ -168,14 +211,27 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        if doc.status != 'draft':
+        can_resubmit_after_studio_head_rejection = self._is_studio_head_rejected(doc)
+
+        if doc.status != 'draft' and not can_resubmit_after_studio_head_rejection:
             return Response(
-                {'error': 'Only draft documentation can be submitted'},
+                {'error': 'Only draft or Studio Head-rejected documentation can be submitted'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
+        update_fields = ['status', 'updated_at']
+        if can_resubmit_after_studio_head_rejection:
+            doc.reviewed_by_studio_head = None
+            doc.studio_head_reviewed_at = None
+            doc.studio_head_comments = ''
+            update_fields.extend([
+                'reviewed_by_studio_head',
+                'studio_head_reviewed_at',
+                'studio_head_comments',
+            ])
+
         doc.status = 'pending_review'
-        doc.save()
+        doc.save(update_fields=update_fields)
         
         serializer = self.get_serializer(doc)
         return Response(serializer.data)
@@ -288,7 +344,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     def remove_file(self, request, pk=None):
         """
         Remove a file from documentation.
-        Only the creator of draft documentation can remove files.
+        Only the creator of editable documentation can remove files.
         """
         doc = self.get_object()
         file_id = request.query_params.get('file_id')
@@ -305,9 +361,11 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        if doc.status != 'draft':
+        can_edit_files = doc.status == 'draft' or self._is_studio_head_rejected(doc)
+
+        if not can_edit_files:
             return Response(
-                {'error': 'Can only edit draft documentation'},
+                {'error': 'Can only edit draft or Studio Head-rejected documentation'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         

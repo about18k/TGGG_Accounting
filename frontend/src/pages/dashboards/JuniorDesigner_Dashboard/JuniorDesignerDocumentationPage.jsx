@@ -20,6 +20,8 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
     const [zoomedImage, setZoomedImage] = useState(null);
     const [zoomScale, setZoomScale] = useState(1);
     const [openThreadDocId, setOpenThreadDocId] = useState(null);
+    const [editingDocId, setEditingDocId] = useState(null);
+    const [editingRejectedDoc, setEditingRejectedDoc] = useState(false);
 
     const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -54,6 +56,36 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
 
     const isForwardedToCeo = (doc) => {
         return doc?.status === 'pending_review' && !!doc?.reviewed_by_studio_head;
+    };
+
+    const isStudioHeadRejected = (doc) => {
+        return doc?.status === 'rejected' && !!doc?.reviewed_by_studio_head && !doc?.reviewed_by_ceo;
+    };
+
+    const resetDocumentationForm = () => {
+        setDocTitle('');
+        setDocDate(new Date().toISOString().split('T')[0]);
+        setDocType('model-update');
+        setDocDescription('');
+        setModelFiles([]);
+        setImageFiles([]);
+        setEditingDocId(null);
+        setEditingRejectedDoc(false);
+    };
+
+    const startEditingDocumentation = (doc) => {
+        setDocTitle(doc.title || '');
+        setDocDate(doc.doc_date || new Date().toISOString().split('T')[0]);
+        setDocType(doc.doc_type || 'model-update');
+        setDocDescription(doc.description || '');
+        setModelFiles([]);
+        setImageFiles([]);
+        setEditingDocId(doc.id);
+        setEditingRejectedDoc(isStudioHeadRejected(doc));
+        setActiveTab('create');
+        setDocMessage(isStudioHeadRejected(doc)
+            ? 'Editing rejected documentation. Save your changes, then resubmit for review.'
+            : 'Editing draft documentation.');
     };
 
     const getStatusColor = (doc) => {
@@ -100,28 +132,40 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
             setDocMessage('Please select a date.');
             return;
         }
-        if (!modelFiles.length && !imageFiles.length) {
+        if (!editingDocId && !modelFiles.length && !imageFiles.length) {
             setDocMessage('Upload at least one file.');
             return;
         }
 
         setLoading(true);
-        const result = await bimDocumentationService.createDocumentation({
-            title: docTitle.trim(),
-            description: docDescription.trim(),
-            doc_type: docType,
-            doc_date: docDate,
-            modelFiles,
-            imageFiles,
-        });
+        const result = editingDocId
+            ? await bimDocumentationService.updateDocumentation(editingDocId, {
+                title: docTitle.trim(),
+                description: docDescription.trim(),
+                doc_type: docType,
+                doc_date: docDate,
+            })
+            : await bimDocumentationService.createDocumentation({
+                title: docTitle.trim(),
+                description: docDescription.trim(),
+                doc_type: docType,
+                doc_date: docDate,
+                modelFiles,
+                imageFiles,
+            });
 
         if (result.success) {
-            setDocMessage('Design documentation saved successfully!');
-            setDocTitle('');
-            setDocDescription('');
-            setModelFiles([]);
-            setImageFiles([]);
+            setDocMessage(editingDocId ? 'Documentation updated successfully!' : 'Design documentation saved successfully!');
+            const wasEditing = Boolean(editingDocId);
+            const wasRejectedRevision = editingRejectedDoc;
             fetchDocumentations();
+            resetDocumentationForm();
+            if (wasEditing) {
+                setActiveTab('manage');
+                if (wasRejectedRevision) {
+                    setDocMessage('Documentation updated. Click "Resubmit for Review" in Manage Documentation.');
+                }
+            }
             setTimeout(() => setDocMessage(''), 3000);
         } else {
             setDocMessage('Error: ' + result.error);
@@ -129,11 +173,13 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
         setLoading(false);
     };
 
-    const submitForReview = async (docId) => {
+    const submitForReview = async (doc) => {
         setLoading(true);
-        const result = await bimDocumentationService.submitForReview(docId);
+        const result = await bimDocumentationService.submitForReview(doc.id);
         if (result.success) {
-            setDocMessage('Documentation submitted for Studio Head review!');
+            setDocMessage(isStudioHeadRejected(doc)
+                ? 'Documentation resubmitted for Studio Head review!'
+                : 'Documentation submitted for Studio Head review!');
             fetchDocumentations();
             setTimeout(() => setDocMessage(''), 3000);
         } else {
@@ -226,10 +272,27 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                         {activeTab === 'create' && (
                             <div className={cardClass}>
                                 <div className="p-6 border-b border-white/10">
-                                    <h2 className="text-2xl font-semibold text-white">Create New Design Documentation</h2>
-                                    <p className="text-white/60 text-sm mt-1">Upload design files and references. Submit for Studio Head review, then CEO approval.</p>
+                                    <h2 className="text-2xl font-semibold text-white">
+                                        {editingDocId ? 'Edit Design Documentation' : 'Create New Design Documentation'}
+                                    </h2>
+                                    <p className="text-white/60 text-sm mt-1">
+                                        {editingRejectedDoc
+                                            ? 'This submission was rejected by Studio Head. Update details, then resubmit from Manage Documentation.'
+                                            : 'Upload design files and references. Submit for Studio Head review, then CEO approval.'}
+                                    </p>
                                 </div>
                                 <form onSubmit={saveDocumentation} className="p-6 space-y-5">
+                                    {editingDocId && (
+                                        <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
+                                            <p className="text-sm font-semibold text-cyan-100">
+                                                {editingRejectedDoc ? 'Revising Studio Head-rejected documentation' : 'Editing draft documentation'}
+                                            </p>
+                                            <p className="text-xs text-cyan-200/80 mt-1">
+                                                Existing files remain attached. Save your changes, then submit from Manage Documentation.
+                                            </p>
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                         <div className="md:col-span-2">
                                             <label className="block text-white/70 text-sm font-semibold mb-2">Title *</label>
@@ -308,12 +371,22 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 pt-2">
+                                        {editingDocId && (
+                                            <button
+                                                type="button"
+                                                onClick={resetDocumentationForm}
+                                                disabled={loading}
+                                                className="rounded-xl border border-white/20 px-6 py-2.5 text-sm font-semibold text-white hover:bg-white/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                Cancel
+                                            </button>
+                                        )}
                                         <button
                                             type="submit"
                                             disabled={loading}
                                             className="rounded-xl bg-[#FF7120] px-6 py-2.5 text-sm font-semibold text-white hover:brightness-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
-                                            {loading ? 'Saving...' : 'Save as Draft'}
+                                            {loading ? 'Saving...' : (editingDocId ? 'Save Changes' : 'Save as Draft')}
                                         </button>
                                         {docMessage && (
                                             <p className={`text-xs ${
@@ -355,6 +428,9 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                             {savedDocs.map((doc) => {
                                                 const files = doc.files || [];
                                                 const previewableImages = files.filter((file) => (file.is_image || file.file_type === 'image') && file.file_url);
+                                                const rejectedByStudioHead = isStudioHeadRejected(doc);
+                                                const canSubmitForReview = doc.status === 'draft' || rejectedByStudioHead;
+                                                const canEdit = doc.status === 'draft' || rejectedByStudioHead;
 
                                                 return (
                                                     <div key={doc.id} className="rounded-xl border border-white/10 bg-[#00273C]/40 p-5 space-y-4 hover:border-white/20 transition">
@@ -417,22 +493,35 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                                             </div>
                                                         )}
 
-                                                        {doc.status === 'draft' && (
+                                                        {(canSubmitForReview || canEdit) && (
                                                             <div className="flex gap-2 pt-2 border-t border-white/10">
-                                                                <button
-                                                                    onClick={() => submitForReview(doc.id)}
-                                                                    disabled={loading}
-                                                                    className="flex-1 rounded-lg bg-emerald-600/20 text-emerald-300 text-xs font-semibold py-2 hover:bg-emerald-600/30 transition disabled:opacity-50"
-                                                                >
-                                                                    Submit for Review
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => deleteDocumentation(doc.id)}
-                                                                    disabled={loading}
-                                                                    className="px-4 rounded-lg bg-red-600/20 text-red-300 text-xs font-semibold py-2 hover:bg-red-600/30 transition disabled:opacity-50"
-                                                                >
-                                                                    Delete
-                                                                </button>
+                                                                {canEdit && (
+                                                                    <button
+                                                                        onClick={() => startEditingDocumentation(doc)}
+                                                                        disabled={loading}
+                                                                        className="px-4 rounded-lg border border-cyan-400/35 text-cyan-200 text-xs font-semibold py-2 hover:bg-cyan-500/10 transition disabled:opacity-50"
+                                                                    >
+                                                                        {rejectedByStudioHead ? 'Edit Rejected' : 'Edit Draft'}
+                                                                    </button>
+                                                                )}
+                                                                {canSubmitForReview && (
+                                                                    <button
+                                                                        onClick={() => submitForReview(doc)}
+                                                                        disabled={loading}
+                                                                        className="flex-1 rounded-lg bg-emerald-600/20 text-emerald-300 text-xs font-semibold py-2 hover:bg-emerald-600/30 transition disabled:opacity-50"
+                                                                    >
+                                                                        {rejectedByStudioHead ? 'Resubmit for Review' : 'Submit for Review'}
+                                                                    </button>
+                                                                )}
+                                                                {doc.status === 'draft' && (
+                                                                    <button
+                                                                        onClick={() => deleteDocumentation(doc.id)}
+                                                                        disabled={loading}
+                                                                        className="px-4 rounded-lg bg-red-600/20 text-red-300 text-xs font-semibold py-2 hover:bg-red-600/30 transition disabled:opacity-50"
+                                                                    >
+                                                                        Delete
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         )}
 
@@ -456,9 +545,13 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
 
                                                         {doc.status === 'rejected' && (
                                                             <div className="pt-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
-                                                                <p className="text-xs text-red-300">Documentation rejected</p>
-                                                                {doc.studio_head_comments && (
-                                                                    <p className="text-xs text-red-300/80 mt-1 line-clamp-2">{doc.studio_head_comments}</p>
+                                                                <p className="text-xs text-red-300">
+                                                                    {rejectedByStudioHead
+                                                                        ? 'Rejected by Studio Head. Please revise and resubmit.'
+                                                                        : 'Rejected at final review.'}
+                                                                </p>
+                                                                {(doc.studio_head_comments || doc.ceo_comments) && (
+                                                                    <p className="text-xs text-red-300/80 mt-1 line-clamp-2">{doc.ceo_comments || doc.studio_head_comments}</p>
                                                                 )}
                                                             </div>
                                                         )}

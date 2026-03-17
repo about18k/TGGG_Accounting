@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, FolderKanban, LayoutDashboard, User, X } from 'lucide-react';
+import { ClipboardList, Clock, FolderKanban, LayoutDashboard, User, X } from 'lucide-react';
 
 const PRIMARY_LINKS = [
   { id: 'ceo-dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'ceo-bim-docs', label: 'BIM Documentation', icon: FolderKanban },
   { id: 'ceo-junior-docs', label: 'Junior Architect Docs', icon: User },
+  { id: 'ceo-material-requests', label: 'Material Requests', icon: ClipboardList },
 ];
 
 const SECONDARY_LINKS = [

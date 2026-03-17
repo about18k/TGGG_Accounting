@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import OvertimeForm from '../Public_Dashboard/OvertimeForm.jsx';
 import OvertimeStatus from '../Public_Dashboard/OvertimeStatus.jsx';
-import LeaveForm from '../Public_Dashboard/LeaveForm.jsx';
-import LeaveStatus from '../Public_Dashboard/LeaveStatus.jsx';
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import SiteCoordinatorSidebar from './components/SiteCoordinatorSidebar';
 
@@ -67,14 +65,10 @@ const SiteCoordinatorOvertimePage = ({ user, token, onNavigate }) => {
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
                 {renderTabButton('ot-form', 'Request Overtime')}
                 {renderTabButton('ot-status', 'OT Status')}
-                {renderTabButton('leave-form', 'Request Leave')}
-                {renderTabButton('leave-status', 'Leave Status')}
               </div>
 
               {activeTab === 'ot-form' && <OvertimeForm token={token} />}
               {activeTab === 'ot-status' && <OvertimeStatus token={token} />}
-              {activeTab === 'leave-form' && <LeaveForm token={token} />}
-              {activeTab === 'leave-status' && <LeaveStatus token={token} />}
             </div>
           </main>
         </div>

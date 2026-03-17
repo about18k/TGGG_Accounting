@@ -36,6 +36,7 @@ urlpatterns = [
     path('api/attendance/', include('attendance.urls')),
     path('api/payroll/', include('payroll.urls')),
     path('api/bim-docs/', include('bim_documentation.urls')),
+    path('api/material-requests/', include('material_requests.urls')),
     # Backward-compatible overtime endpoints used by existing frontend modules
     re_path(r'^api/overtime/?$', attendance_views.overtime_list_create, name='overtime_list_create'),
     re_path(r'^api/overtime/my/?$', attendance_views.my_overtime_requests, name='my_overtime_requests'),
