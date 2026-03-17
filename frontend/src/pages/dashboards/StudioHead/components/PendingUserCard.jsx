@@ -1,6 +1,17 @@
-import { Mail, ShieldCheck, Clock } from 'lucide-react';
+import { Clock, Mail, ShieldCheck, UserX } from 'lucide-react';
 
-export default function PendingUserCard({ user, role, onChangeRole, allowedRoles, onApprove, loading }) {
+export default function PendingUserCard({
+  user,
+  role,
+  onChangeRole,
+  allowedRoles,
+  onApprove,
+  onDecline,
+  approveLoading = false,
+  declineLoading = false,
+}) {
+  const loading = approveLoading || declineLoading;
+
   return (
     <div className="bg-[#001f35] rounded-xl border border-white/5 p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all hover:border-[#FF7120]/20 group">
       <div className="flex items-center gap-4 flex-1">
@@ -51,7 +62,16 @@ export default function PendingUserCard({ user, role, onChangeRole, allowedRoles
           className="flex items-center justify-center gap-2 bg-[#FF7120]/10 border border-[#FF7120]/30 text-[#FF7120] px-6 py-2 rounded-lg text-sm font-bold hover:bg-[#FF7120] hover:text-white transition-all disabled:opacity-50 whitespace-nowrap"
         >
           <ShieldCheck size={16} />
-          {loading ? 'Approving...' : 'Approve & Notify'}
+          {approveLoading ? 'Approving...' : 'Approve & Notify'}
+        </button>
+
+        <button
+          onClick={onDecline}
+          disabled={loading}
+          className="flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 text-red-300 px-6 py-2 rounded-lg text-sm font-bold hover:bg-red-500 hover:text-white transition-all disabled:opacity-50 whitespace-nowrap"
+        >
+          <UserX size={16} />
+          {declineLoading ? 'Declining...' : 'Decline'}
         </button>
       </div>
     </div>

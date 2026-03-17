@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
-import { GitMerge, Calendar, ClipboardCheck, Users, FileText } from 'lucide-react';
+import { GitMerge, Calendar, ClipboardCheck, Users, FileText, Home, UserCheck } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import PendingApprovalsPanel from './components/PendingApprovalsPanel';
 import ManageUsersPanel from './components/ManageUsersPanel';
@@ -34,6 +34,8 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate, curren
     allowedRoles,
     approveUser,
     approvingUserId,
+    declinePendingUser,
+    decliningUserId,
     usersLoading,
     usersError,
     userActionById,
@@ -97,6 +99,8 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate, curren
                       allowedRoles={allowedRoles}
                       approveUser={approveUser}
                       approvingUserId={approvingUserId}
+                      declinePendingUser={declinePendingUser}
+                      decliningUserId={decliningUserId}
                     />
                   )}
 
@@ -108,6 +112,7 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate, curren
                       usersError={usersError}
                       userActionById={userActionById}
                       filteredUsers={filteredUsers}
+                      allowedRoles={allowedRoles}
                       onEditUser={editUser}
                       onToggleUserStatus={toggleUserStatus}
                       onDeleteUser={removeUser}

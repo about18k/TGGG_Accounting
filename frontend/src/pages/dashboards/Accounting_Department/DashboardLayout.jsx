@@ -60,6 +60,10 @@ const sectionMeta = {
     title: 'Overtime Requests',
     description: 'Submit and track overtime requests.',
   },
+  events: {
+    title: 'Calendar / Events',
+    description: 'Create and manage company dates, holidays, and no-work days.',
+  },
 };
 
 export function DashboardLayout({

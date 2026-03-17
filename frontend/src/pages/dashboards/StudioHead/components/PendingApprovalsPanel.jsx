@@ -12,8 +12,11 @@ export default function PendingApprovalsPanel({
   allowedRoles,
   approveUser,
   approvingUserId,
+  declinePendingUser,
+  decliningUserId,
 }) {
-  const pendingCount = pendingUsers.length;
+  const pendingList = Array.isArray(pendingUsers) ? pendingUsers : [];
+  const pendingCount = pendingList.length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -59,15 +62,15 @@ export default function PendingApprovalsPanel({
 
         {pendingLoading && <div className="text-gray-400 text-sm py-4">Loading pending users...</div>}
 
-        {!pendingLoading && pendingUsers.length === 0 && (
+        {!pendingLoading && pendingList.length === 0 && (
           <div className="py-10">
             <EmptyState title="No pending users" subtitle="All accounts are verified." />
           </div>
         )}
 
-        {!pendingLoading && pendingUsers.length > 0 && (
+        {!pendingLoading && pendingList.length > 0 && (
           <div className="flex flex-col gap-3">
-            {pendingUsers.map((u) => {
+            {pendingList.map((u) => {
               const userId = u?.id ?? u?.user_id ?? u?.userId;
               if (userId === null || userId === undefined || userId === '') return null;
 
@@ -79,7 +82,9 @@ export default function PendingApprovalsPanel({
                   onChangeRole={(val) => setRoleByUserId((prev) => ({ ...prev, [userId]: val }))}
                   allowedRoles={allowedRoles}
                   onApprove={() => approveUser(userId)}
-                  loading={approvingUserId === userId}
+                  onDecline={() => declinePendingUser(userId)}
+                  approveLoading={approvingUserId === userId}
+                  declineLoading={decliningUserId === userId}
                 />
               );
             })}

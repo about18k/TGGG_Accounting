@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { clockIn, clockOut, getTodayAttendance, uploadWorkDocFile } from "../../services/attendanceService";
 import { toast } from "sonner";
 import {
@@ -114,6 +114,7 @@ const LocationAttendance = ({
   const [todayRecord, setTodayRecord] = useState(null);
   const [banner, setBanner] = useState(null);
   const [loadingToday, setLoadingToday] = useState(false);
+  const [mapView, setMapView] = useState("roadmap");
 
   const officeConfig = attendanceLocations.mainOffice || {
     name: "Office",
@@ -216,28 +217,39 @@ const LocationAttendance = ({
   );
 
   const mapCenter = locationOut || locationIn || fallbackLocation;
+  const mapLat = mapCenter.latitude ?? fallbackLocation.latitude;
+  const mapLng = mapCenter.longitude ?? fallbackLocation.longitude;
+  const mapTypeParam = mapView === "satellite" ? "k" : "m";
+  const mapSrc = `https://maps.google.com/maps?output=embed&hl=en&q=${encodeURIComponent(
+    `${mapLat},${mapLng}`
+  )}&z=17&t=${mapTypeParam}`;
 
-  const mapBounds = useMemo(() => {
-    const lat = locationOut?.latitude ?? locationIn?.latitude ?? fallbackLocation.latitude;
-    const lng = locationOut?.longitude ?? locationIn?.longitude ?? fallbackLocation.longitude;
-    const radiusOffset = Math.max(0.001, (officeConfig.radius || 500) / 111000);
-    return {
-      minLat: lat - radiusOffset,
-      maxLat: lat + radiusOffset,
-      minLng: lng - radiusOffset,
-      maxLng: lng + radiusOffset,
-    };
-  }, [
-    locationIn?.latitude,
-    locationIn?.longitude,
-    locationOut?.latitude,
-    locationOut?.longitude,
-    fallbackLocation.latitude,
-    fallbackLocation.longitude,
-    officeConfig.radius,
-  ]);
-
-  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${mapBounds.minLng},${mapBounds.minLat},${mapBounds.maxLng},${mapBounds.maxLat}&layer=mapnik&marker=${mapCenter.latitude ?? fallbackLocation.latitude},${mapCenter.longitude ?? fallbackLocation.longitude}`;
+  const renderMapViewToggle = () => (
+    <div className="inline-flex items-center rounded-lg border border-white/15 bg-black/30 p-1 text-[0.65rem] font-semibold uppercase tracking-wider">
+      <button
+        type="button"
+        onClick={() => setMapView("roadmap")}
+        className={`rounded-md px-2.5 py-1 transition ${
+          mapView === "roadmap"
+            ? "bg-white/15 text-white"
+            : "text-white/55 hover:text-white/80"
+        }`}
+      >
+        Map
+      </button>
+      <button
+        type="button"
+        onClick={() => setMapView("satellite")}
+        className={`rounded-md px-2.5 py-1 transition ${
+          mapView === "satellite"
+            ? "bg-white/15 text-white"
+            : "text-white/55 hover:text-white/80"
+        }`}
+      >
+        Satellite
+      </button>
+    </div>
+  );
 
   const handleTimeAction = async (type) => {
     if ((type === "in" && !canTimeIn) || (type === "out" && !canTimeOut)) return;
@@ -496,11 +508,14 @@ const LocationAttendance = ({
                   <div className="flex items-center gap-2">
                     <p className="text-white text-sm font-semibold">Location Preview</p>
                   </div>
+                  <div className="flex items-center gap-2">
+                    {renderMapViewToggle()}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden mt-2">
                   <iframe
                     title="Attendance location map"
-                    className="w-full h-60 sm:h-64 border-0"
+                    className="w-full h-60 sm:h-64 lg:h-72 border-0"
                     src={mapSrc}
                     loading="lazy"
                     referrerPolicy="no-referrer"
@@ -570,11 +585,14 @@ const LocationAttendance = ({
               <div className="flex items-center gap-2">
                 <p className="text-white text-sm font-semibold">Location Preview</p>
               </div>
+              <div className="flex items-center gap-2">
+                {renderMapViewToggle()}
+              </div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
               <iframe
                 title="Attendance location map"
-                className="w-full h-60 sm:h-64 border-0"
+                className="w-full h-60 sm:h-64 lg:h-72 border-0"
                 src={mapSrc}
                 loading="lazy"
                 referrerPolicy="no-referrer"

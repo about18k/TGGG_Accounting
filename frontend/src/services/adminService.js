@@ -46,6 +46,11 @@ export async function deleteUserAccount(userId) {
     return data;
 }
 
+export async function getDepartments() {
+    const { data } = await api.get('/accounts/departments/');
+    return data;
+}
+
 // ── Accounting Employee Management ──────────────────────
 export async function getAccountingEmployees(params) {
     const { data } = await api.get('/accounts/accounting/employees/', { params });

@@ -11,6 +11,7 @@ const MAIN_LINKS = [
 const SECTION_LINKS = [
   { id: 'attendance', label: 'Attendance Records', icon: Clock, page: 'attendance' },
   { id: 'overtime', label: 'Overtime Requests', icon: Clock, page: 'overtime' },
+  { id: 'events', label: 'Calendar / Events', icon: Calendar, page: 'events' },
 ];
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg';
