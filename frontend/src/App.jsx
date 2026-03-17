@@ -169,6 +169,7 @@ export default function App() {
         element={user ? renderDashboard({
           user, token, currentPage, accountingSection, activeTab,
           setActiveTab, setAccountingSection, handleLogout, handleNavigate, fetchNotifications,
+          notifications, markNotificationRead, markAllNotificationsRead,
         }) : <Navigate to="/login" replace />}
       />
       <Route

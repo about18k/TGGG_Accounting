@@ -73,6 +73,9 @@ export function DashboardLayout({
   onLogout,
   onNavigate,
   currentPage = 'dashboard',
+  notifications = [],
+  onNotificationClick,
+  onMarkAllRead,
 }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notificationFilter, setNotificationFilter] = useState('all');
@@ -80,20 +83,21 @@ export function DashboardLayout({
   const [typeFilter, setTypeFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [notifications, setNotifications] = useState([
-    { id: 1, title: 'New Employee Added', message: 'Sarah Johnson has been added to the system', time: '2 hours ago', read: false, type: 'system' },
-    { id: 2, title: 'Leave Request Submitted', message: 'Mike Chen submitted a leave request', time: '4 hours ago', read: true, type: 'attendance' },
-    { id: 3, title: 'Payroll Processed', message: 'Monthly payroll has been processed successfully', time: '1 day ago', read: false, type: 'system' },
-    { id: 4, title: 'Overtime Approved', message: 'Your overtime request has been approved', time: '2 days ago', read: true, type: 'overtime' },
-  ]);
-
   const filteredNotifications = notifications
     .filter((notification) => {
       const matchesReadFilter =
         notificationFilter === 'all' ||
-        (notificationFilter === 'read' && notification.read) ||
-        (notificationFilter === 'unread' && !notification.read);
-      const matchesTypeFilter = typeFilter === 'all' || notification.type === typeFilter;
+        (notificationFilter === 'read' && notification.is_read) ||
+        (notificationFilter === 'unread' && !notification.is_read);
+      
+      const getCategoryFromType = (type) => {
+        if (!type) return 'system';
+        if (type.includes('ot_')) return 'overtime';
+        if (type.includes('checkout') || type.includes('attendance')) return 'attendance';
+        return 'system';
+      };
+
+      const matchesTypeFilter = typeFilter === 'all' || getCategoryFromType(notification.type) === typeFilter;
       return matchesReadFilter && matchesTypeFilter;
     })
     .sort((a, b) => {
@@ -101,11 +105,8 @@ export function DashboardLayout({
       return b.id - a.id;
     });
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
-  };
 
   const currentTab =
     activeSection !== 'main'
@@ -194,7 +195,7 @@ export function DashboardLayout({
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={markAllAsRead}
+                        onClick={onMarkAllRead}
                         className="text-[#AEAAAA] hover:text-white p-1 flex items-center gap-2"
                       >
                         <Check className="w-4 h-4" />
@@ -209,17 +210,18 @@ export function DashboardLayout({
                         filteredNotifications.map((notification) => (
                           <div
                             key={notification.id}
-                            className={`p-3 rounded-lg transition-colors hover:bg-[#021B2C]/50 ${
-                              notification.read ? 'bg-[#021B2C]/30' : 'bg-[#F27229]/10'
+                            onClick={() => onNotificationClick?.(notification)}
+                            className={`p-3 rounded-lg transition-colors cursor-pointer hover:bg-[#021B2C]/50 ${
+                              notification.is_read ? 'bg-[#021B2C]/30' : 'bg-[#F27229]/10'
                             }`}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div className="flex-1">
                                 <p className="text-sm font-medium text-white">{notification.title}</p>
                                 <p className="text-xs text-[#AEAAAA] mt-1">{notification.message}</p>
-                                <p className="text-xs text-[#AEAAAA]/70 mt-2">{notification.time}</p>
+                                <p className="text-xs text-[#AEAAAA]/70 mt-2">{new Date(notification.created_at).toLocaleString()}</p>
                               </div>
-                              {!notification.read && (
+                              {!notification.is_read && (
                                 <div className="w-2 h-2 bg-[#F27229] rounded-full mt-1" />
                               )}
                             </div>

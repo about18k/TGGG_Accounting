@@ -65,6 +65,7 @@ import AccountingEventsPanel from '../pages/dashboards/Accounting_Department/Acc
  */
 export function renderAccountingDashboard({
     user, token, currentPage, handleLogout, handleNavigate,
+    notifications, markNotificationRead, markAllNotificationsRead,
 }) {
     // Standard accounting tabs that map directly to pages
     const accountingTabs = ['dashboard', 'employees', 'attendance', 'payroll', 'settings'];
@@ -126,6 +127,9 @@ export function renderAccountingDashboard({
             onLogout={handleLogout}
             onNavigate={handleNavigate}
             currentPage={currentPage}
+            notifications={notifications}
+            onNotificationClick={markNotificationRead}
+            onMarkAllRead={markAllNotificationsRead}
         >
             {renderContent()}
         </DashboardLayout>
@@ -138,6 +142,7 @@ export function renderAccountingDashboard({
 export function renderDashboard({
     user, token, currentPage, accountingSection, activeTab,
     setActiveTab, setAccountingSection, handleLogout, handleNavigate, fetchNotifications,
+    notifications, markNotificationRead, markAllNotificationsRead,
 }) {
     if (!user) return null;
 
@@ -160,12 +165,18 @@ export function renderDashboard({
 
     // Accounting
     if (user.role === 'accounting') {
-        return renderAccountingDashboard({ user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate });
+        return renderAccountingDashboard({
+            user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate,
+            notifications, markNotificationRead, markAllNotificationsRead
+        });
     }
 
     // Employee in Accounting Department
     if (user.role === 'employee' && (user.department_name?.toLowerCase() === 'accounting department' || user.department_name?.toLowerCase() === 'accounting')) {
-        return renderAccountingDashboard({ user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate });
+        return renderAccountingDashboard({
+            user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate,
+            notifications, markNotificationRead, markAllNotificationsRead
+        });
     }
 
     // Site Engineer
@@ -235,7 +246,10 @@ export function renderDashboard({
     // Department-based fallback — Accounting
     const departmentKey = (user.department_name || '').toLowerCase();
     if (departmentKey === 'accounting department' || departmentKey === 'accounting') {
-        return renderAccountingDashboard({ user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate });
+        return renderAccountingDashboard({
+            user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate,
+            notifications, markNotificationRead, markAllNotificationsRead
+        });
     }
 
     // Fallback → Employee Dashboard
