@@ -115,7 +115,7 @@ export function DashboardLayout({
   const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg';
 
   return (
-    <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
+    <div className="min-h-screen bg-[#00273C] relative">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>

@@ -1,24 +1,32 @@
 import React from 'react';
 import Profile from './Profile.jsx';
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
+import InternSidebar from './components/InternSidebar';
 
 const ProfilePage = ({ user, token, onLogout, onNavigate }) => {
   return (
-    <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0">
+    <div className="min-h-screen bg-[#00273C] relative">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
 
       <PublicNavigation onNavigate={onNavigate} currentPage="profile" user={user} />
 
-      <div className="relative pt-28 px-3 sm:px-6 pb-10 w-full">
-        <div className="max-w-[1400px] mx-auto px-2 sm:px-10 space-y-5 sm:space-y-8">
-          <div className="p-4 sm:p-6">
-            <Profile
-              token={token}
-              user={user}
-              onLogout={onLogout}
-            />
-          </div>
+      <div className="relative pt-28 px-3 sm:px-6 pb-10">
+        <div className="max-w-[1600px] mx-auto flex gap-6">
+          <aside className="w-64 shrink-0 hidden lg:block">
+            <InternSidebar currentPage="profile" onNavigate={onNavigate} />
+          </aside>
+
+          <main className="flex-1 min-w-0">
+            <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-4 sm:p-6">
+              <Profile
+                token={token}
+                user={user}
+                onLogout={onLogout}
+              />
+            </div>
+          </main>
         </div>
       </div>
     </div>

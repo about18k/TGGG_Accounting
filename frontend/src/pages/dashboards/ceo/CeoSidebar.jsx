@@ -45,7 +45,7 @@ export default function CeoSidebar({
   }, [mobileCollapsible]);
 
   const wrapperClass = withFrame
-    ? `${cardClass} p-4 ${sticky ? 'lg:sticky lg:top-24' : ''} ${className}`.trim()
+    ? `${cardClass} p-4 ${sticky ? 'lg:sticky lg:top-28' : ''} ${className}`.trim()
     : className;
 
   const mobilePanelClass = `${cardClass} p-4 rounded-none border-l border-white/10 border-t-0 border-b-0 border-r-0 bg-[#001f35]/95 backdrop-blur-xl shadow-2xl`;

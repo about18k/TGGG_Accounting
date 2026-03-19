@@ -30,7 +30,7 @@ export default function BimSpecialistSidebar({
   };
 
   return (
-    <div className={`${cardClass} p-4 sticky top-24`}>
+    <div className={`${cardClass} p-4 sticky top-28`}>
       <nav className="space-y-2">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
