@@ -25,28 +25,12 @@ from .session_service import (
 # Create your views here.
 
 OVERTIME_REVIEWER_ROLES = {
-    'site_coordinator',
-    'studio_head',
-    'admin',
     'accounting',
-    'president',
-    'ceo',
 }
 ATTENDANCE_VIEWER_ROLES = {
     'accounting',
     'studio_head',
     'admin',
-}
-SUPERVISOR_CONFIRM_ROLES = {
-    'studio_head',
-}
-MANAGEMENT_CONFIRM_ROLES = {
-    'accounting',
-}
-OVERTIME_APPROVAL_OVERRIDE_ROLES = {
-    'admin',
-    'president',
-    'ceo',
 }
 
 @api_view(['GET'])
@@ -67,11 +51,10 @@ def _notify_overtime_submitted(overtime_request, actor):
 
     reviewer_recipients = CustomUser.objects.filter(
         is_active=True,
-        role__in=['studio_head', 'accounting'],
+        role='accounting',
     ).exclude(id=actor.id)
 
     for recipient in reviewer_recipients:
-        reviewer_label = 'Studio Head' if recipient.role == 'studio_head' else 'Accounting'
         NotificationService.create_notification(
             recipient=recipient,
             actor=actor,
@@ -79,7 +62,7 @@ def _notify_overtime_submitted(overtime_request, actor):
             title='New OT Request Submitted',
             message=(
                 f'{requester_name} submitted an OT request '
-                f'({overtime_request.anticipated_hours} hrs). Please review as {reviewer_label}.'
+                f'({overtime_request.anticipated_hours} hrs). Please review as Accounting.'
             ),
         )
 
@@ -91,14 +74,14 @@ def _notify_overtime_fully_approved(overtime_request, actor):
         notif_type='ot_fully_approved',
         title='OT Request Fully Approved',
         message=(
-            'Your OT request has been approved by Studio Head and Accounting. '
+            'Your OT request has been approved by Accounting. '
             'You can now time in and time out for overtime during the approved dates.'
         ),
     )
 
 
 def _can_review_overtime(user):
-    return bool(user.is_staff or user.is_superuser or user.role in OVERTIME_REVIEWER_ROLES)
+    return bool(user.is_superuser or user.role in OVERTIME_REVIEWER_ROLES)
 
 
 def _can_view_all_attendance(user):
@@ -112,23 +95,7 @@ def _has_text(value):
 
 
 def _is_overtime_fully_approved(overtime_request):
-    return _has_text(overtime_request.supervisor_signature) and _has_text(overtime_request.management_signature)
-
-
-def _can_confirm_supervisor(user):
-    return bool(
-        user.is_superuser
-        or user.role in SUPERVISOR_CONFIRM_ROLES
-        or user.role in OVERTIME_APPROVAL_OVERRIDE_ROLES
-    )
-
-
-def _can_confirm_management(user):
-    return bool(
-        user.is_superuser
-        or user.role in MANAGEMENT_CONFIRM_ROLES
-        or user.role in OVERTIME_APPROVAL_OVERRIDE_ROLES
-    )
+    return _has_text(overtime_request.management_signature)
 
 
 def _approval_signature_for(user):
@@ -161,8 +128,6 @@ def _has_approved_overtime_for_day(user, day):
     approved_requests = (
         OvertimeRequest.objects
         .filter(employee=user)
-        .exclude(supervisor_signature__isnull=True)
-        .exclude(supervisor_signature='')
         .exclude(management_signature__isnull=True)
         .exclude(management_signature='')
         .order_by('-created_at')
@@ -298,6 +263,7 @@ def _format_location(payload):
 def _serialize_overtime_request(request_obj):
     supervisor_confirmed = _has_text(request_obj.supervisor_signature)
     management_confirmed = _has_text(request_obj.management_signature)
+    fully_approved = _is_overtime_fully_approved(request_obj)
 
     return {
         'id': request_obj.id,
@@ -314,7 +280,7 @@ def _serialize_overtime_request(request_obj):
         'management_signature': request_obj.management_signature,
         'supervisor_confirmed': supervisor_confirmed,
         'management_confirmed': management_confirmed,
-        'is_fully_approved': supervisor_confirmed and management_confirmed,
+        'is_fully_approved': fully_approved,
         'approval_date': request_obj.approval_date,
         'periods': request_obj.periods or [],
         'created_at': request_obj.created_at,
@@ -455,7 +421,7 @@ def clock_in(request):
             {
                 'error': (
                     'Overtime clock-in requires an approved overtime request for today '
-                    'confirmed by Studio Head and Accounting.'
+                    'confirmed by Accounting.'
                 )
             },
             status=status.HTTP_400_BAD_REQUEST,
@@ -734,29 +700,18 @@ def approve_overtime_request(request, request_id):
     wants_management = 'management_signature' in request_data
     wants_approval_date = 'approval_date' in request_data
 
-    if not (wants_supervisor or wants_management or wants_approval_date):
+    if wants_supervisor:
+        return Response(
+            {'error': 'Supervisor approval is no longer required. Accounting approval only.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not (wants_management or wants_approval_date):
         return Response({'error': 'No approval fields provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
     fields_to_update = []
 
-    if wants_supervisor:
-        if not _can_confirm_supervisor(request.user):
-            return Response(
-                {'error': 'Only Studio Head can confirm the supervisor approval.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        if _has_text(overtime_request.supervisor_signature):
-            return Response({'error': 'Supervisor approval is already confirmed.'}, status=status.HTTP_400_BAD_REQUEST)
-
-        overtime_request.supervisor_signature = _approval_signature_for(request.user)
-        fields_to_update.append('supervisor_signature')
-
     if wants_management:
-        if not _can_confirm_management(request.user):
-            return Response(
-                {'error': 'Only Accounting can confirm the management approval.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
         if _has_text(overtime_request.management_signature):
             return Response({'error': 'Management approval is already confirmed.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -767,7 +722,7 @@ def approve_overtime_request(request, request_id):
 
     if wants_approval_date and not is_fully_approved:
         return Response(
-            {'error': 'Approval date can only be set after both confirmations are complete.'},
+            {'error': 'Approval date can only be set after accounting confirmation is complete.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

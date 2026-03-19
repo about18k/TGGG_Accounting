@@ -340,7 +340,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                         items = [
                           { id: 'attendance', label: 'Attendance', icon: Home, path: 'attendance' },
                           { id: 'overtime', label: 'Overtime & Leave', icon: Clock, path: 'overtime' },
-                          { id: 'otrequest', label: 'OT Requests', icon: ClipboardCheck, path: 'otrequest' },
                           { id: 'bim-docs', label: 'BIM Documentation', icon: FolderKanban, path: 'studio-head-bim-docs' },
                           { id: 'junior-architect-docs', label: 'Junior Architect Docs', icon: User, path: 'studio-head-junior-docs' },
                           { id: 'material-requests', label: 'Material Request', icon: ClipboardList, path: 'studio-head-material-requests' },

@@ -190,7 +190,7 @@ export function renderDashboard({
         if (currentPage === 'studio-head-material-requests') return <StudioHeadMaterialRequestPage user={user} onNavigate={handleNavigate} />;
 
         // These keys map to panels inside StudioHeadDashboard
-        const studioHeadPages = ['approvals', 'users', 'reviews', 'coordination', 'otrequest', 'studio-head'];
+        const studioHeadPages = ['approvals', 'users', 'reviews', 'coordination', 'studio-head'];
         if (studioHeadPages.includes(currentPage)) {
             return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} currentPage={currentPage} />;
         }

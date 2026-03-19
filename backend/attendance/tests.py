@@ -93,30 +93,20 @@ class OvertimeApprovalWorkflowTests(TestCase):
 		self.assertFalse(response.data['management_signature'])
 		self.assertIsNone(response.data['approval_date'])
 
-	def test_only_studio_head_can_confirm_supervisor(self):
+	def test_only_accounting_can_confirm_management(self):
 		request_data = self._create_request_as_employee()
 
-		self._authenticate(self.accounting)
+		self._authenticate(self.studio_head)
 		response = self.client.put(
 			f"/api/overtime/{request_data['id']}/approve",
-			{'supervisor_signature': 'approve'},
+			{'management_signature': 'approve'},
 			format='json',
 		)
 
 		self.assertEqual(response.status_code, 403)
 
-	def test_dual_confirmation_sets_fully_approved(self):
+	def test_accounting_confirmation_sets_fully_approved(self):
 		request_data = self._create_request_as_employee()
-
-		self._authenticate(self.studio_head)
-		studio_head_response = self.client.put(
-			f"/api/overtime/{request_data['id']}/approve",
-			{'supervisor_signature': 'approve'},
-			format='json',
-		)
-		self.assertEqual(studio_head_response.status_code, 200)
-		self.assertTrue(studio_head_response.data['supervisor_confirmed'])
-		self.assertFalse(studio_head_response.data['management_confirmed'])
 
 		self._authenticate(self.accounting)
 		accounting_response = self.client.put(
@@ -125,31 +115,23 @@ class OvertimeApprovalWorkflowTests(TestCase):
 			format='json',
 		)
 		self.assertEqual(accounting_response.status_code, 200)
-		self.assertTrue(accounting_response.data['supervisor_confirmed'])
+		self.assertFalse(accounting_response.data['supervisor_confirmed'])
 		self.assertTrue(accounting_response.data['management_confirmed'])
 		self.assertTrue(accounting_response.data['is_fully_approved'])
 		self.assertIsNotNone(accounting_response.data['approval_date'])
 
-	def test_overtime_submission_notifies_studio_head_and_accounting(self):
+	def test_overtime_submission_notifies_accounting_only(self):
 		self._create_request_as_employee()
 
 		notifications = TodoNotification.objects.filter(type='ot_submitted')
 		recipient_ids = set(notifications.values_list('recipient_id', flat=True))
 
-		self.assertIn(self.studio_head.id, recipient_ids)
 		self.assertIn(self.accounting.id, recipient_ids)
+		self.assertNotIn(self.studio_head.id, recipient_ids)
 		self.assertNotIn(self.employee.id, recipient_ids)
 
-	def test_dual_confirmation_notifies_employee_about_overtime_clock_access(self):
+	def test_accounting_confirmation_notifies_employee_about_overtime_clock_access(self):
 		request_data = self._create_request_as_employee()
-
-		self._authenticate(self.studio_head)
-		studio_head_response = self.client.put(
-			f"/api/overtime/{request_data['id']}/approve",
-			{'supervisor_signature': 'approve'},
-			format='json',
-		)
-		self.assertEqual(studio_head_response.status_code, 200)
 
 		self._authenticate(self.accounting)
 		accounting_response = self.client.put(
@@ -178,13 +160,6 @@ class OvertimeApprovalWorkflowTests(TestCase):
 		blocked_response = self.client.post('/api/attendance/clock-in/', {}, format='json')
 		self.assertEqual(blocked_response.status_code, 400)
 		self.assertIn('requires an approved overtime request', blocked_response.data['error'])
-
-		self._authenticate(self.studio_head)
-		self.client.put(
-			f"/api/overtime/{request_data['id']}/approve",
-			{'supervisor_signature': 'approve'},
-			format='json',
-		)
 
 		self._authenticate(self.accounting)
 		self.client.put(

@@ -3,11 +3,6 @@ import { CheckCircle2, Clock3, Search, UserRound } from 'lucide-react';
 import { approveOvertime, getAllOvertime } from '../../../services/overtimeService';
 
 const REVIEWER_CONFIG = {
-  studio_head: {
-    field: 'supervisor_signature',
-    label: 'Studio Head',
-    actionLabel: 'Confirm as Studio Head',
-  },
   accounting: {
     field: 'management_signature',
     label: 'Accounting',
@@ -18,33 +13,18 @@ const REVIEWER_CONFIG = {
 const hasSignature = (value) => Boolean(String(value || '').trim());
 
 const toDisplayStatus = (requestItem) => {
-  const supervisorApproved = hasSignature(requestItem.supervisor_signature);
   const managementApproved = hasSignature(requestItem.management_signature);
 
-  if (supervisorApproved && managementApproved) {
+  if (managementApproved) {
     return {
       label: 'Approved',
       tone: 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30',
     };
   }
 
-  if (supervisorApproved) {
-    return {
-      label: 'Waiting for Accounting',
-      tone: 'bg-amber-500/15 text-amber-300 border-amber-400/30',
-    };
-  }
-
-  if (managementApproved) {
-    return {
-      label: 'Waiting for Studio Head',
-      tone: 'bg-amber-500/15 text-amber-300 border-amber-400/30',
-    };
-  }
-
   return {
-    label: 'Pending',
-    tone: 'bg-white/10 text-white/70 border-white/20',
+    label: 'Pending Accounting Review',
+    tone: 'bg-amber-500/15 text-amber-300 border-amber-400/30',
   };
 };
 
@@ -104,9 +84,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
       return;
     }
 
-    const payload = reviewer.field === 'management_signature'
-      ? { management_signature: 'confirmed' }
-      : { supervisor_signature: 'confirmed' };
+    const payload = { management_signature: 'confirmed' };
 
     setSavingId(requestItem.id);
     setError('');
@@ -128,7 +106,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
         <div>
           <h2 className="text-xl font-semibold text-white">OT Requests</h2>
           <p className="text-sm text-white/60 mt-1">
-            {reviewer.label} confirmation is required before overtime time-in/time-out is allowed.
+            Accounting confirmation is required before overtime time-in/time-out is allowed.
           </p>
         </div>
         <button
@@ -272,7 +250,6 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
             <div className="rounded-lg border border-white/10 bg-[#001f35]/60 p-3">
               <p className="text-xs text-white/45 uppercase tracking-wide">Approvals</p>
               <div className="mt-2 space-y-2 text-sm">
-                <p className="text-white/85"><span className="text-white/55">Studio Head:</span> {hasSignature(selectedRequest.supervisor_signature) ? 'Confirmed' : 'Pending'}</p>
                 <p className="text-white/85"><span className="text-white/55">Accounting:</span> {hasSignature(selectedRequest.management_signature) ? 'Confirmed' : 'Pending'}</p>
                 <p className="text-white/85"><span className="text-white/55">Approval Date:</span> {selectedRequest.approval_date || '-'}</p>
               </div>

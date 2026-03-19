@@ -52,12 +52,9 @@ function OvertimeRequests({ token }) {
   };
 
   const statusLabel = (req) => {
-    const sup = !!req.supervisor_signature;
-    const mgmt = !!req.management_signature;
-    if (sup && mgmt) return 'Approved';
-    if (sup && !mgmt) return 'Waiting for Top Management Approval';
-    if (!sup && mgmt) return 'Waiting for Supervisor Approval';
-    return 'Pending';
+    const accountingApproved = !!req.management_signature;
+    if (accountingApproved) return 'Approved';
+    return 'Pending Accounting Approval';
   };
 
   const isSelectedApproved = selected ? statusLabel(selected) === 'Approved' : false;
@@ -66,7 +63,6 @@ function OvertimeRequests({ token }) {
     if (!selected) return;
     try {
       await approveOvertime(selected.id, {
-        supervisor_signature: 'approved',
         management_signature: 'approved',
         approval_date: approvalDate
       });
@@ -413,11 +409,7 @@ function OvertimeRequests({ token }) {
               <div class="approval-signatures">
                 <div class="approval-block">
                   <div class="signature-line" style="margin-top: 15px;"></div>
-                  <div class="signature-label">Supervisor Signature</div>
-                </div>
-                <div class="approval-block">
-                  <div class="signature-line" style="margin-top: 15px;"></div>
-                  <div class="signature-label">Management Signature</div>
+                  <div class="signature-label">Accounting Signature</div>
                 </div>
               </div>
             </div>

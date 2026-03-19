@@ -14,12 +14,9 @@ const escapeHtml = (value) => {
 };
 
 const statusLabel = (req) => {
-  const sup = !!req.supervisor_signature;
-  const mgmt = !!req.management_signature;
-  if (sup && mgmt) return 'Approved';
-  if (sup && !mgmt) return 'Waiting for Top Management Approval';
-  if (!sup && mgmt) return 'Waiting for Supervisor Approval';
-  return 'Pending';
+  const accountingApproved = !!req.management_signature;
+  if (accountingApproved) return 'Approved';
+  return 'Pending Accounting Approval';
 };
 
 function OvertimeStatus({ token }) {
@@ -152,8 +149,7 @@ function OvertimeStatus({ token }) {
               <div class="approval-title">For Official Use Only - Approval</div>
               <div class="field-row" style="margin-bottom:15px;"><div class="field-group"><span class="field-label">Approval Date:</span><span class="field-value">${escapeHtml(req.approval_date || '')}</span><div class="approval-note" style="margin-left:15px;">Approved</div></div></div>
               <div class="approval-signatures">
-                <div class="approval-block"><div class="signature-line" style="margin-top:15px;"></div><div class="signature-label">Supervisor Signature</div></div>
-                <div class="approval-block"><div class="signature-line" style="margin-top:15px;"></div><div class="signature-label">Management Signature</div></div>
+                <div class="approval-block"><div class="signature-line" style="margin-top:15px;"></div><div class="signature-label">Accounting Signature</div></div>
               </div>
             </div>
           </div>

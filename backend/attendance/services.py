@@ -10,12 +10,7 @@ from django.db import transaction
 from .models import Attendance, CalendarEvent, Leave, OvertimeRequest, TimeLog
 
 OVERTIME_REVIEWER_ROLES = {
-    'site_coordinator',
-    'studio_head',
-    'admin',
     'accounting',
-    'president',
-    'ceo',
 }
 
 ATTENDANCE_VIEWER_ROLES = {
@@ -252,7 +247,7 @@ class OvertimeService:
             anticipated_hours=anticipated_hours,
             explanation=explanation,
             employee_signature=overtime_data.get('employee_signature'),
-            supervisor_signature=overtime_data.get('supervisor_signature'),
+            supervisor_signature=None,
             management_signature=overtime_data.get('management_signature'),
             periods=periods,
         )
@@ -280,8 +275,7 @@ class OvertimeService:
         fields_to_update = []
 
         if 'supervisor_signature' in approval_data:
-            overtime_request.supervisor_signature = approval_data.get('supervisor_signature')
-            fields_to_update.append('supervisor_signature')
+            raise ValueError('Supervisor approval is no longer required. Accounting approval only.')
 
         if 'management_signature' in approval_data:
             overtime_request.management_signature = approval_data.get('management_signature')

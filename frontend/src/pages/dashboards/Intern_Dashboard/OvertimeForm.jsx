@@ -45,7 +45,6 @@ const getInitialFormState = () => ({
   anticipated_hours: '',
   explanation: '',
   employee_signature: '',
-  supervisor_signature: '',
   management_signature: '',
   approval_date: ''
 });
@@ -583,15 +582,7 @@ function OvertimeForm({ token }) {
                     </div>
                   </div>
                   <div className="overtime-field">
-                    <label>Supervisor Signature</label>
-                    <input
-                      type="text"
-                      placeholder="To be signed"
-                      disabled
-                    />
-                  </div>
-                  <div className="overtime-field">
-                    <label>Top Management Signature</label>
+                    <label>Accounting Signature</label>
                     <input
                       type="text"
                       placeholder="To be signed"
@@ -614,7 +605,7 @@ function OvertimeForm({ token }) {
                 <ul>
                   <li>No overtime will be paid unless this form has been completed prior to overtime. In emergencies, complete within the same week.</li>
                   <li>The employee must submit a signed timesheet for specific overtime work before payroll completion.</li>
-                  <li>The form will be returned to the immediate supervisor.</li>
+                  <li>The form will be reviewed by the Accounting department.</li>
                 </ul>
               </div>
 
