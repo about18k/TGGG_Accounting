@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Calendar, MapPin, ShieldCheck, User } from 'lucide-react';
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
+import InternSidebar from './components/InternSidebar';
 import LocationAttendance from '../../../components/attendance/LocationAttendance';
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
 import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';
@@ -135,16 +136,27 @@ export default function InternDashboard({ user, onNavigate }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0">
+    <div className="min-h-screen bg-[#00273C] relative">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
 
       <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
 
-      <div className="relative pt-28 px-3 sm:px-6 pb-10 w-full">
-        <div className="max-w-[1400px] mx-auto px-2 sm:px-10 space-y-5 sm:space-y-8">
-          {activeSection === 'attendance' && renderAttendance()}
+      <div className="relative pt-28 px-3 sm:px-6 pb-10">
+        <div className="max-w-[1600px] mx-auto flex gap-6">
+          <aside className="w-64 shrink-0 hidden lg:block">
+            <InternSidebar 
+              currentPage="attendance" 
+              onNavigate={onNavigate} 
+              activeSection={activeSection} 
+              onSelectSection={setActiveSection} 
+            />
+          </aside>
+
+          <main className="flex-1 min-w-0">
+            {activeSection === 'attendance' && renderAttendance()}
+          </main>
         </div>
       </div>
     </div>

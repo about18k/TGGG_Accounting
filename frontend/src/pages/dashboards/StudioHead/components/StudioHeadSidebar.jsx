@@ -47,7 +47,7 @@ export default function StudioHeadSidebar({
   };
 
   return (
-    <div className={`${cardClass} p-4 lg:sticky lg:top-24`}>
+    <div className={`${cardClass} p-4 lg:sticky lg:top-28`}>
       <nav className="space-y-4">
         <div className="space-y-1">
           {PRIMARY_LINKS.map(renderLink)}

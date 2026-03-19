@@ -321,6 +321,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                           { id: 'events', label: 'Calendar / Events', icon: Calendar, path: 'events' },
                           { id: 'bim-docs', label: 'BIM Documentation', icon: FolderKanban, path: 'studio-head-bim-docs' },
                           { id: 'junior-architect-docs', label: 'Junior Architect Docs', icon: User, path: 'studio-head-junior-docs' },
+                          { id: 'material-requests', label: 'Material Request', icon: ClipboardList, path: 'studio-head-material-requests' },
                           { id: 'approvals', label: 'User Approvals', icon: ClipboardCheck, path: 'approvals' },
                           { id: 'users', label: 'Manage Users', icon: Users, path: 'users' },
                           { id: 'reviews', label: 'Design Reviews', icon: FileText, path: 'reviews' },

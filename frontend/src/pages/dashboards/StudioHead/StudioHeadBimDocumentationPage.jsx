@@ -416,8 +416,8 @@ const StudioHeadBimDocumentationPage = ({
     const attachmentCount = selectedDoc ? (selectedDoc.files?.length ?? selectedDoc.file_count ?? 0) : 0;
 
     return (
-        <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
-            <div className="pointer-events-none absolute inset-0">
+        <div className="min-h-screen bg-[#00273C] relative">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden">
                 <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
             </div>
 
@@ -485,9 +485,9 @@ const StudioHeadBimDocumentationPage = ({
                             />
                         </section>
 
-                        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                             <div className="lg:col-span-1">
-                                <div className={cardClass}>
+                                <div className={`${cardClass} flex flex-col h-full`}>
                                     <div className="p-5 border-b border-white/10">
                                         <p className="text-lg font-semibold text-white">{activeTabMeta.label}</p>
                                         <p className="mt-1 text-sm text-white/55">{activeTabMeta.description}</p>
@@ -522,7 +522,7 @@ const StudioHeadBimDocumentationPage = ({
 
                             <div className="lg:col-span-2">
                                 {selectedDoc ? (
-                                    <section className={cardClass}>
+                                    <section className={`${cardClass} flex flex-col h-full`}>
                                         <div className="p-6 border-b border-white/10">
                                             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                                                 <div className="min-w-0">
@@ -688,16 +688,14 @@ const StudioHeadBimDocumentationPage = ({
                                         </div>
                                     </section>
                                 ) : (
-                                    <div className={cardClass}>
-                                        <div className="flex flex-col items-center justify-center py-32 px-4 text-center">
-                                            <div className="w-20 h-20 bg-[#FF7120]/10 rounded-3xl border border-[#FF7120]/20 flex items-center justify-center mb-6">
-                                                <FileText className="w-10 h-10 text-[#FF7120]" />
-                                            </div>
-                                            <h3 className="text-2xl font-semibold text-white mb-2">Check Documentation Details</h3>
-                                            <p className="text-white/50 max-w-sm">
-                                                Select a documentation from the list on the left to review its content, attachments, and discussion history.
-                                            </p>
+                                    <div className={`${cardClass} h-full flex flex-col items-center justify-center p-8 text-center`}>
+                                        <div className="w-20 h-20 bg-[#FF7120]/10 rounded-3xl border border-[#FF7120]/20 flex items-center justify-center mb-6">
+                                            <FileText className="w-10 h-10 text-[#FF7120]" />
                                         </div>
+                                        <h3 className="text-2xl font-semibold text-white mb-2">Check Documentation Details</h3>
+                                        <p className="text-white/50 max-w-sm mx-auto">
+                                            Select a documentation from the list on the left to review its content, attachments, and discussion history.
+                                        </p>
                                     </div>
                                 )}
                             </div>

@@ -27,7 +27,7 @@ export default function SiteEngineerSidebar({
   };
 
   return (
-    <div className={`${cardClass} p-4 sticky top-24`}>
+    <div className={`${cardClass} p-4 sticky top-28`}>
       <nav className="space-y-2">
         {PRIORITY_LINKS.map((item) => {
           const Icon = item.icon;

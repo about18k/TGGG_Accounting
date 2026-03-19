@@ -52,7 +52,7 @@ export default function AttendanceHistoryTable({
         </div>
       </div>
 
-      <div className="max-h-[520px] overflow-auto">
+      <div className="max-h-[520px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <table className="w-full min-w-[1200px] border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[#001a2b] border-b border-white/10">
