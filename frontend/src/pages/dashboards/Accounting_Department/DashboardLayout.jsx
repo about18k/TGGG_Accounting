@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   Button,
   Popover,
@@ -57,8 +57,12 @@ const sectionMeta = {
     description: 'Review personal attendance logs and leave activity.',
   },
   overtime: {
-    title: 'Overtime Requests',
-    description: 'Submit and track overtime requests.',
+    title: 'My Overtime',
+    description: 'Submit and track your OT requests.',
+  },
+  otrequest: {
+    title: 'OT Requests',
+    description: 'Review and confirm submitted OT requests from employees.',
   },
   events: {
     title: 'Calendar / Events',
@@ -81,31 +85,37 @@ export function DashboardLayout({
   const [notificationFilter, setNotificationFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
   const [typeFilter, setTypeFilter] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredNotifications = notifications
-    .filter((notification) => {
-      const matchesReadFilter =
-        notificationFilter === 'all' ||
-        (notificationFilter === 'read' && notification.is_read) ||
-        (notificationFilter === 'unread' && !notification.is_read);
-      
-      const getCategoryFromType = (type) => {
-        if (!type) return 'system';
-        if (type.includes('ot_')) return 'overtime';
-        if (type.includes('checkout') || type.includes('attendance')) return 'attendance';
-        return 'system';
-      };
+  const filteredNotifications = useMemo(() => {
+    const getCategoryFromType = (type) => {
+      if (!type) return 'system';
+      if (type.includes('ot_')) return 'overtime';
+      if (type.includes('checkout') || type.includes('attendance')) return 'attendance';
+      return 'system';
+    };
 
-      const matchesTypeFilter = typeFilter === 'all' || getCategoryFromType(notification.type) === typeFilter;
-      return matchesReadFilter && matchesTypeFilter;
-    })
-    .sort((a, b) => {
-      if (sortOrder === 'oldest') return a.id - b.id;
-      return b.id - a.id;
-    });
+    return notifications
+      .filter((notification) => {
+        const matchesReadFilter =
+          notificationFilter === 'all' ||
+          (notificationFilter === 'read' && notification.is_read) ||
+          (notificationFilter === 'unread' && !notification.is_read);
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+        const matchesTypeFilter =
+          typeFilter === 'all' || getCategoryFromType(notification.type) === typeFilter;
+
+        return matchesReadFilter && matchesTypeFilter;
+      })
+      .sort((a, b) => {
+        if (sortOrder === 'oldest') return a.id - b.id;
+        return b.id - a.id;
+      });
+  }, [notifications, notificationFilter, typeFilter, sortOrder]);
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.is_read).length,
+    [notifications]
+  );
 
 
   const currentTab =
@@ -322,8 +332,6 @@ export function DashboardLayout({
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/45" />
                       <input
                         type="text"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search..."
                         className="h-10 w-full rounded-xl border border-white/15 bg-[#00273C]/60 pl-10 pr-4 text-sm text-white placeholder:text-white/45 outline-none focus:border-[#FF7120]/70 focus:ring-2 focus:ring-[#FF7120]/25"
                       />

@@ -1,7 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { Suspense, lazy } from 'react';
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
-import { GitMerge, Calendar, ClipboardCheck, Users, FileText, Home, UserCheck } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { GitMerge, Calendar, ClipboardCheck, Users, FileText, Clock } from 'lucide-react';
 import PendingApprovalsPanel from './components/PendingApprovalsPanel';
 import ManageUsersPanel from './components/ManageUsersPanel';
 import CoordinatorPanel from './components/CoordinatorPanel';
@@ -15,11 +14,12 @@ const TABS = [
   { id: 'users', label: 'Manage Users', icon: Users },
   { id: 'reviews', label: 'Design Reviews', icon: FileText },
   { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge },
+  { id: 'otrequest', label: 'OT Requests', icon: Clock },
 ];
 
+const OvertimeRequestApprovalsPanel = lazy(() => import('../shared/OvertimeRequestApprovalsPanel'));
+
 export default function StudioHeadDashboard({ user, onLogout, onNavigate, currentPage = 'approvals' }) {
-  const location = useLocation();
-  
   // Use currentPage from props as the source of truth
   const activeTab = (currentPage === 'studio-head' || !currentPage) ? 'approvals' : currentPage;
 
@@ -138,6 +138,11 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate, curren
                     />
                   )}
 
+                  {activeTab === 'otrequest' && (
+                    <Suspense fallback={<div className="text-sm text-white/70">Loading OT requests...</div>}>
+                      <OvertimeRequestApprovalsPanel reviewerRole="studio_head" />
+                    </Suspense>
+                  )}
                 </div>
               </div>
             </main>

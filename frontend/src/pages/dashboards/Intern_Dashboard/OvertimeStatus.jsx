@@ -69,7 +69,7 @@ function OvertimeStatus({ token }) {
     const html = `
       <html>
         <head>
-          <title>Overtime Request Form</title>
+          <title>OT Request Form</title>
           <style>
             @page { size: A4; margin: 0.5in; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -110,7 +110,7 @@ function OvertimeStatus({ token }) {
             <div class="header">
               <img src="/imgs/formlogo.png" alt="Company Logo" class="logo" />
               <div class="header-text">
-                <div class="form-title">Overtime Request Form</div>
+                <div class="form-title">OT Request Form</div>
               </div>
             </div>
             <div class="section">
@@ -178,7 +178,7 @@ function OvertimeStatus({ token }) {
       )}
       <div className="welcome">
         <h2>OT Request Status</h2>
-        <p>View your submitted overtime requests.</p>
+        <p>View your submitted OT requests.</p>
       </div>
       <div className="attendance-table">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -203,7 +203,7 @@ function OvertimeStatus({ token }) {
                 {requests.length === 0 ? (
                   <tr>
                     <td colSpan="6" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
-                      No overtime requests yet.
+                      No OT requests yet.
                     </td>
                   </tr>
                 ) : (
@@ -268,7 +268,7 @@ function OvertimeStatus({ token }) {
               alignItems: 'center',
               marginBottom: '1.5rem'
             }}>
-              <h3 style={{ color: '#e8eaed', margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>Overtime Request Form</h3>
+              <h3 style={{ color: '#e8eaed', margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>OT Request Form</h3>
               <button
                 onClick={() => setSelectedForView(null)}
                 style={{

@@ -249,6 +249,12 @@ NOTIFICATION_TYPE_CHOICES = [
     ('dept_task_grabbed', 'Department Task Grabbed'),
     ('dept_task_completed', 'Department Task Completed'),
     ('dept_task_abandoned', 'Department Task Abandoned'),
+    ('user_verified', 'User Verified'),
+    ('payroll_processed', 'Payroll Processed'),
+    ('contribution_added', 'Contribution Added'),
+    ('contribution_updated', 'Contribution Updated'),
+    ('ot_submitted', 'OT Submitted'),
+    ('ot_fully_approved', 'OT Fully Approved'),
 ]
 
 

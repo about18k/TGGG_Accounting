@@ -9,6 +9,10 @@ def forwards(apps, schema_editor):
     # Drop old unique constraint if it exists
     if connection.vendor == 'postgresql':
         schema_editor.execute(
+            "ALTER TABLE attendance_attendance "
+            "DROP CONSTRAINT IF EXISTS attendance_attendance_employee_id_date_cb2c479f_uniq"
+        )
+        schema_editor.execute(
             "DROP INDEX IF EXISTS attendance_attendance_employee_id_date_cb2c479f_uniq"
         )
     elif connection.vendor == 'sqlite':

@@ -130,7 +130,7 @@ function OvertimeForm({ token }) {
       period.start_date === todayIso && period.end_date === todayIso
     );
     if (hasSameDayPeriod && nowMinutes >= cutoffMinutes) {
-      return 'Same-day overtime requests must be submitted before 3:00 PM.';
+      return 'Same-day OT requests must be submitted before 3:00 PM.';
     }
     const hasAnyPeriod = periods.some(period => period.start_date || period.end_date || period.start_time || period.end_time);
     if (!hasAnyPeriod) {
@@ -250,7 +250,7 @@ function OvertimeForm({ token }) {
         periods: periods.filter(p => p.start_date || p.end_date || p.start_time || p.end_time)
       };
       await submitOvertime(payload);
-      setAlert({ type: 'success', title: 'Submitted', message: 'Overtime request submitted successfully.' });
+      setAlert({ type: 'success', title: 'Submitted', message: 'OT request submitted successfully.' });
       setPeriods([{
         start_date: '',
         end_date: '',
@@ -262,7 +262,7 @@ function OvertimeForm({ token }) {
       }
       setForm(getInitialFormState());
     } catch (err) {
-      const msg = err.response?.data?.error || 'Failed to submit overtime request.';
+      const msg = err.response?.data?.error || 'Failed to submit OT request.';
       setAlert({ type: 'error', title: 'Error', message: msg });
     } finally {
       setSaving(false);
@@ -331,8 +331,8 @@ function OvertimeForm({ token }) {
         ) : (
           <>
             <div className="overtime-heading">
-              <h2>Overtime Request Form</h2>
-              <p>Submit overtime details for approval.</p>
+              <h2>OT Request Form</h2>
+              <p>Submit OT details for approval.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="overtime-form">
@@ -638,7 +638,7 @@ function OvertimeForm({ token }) {
                     }
                   }}
                 >
-                  {saving ? 'Submitting...' : 'Submit Overtime Request'}
+                  {saving ? 'Submitting...' : 'Submit OT Request'}
                 </button>
               </div>
             </form>

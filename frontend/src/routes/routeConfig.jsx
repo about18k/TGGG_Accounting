@@ -2,6 +2,8 @@
  * Route configuration extracted from App.jsx
  * Maps user roles + currentPage to the correct dashboard component.
  */
+import { lazy, Suspense } from 'react';
+
 import StudioHeadDashboard from '../pages/dashboards/StudioHead/StudioHeadDashboard';
 import StudioHeadAttendance from '../pages/dashboards/StudioHead/StudioHeadAttendance';
 import StudioHeadProfilePage from '../pages/dashboards/StudioHead/StudioHeadProfilePage';
@@ -52,15 +54,36 @@ import CeoOvertimePage from '../pages/dashboards/ceo/CeoOvertimePage';
 import CeoTodoPage from '../pages/dashboards/ceo/CeoTodoPage';
 import CeoProfilePage from '../pages/dashboards/ceo/CeoProfilePage';
 
-import { DashboardLayout } from '../pages/dashboards/Accounting_Department/DashboardLayout';
-import { DashboardOverview } from '../pages/dashboards/Accounting_Department/DashboardOverview';
-import { EmployeeManagement } from '../pages/dashboards/Accounting_Department/EmployeeManagement';
-import { AttendanceLeave } from '../pages/dashboards/Accounting_Department/AttendanceLeave';
-import { PayrollManagement } from '../pages/dashboards/Accounting_Department/PayrollManagement';
-import { Settings } from '../pages/dashboards/Accounting_Department/Settings';
-import AccountingPersonalAttendance from '../pages/dashboards/Accounting_Department/AccountingPersonalAttendance';
-import AccountingOvertimePage from '../pages/dashboards/Accounting_Department/AccountingOvertimePage';
-import AccountingEventsPanel from '../pages/dashboards/Accounting_Department/AccountingEventsPanel';
+const AccountingDashboardLayout = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/DashboardLayout').then((mod) => ({ default: mod.DashboardLayout }))
+);
+const AccountingDashboardOverview = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/DashboardOverview').then((mod) => ({ default: mod.DashboardOverview }))
+);
+const AccountingEmployeeManagement = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/EmployeeManagement').then((mod) => ({ default: mod.EmployeeManagement }))
+);
+const AccountingAttendanceLeave = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/AttendanceLeave').then((mod) => ({ default: mod.AttendanceLeave }))
+);
+const AccountingPayrollManagement = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/PayrollManagement').then((mod) => ({ default: mod.PayrollManagement }))
+);
+const AccountingSettings = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/Settings').then((mod) => ({ default: mod.Settings }))
+);
+const AccountingPersonalAttendance = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/AccountingPersonalAttendance')
+);
+const AccountingOvertimePage = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/AccountingOvertimePage')
+);
+const AccountingEventsPanel = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/AccountingEventsPanel')
+);
+const AccountingOvertimeRequestsPanel = lazy(() =>
+    import('../pages/dashboards/shared/OvertimeRequestApprovalsPanel')
+);
 
 /**
  * Renders the accounting dashboard with its own layout and tabs.
@@ -83,6 +106,8 @@ export function renderAccountingDashboard({
                 ? 'overtime'
                 : currentPage === 'events'
                     ? 'events'
+                    : currentPage === 'otrequest'
+                        ? 'otrequest'
                     : 'main';
 
     const renderContent = () => {
@@ -106,35 +131,42 @@ export function renderAccountingDashboard({
         if (effectiveSection === 'events') {
             return <AccountingEventsPanel />;
         }
+        if (effectiveSection === 'otrequest') {
+            return <AccountingOvertimeRequestsPanel reviewerRole="accounting" />;
+        }
         switch (activeTab) {
             case 'dashboard':
-                return <DashboardOverview user={user} />;
+                return <AccountingDashboardOverview user={user} />;
             case 'employees':
-                return <EmployeeManagement />;
+                return <AccountingEmployeeManagement />;
             case 'attendance':
-                return <AttendanceLeave />;
+                return <AccountingAttendanceLeave />;
             case 'payroll':
-                return <PayrollManagement />;
+                return <AccountingPayrollManagement />;
             case 'settings':
-                return <Settings />;
+                return <AccountingSettings />;
             default:
-                return <DashboardOverview user={user} />;
+                return <AccountingDashboardOverview user={user} />;
         }
     };
 
     return (
-        <DashboardLayout
-            activeTab={activeTab}
-            activeSection={effectiveSection}
-            onLogout={handleLogout}
-            onNavigate={handleNavigate}
-            currentPage={currentPage}
-            notifications={notifications}
-            onNotificationClick={markNotificationRead}
-            onMarkAllRead={markAllNotificationsRead}
-        >
-            {renderContent()}
-        </DashboardLayout>
+        <Suspense fallback={<div className="min-h-screen bg-[#00273C] text-white flex items-center justify-center text-sm">Loading accounting workspace...</div>}>
+            <AccountingDashboardLayout
+                activeTab={activeTab}
+                activeSection={effectiveSection}
+                onLogout={handleLogout}
+                onNavigate={handleNavigate}
+                currentPage={currentPage}
+                notifications={notifications}
+                onNotificationClick={markNotificationRead}
+                onMarkAllRead={markAllNotificationsRead}
+            >
+                <Suspense fallback={<div className="py-8 text-sm text-white/70">Loading page...</div>}>
+                    {renderContent()}
+                </Suspense>
+            </AccountingDashboardLayout>
+        </Suspense>
     );
 }
 
@@ -158,7 +190,7 @@ export function renderDashboard({
         if (currentPage === 'studio-head-material-requests') return <StudioHeadMaterialRequestPage user={user} onNavigate={handleNavigate} />;
 
         // These keys map to panels inside StudioHeadDashboard
-        const studioHeadPages = ['approvals', 'users', 'reviews', 'coordination', 'studio-head'];
+        const studioHeadPages = ['approvals', 'users', 'reviews', 'coordination', 'otrequest', 'studio-head'];
         if (studioHeadPages.includes(currentPage)) {
             return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} currentPage={currentPage} />;
         }

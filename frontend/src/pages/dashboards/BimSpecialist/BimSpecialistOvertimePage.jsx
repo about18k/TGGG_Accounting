@@ -65,7 +65,7 @@ const BimSpecialistOvertimePage = ({ user, token, onNavigate }) => {
                     <main className="flex-1 min-w-0">
                         <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-4 sm:p-6">
                             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                                {renderTabButton('ot-form', 'Request Overtime')}
+                                {renderTabButton('ot-form', 'Request OT')}
                                 {renderTabButton('ot-status', 'OT Status')}
                                 {renderTabButton('leave-form', 'Request Leave')}
                                 {renderTabButton('leave-status', 'Leave Status')}

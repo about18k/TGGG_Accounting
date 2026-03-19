@@ -72,6 +72,8 @@ export function DashboardOverview({ user }) {
   useEffect(() => {
     if (!user) return;
 
+    let isActive = true;
+
     const fetchOverview = async () => {
       setLoading(true);
 
@@ -140,14 +142,20 @@ export function DashboardOverview({ user }) {
           return date.startsWith(todayStr) && ['absent', 'no show'].includes(status);
         }).length;
 
+        const pending = (overtime || []).filter(
+          (o) => !o.management_signature && !o.approval_date
+        );
+
+        if (!isActive) return;
+
         setMetrics((prev) => ({
           ...prev,
-          totalEmployees: totalEmployees || prev.totalEmployees,
-          activeEmployees: activeEmployees || prev.activeEmployees,
+          totalEmployees,
+          activeEmployees,
           onLeaveToday,
-          newHires: newHires || prev.newHires,
-          attendanceRate: attendanceRate || prev.attendanceRate,
-          monthlyPayroll: monthlyPayroll || prev.monthlyPayroll,
+          newHires,
+          attendanceRate,
+          monthlyPayroll: Number(monthlyPayroll.toFixed(2)),
           overtimePending: pending.length,
           absencesToday,
         }));
@@ -166,12 +174,9 @@ export function DashboardOverview({ user }) {
         setActivities(recentActivities);
 
         // Pending approvals from overtime requests lacking management signature
-        const pending = (overtime || []).filter(
-          (o) => !o.management_signature && !o.approval_date
-        );
         setPendingApprovals(pending.slice(0, 5).map((o) => ({
           id: o.id,
-          type: 'Overtime Request',
+          type: 'OT Request',
           employee: o.employee_name || o.full_name || 'Unknown',
           status: 'pending',
         })));
@@ -206,12 +211,18 @@ export function DashboardOverview({ user }) {
       } catch (error) {
         console.error('Failed to load dashboard overview metrics:', error);
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     };
 
     fetchOverview();
-  }, [user]);
+
+    return () => {
+      isActive = false;
+    };
+  }, [user?.id]);
 
   return (
     <div className="space-y-6">

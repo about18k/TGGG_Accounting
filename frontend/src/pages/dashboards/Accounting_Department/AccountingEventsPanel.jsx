@@ -42,9 +42,17 @@ export default function AccountingEventsPanel() {
     setSaving(true);
     setError('');
     try {
-      await createEvent(form);
+      const createdEvent = await createEvent(form);
       setForm({ title: '', date: '', event_type: 'event', is_holiday: false, description: '' });
-      fetchEvents();
+
+      if (createdEvent && (createdEvent.id || createdEvent.date)) {
+        setEvents((prev) => {
+          const next = [createdEvent, ...prev.filter((item) => item?.id !== createdEvent.id)];
+          return next.sort((a, b) => new Date(a.date) - new Date(b.date));
+        });
+      } else {
+        await fetchEvents();
+      }
     } catch (err) {
       const msg = err.response?.data?.error || 'Failed to save event';
       setError(msg);
@@ -177,4 +185,4 @@ export default function AccountingEventsPanel() {
       </div>
     </div>
   );
-}
+}

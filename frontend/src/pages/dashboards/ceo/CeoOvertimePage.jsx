@@ -60,7 +60,7 @@ const CeoOvertimePage = ({ user, token, onLogout, onNavigate }) => {
 
           <div className="flex-1 min-w-0 space-y-4 sm:space-y-8">
             <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              {renderTabButton('ot-form', 'Request Overtime')}
+              {renderTabButton('ot-form', 'Request OT')}
               {renderTabButton('ot-status', 'OT Status')}
               {renderTabButton('leave-form', 'Request Leave')}
               {renderTabButton('leave-status', 'Leave Status')}

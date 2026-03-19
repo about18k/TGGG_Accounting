@@ -39,7 +39,7 @@ function OvertimeRequests({ token }) {
       setAlert({
         type: 'error',
         title: 'Load failed',
-        message: err.response?.data?.error || 'Could not load overtime requests.'
+        message: err.response?.data?.error || 'Could not load OT requests.'
       });
     } finally {
       setLoading(false);
@@ -101,7 +101,7 @@ function OvertimeRequests({ token }) {
     const html = `
       <html>
         <head>
-          <title>Overtime Request Form</title>
+          <title>OT Request Form</title>
           <style>
             @page {
               size: A4;
@@ -324,7 +324,7 @@ function OvertimeRequests({ token }) {
             <div class="header">
               <img src="/imgs/formlogo.png" alt="Company Logo" class="logo" />
               <div class="header-text">
-                <div class="form-title">Overtime Request Form</div>
+                <div class="form-title">OT Request Form</div>
               </div>
             </div>
 
@@ -446,8 +446,8 @@ function OvertimeRequests({ token }) {
         />
       )}
       <div className="welcome box-border w-full">
-        <h2>Overtime Requests</h2>
-        <p>Coordinator view of all overtime submissions</p>
+        <h2>OT Requests</h2>
+        <p>Coordinator view of all OT submissions</p>
       </div>
       <div className="attendance-table box-border w-full">
         <div className="flex justify-between items-center p-5 border-b border-white/5 flex-wrap gap-4">

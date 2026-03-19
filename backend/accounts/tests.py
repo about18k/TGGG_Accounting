@@ -1,6 +1,7 @@
 from django.test import TestCase
 from rest_framework.test import APITestCase
 from rest_framework import status
+from todos.models import TodoNotification
 from .models import CustomUser, Department, ROLE_CHOICES
 from .serializers import CustomUserSerializer, PendingUserSerializer
 from django.utils import timezone
@@ -373,3 +374,52 @@ class RegisterViewTests(APITestCase):
         self.assertIn('success', response.data)
         self.assertIn('message', response.data)
         self.assertIn('user', response.data)
+
+
+class ApprovalNotificationTests(APITestCase):
+    """Test account approval notification scenarios."""
+
+    def setUp(self):
+        self.department = Department.objects.create(name='Accounting Department')
+        self.studio_head = CustomUser.objects.create_user(
+            username='studioheadnotif',
+            email='studiohead-notif@example.com',
+            password='testpass123',
+            role='studio_head',
+            is_active=True,
+        )
+        self.accounting_user = CustomUser.objects.create_user(
+            username='accountingnotif',
+            email='accounting-notif@example.com',
+            password='testpass123',
+            role='accounting',
+            department=self.department,
+            is_active=True,
+        )
+        self.pending_user = CustomUser.objects.create_user(
+            username='pendingapprovalnotif',
+            email='pending-approval@example.com',
+            password='testpass123',
+            first_name='Pending',
+            last_name='Employee',
+            is_active=False,
+        )
+
+    def test_studio_head_approval_notifies_accounting(self):
+        self.client.force_authenticate(user=self.studio_head)
+
+        response = self.client.post('/api/accounts/approve/', {
+            'user_id': self.pending_user.id,
+            'role': 'intern',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.accounting_user, type='user_verified')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('verified', notification.message.lower())

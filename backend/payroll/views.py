@@ -12,6 +12,7 @@ from rest_framework.response import Response
 
 from accounts.models import CustomUser
 from attendance.models import Attendance
+from todos.services import NotificationService
 from .models import DeductionType, PaySlip, PayrollProcessing, EmployeeContribution
 
 # Create your views here.
@@ -26,6 +27,23 @@ PAYROLL_MANAGER_ROLES = {
 
 def _can_manage_payroll(user):
     return bool(user.is_staff or user.is_superuser or user.role in PAYROLL_MANAGER_ROLES)
+
+
+def _display_name(user):
+    return f"{user.first_name} {user.last_name}".strip() or user.email
+
+
+def _notify_employee(recipient, actor, notif_type, title, message):
+    try:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=actor,
+            notif_type=notif_type,
+            title=title,
+            message=message,
+        )
+    except Exception as e:
+        print(f"⚠️ Notification failed for recipient_id={getattr(recipient, 'id', None)}: {e}")
 
 
 def _parse_iso_date(value, field_name):
@@ -651,6 +669,18 @@ def process_payroll(request):
         image_result = {'success': False, 'error': str(e), 'image_endpoint': None, 'storage': 'database'}
         email_result = {'sent': False, 'error': str(e), 'message': f'Error: {str(e)}'}
 
+    if email_result and email_result.get('sent'):
+        period_label = f"{period_start.strftime('%b %d, %Y')} to {period_end.strftime('%b %d, %Y')}"
+        _notify_employee(
+            recipient=employee,
+            actor=request.user,
+            notif_type='payroll_processed',
+            title='Payroll Processed and Emailed',
+            message=(
+                f'Your payroll for {period_label} has been processed and your payslip was emailed to {employee.email}.'
+            ),
+        )
+
     print(f"🔍 Preparing response...")
     try:
         # Ensure email_result has proper structure
@@ -887,6 +917,19 @@ def employee_contributions(request, employee_id):
         existing.amount = amount
         existing.is_active = True
         existing.save()
+
+        actor_name = _display_name(request.user)
+        _notify_employee(
+            recipient=employee,
+            actor=request.user,
+            notif_type='contribution_updated',
+            title='Government Contribution Updated',
+            message=(
+                f'{actor_name} updated your {existing.name} government contribution to PHP {existing.amount}. '
+                'This will be reflected in your payroll deductions.'
+            ),
+        )
+
         return Response({
             'id': existing.id,
             'name': existing.name,
@@ -898,6 +941,18 @@ def employee_contributions(request, employee_id):
         employee=employee,
         name=name,
         amount=amount,
+    )
+
+    actor_name = _display_name(request.user)
+    _notify_employee(
+        recipient=employee,
+        actor=request.user,
+        notif_type='contribution_added',
+        title='Government Contribution Added',
+        message=(
+            f'{actor_name} added a new {contribution.name} government contribution '
+            f'worth PHP {contribution.amount} to your payroll profile.'
+        ),
     )
 
     return Response({

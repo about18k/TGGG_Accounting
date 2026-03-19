@@ -1,9 +1,10 @@
 import React from 'react';
-import { Calendar, Clock, DollarSign, Home, Users } from 'lucide-react';
+import { Calendar, ClipboardCheck, Clock, DollarSign, Home, Users } from 'lucide-react';
 
 const PERSONAL_LINKS = [
   { id: 'dashboard', label: 'Dashboard', icon: Home },
   { id: 'personal_attendance', label: 'My Attendance', icon: Calendar, page: 'personal-attendance' },
+  { id: 'overtime', label: 'My Overtime', icon: Clock, page: 'overtime' },
 ];
 
 const DEPARTMENT_LINKS = [
@@ -13,8 +14,8 @@ const DEPARTMENT_LINKS = [
 
 const MANAGEMENT_LINKS = [
   { id: 'attendance', label: 'Attendance Records', icon: Clock, page: 'attendance' },
-  { id: 'overtime', label: 'Overtime Requests', icon: Clock, page: 'overtime' },
   { id: 'events', label: 'Calendar / Events', icon: Calendar, page: 'events' },
+  { id: 'otrequest', label: 'OT Requests', icon: ClipboardCheck, page: 'otrequest' },
 ];
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg';

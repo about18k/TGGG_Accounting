@@ -72,6 +72,22 @@ const calculateDistanceMeters = (lat1, lng1, lat2, lng2) => {
   return earthRadius * c;
 };
 
+const normalizeNumber = (value, fallback = null) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const getAccuracyBufferMeters = (accuracyValue) => {
+  const accuracy = normalizeNumber(accuracyValue, 0);
+  // Cap accuracy allowance so very low-quality fixes don't allow huge jumps.
+  return Math.min(Math.max(accuracy, 0), 60);
+};
+
+const getEffectiveRadiusMeters = (baseRadius, accuracyValue) => {
+  const safeRadius = Math.max(normalizeNumber(baseRadius, 0), 0);
+  return safeRadius + getAccuracyBufferMeters(accuracyValue);
+};
+
 /* ── Status chip — larger, clearer, with primary + secondary text ── */
 const StatusChip = ({ success, primaryText, secondaryText, noIcon = false, centered = false }) => {
   const base =
@@ -124,6 +140,50 @@ const LocationAttendance = ({
   };
   const officeLabel = officeConfig?.name ?? "Office";
 
+  const officePoints = useMemo(() => {
+    const primaryPoint = {
+      latitude: normalizeNumber(officeConfig.latitude),
+      longitude: normalizeNumber(officeConfig.longitude),
+      name: officeConfig.name || "Office",
+    };
+
+    const alternatePoints = Array.isArray(officeConfig.alternateCoordinates)
+      ? officeConfig.alternateCoordinates
+          .map((point, index) => ({
+            latitude: normalizeNumber(point?.latitude),
+            longitude: normalizeNumber(point?.longitude),
+            name: point?.name || `${officeConfig.name || "Office"} Alt ${index + 1}`,
+          }))
+          .filter((point) => point.latitude != null && point.longitude != null)
+      : [];
+
+    return [primaryPoint, ...alternatePoints].filter(
+      (point) => point.latitude != null && point.longitude != null
+    );
+  }, [officeConfig]);
+
+  const getNearestOfficePoint = (location) => {
+    if (!location || officePoints.length === 0) return null;
+
+    let nearest = null;
+    for (const point of officePoints) {
+      const distance = calculateDistanceMeters(
+        location.latitude,
+        location.longitude,
+        point.latitude,
+        point.longitude
+      );
+
+      if (distance == null) continue;
+
+      if (!nearest || distance < nearest.distance) {
+        nearest = { ...point, distance };
+      }
+    }
+
+    return nearest;
+  };
+
   useEffect(() => {
     const fetchToday = async () => {
       setLoadingToday(true);
@@ -153,37 +213,62 @@ const LocationAttendance = ({
           accuracy: position.coords.accuracy,
         });
       },
-      () => {
+      (geoError) => {
+        if (geoError?.code === 1) {
+          errorSetter("Location permission denied. Please allow location access in your browser.");
+          return;
+        }
+        if (geoError?.code === 2) {
+          errorSetter("Location unavailable. Move to an open area and try again.");
+          return;
+        }
+        if (geoError?.code === 3) {
+          errorSetter("Location request timed out. Please try capturing again.");
+          return;
+        }
         errorSetter("Unable to retrieve location. Please enable location access.");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
       }
     );
   };
 
-  const officeDistanceIn = useMemo(() => {
+  const nearestOfficeIn = useMemo(() => {
     if (!locationIn) return null;
-    return calculateDistanceMeters(
-      locationIn.latitude,
-      locationIn.longitude,
-      officeConfig.latitude,
-      officeConfig.longitude
-    );
-  }, [locationIn, officeConfig]);
+    return getNearestOfficePoint(locationIn);
+  }, [locationIn, officePoints]);
+
+  const nearestOfficeOut = useMemo(() => {
+    if (!locationOut) return null;
+    return getNearestOfficePoint(locationOut);
+  }, [locationOut, officePoints]);
+
+  const officeDistanceIn = useMemo(() => {
+    return nearestOfficeIn?.distance ?? null;
+  }, [nearestOfficeIn]);
 
   const officeDistanceOut = useMemo(() => {
-    if (!locationOut) return null;
-    return calculateDistanceMeters(
-      locationOut.latitude,
-      locationOut.longitude,
-      officeConfig.latitude,
-      officeConfig.longitude
-    );
-  }, [locationOut, officeConfig]);
+    return nearestOfficeOut?.distance ?? null;
+  }, [nearestOfficeOut]);
+
+  const effectiveRadiusIn = useMemo(
+    () => getEffectiveRadiusMeters(officeConfig.radius, locationIn?.accuracy),
+    [officeConfig.radius, locationIn?.accuracy]
+  );
+
+  const effectiveRadiusOut = useMemo(
+    () => getEffectiveRadiusMeters(officeConfig.radius, locationOut?.accuracy),
+    [officeConfig.radius, locationOut?.accuracy]
+  );
 
   const hasClockedIn = Boolean(todayRecord?.time_in);
   const hasClockedOut = Boolean(todayRecord?.time_out);
 
-  const inRangeIn = mode === "office" ? officeDistanceIn != null && officeDistanceIn <= officeConfig.radius : true;
-  const inRangeOut = modeOut === "office" ? officeDistanceOut != null && officeDistanceOut <= officeConfig.radius : true;
+  const inRangeIn = mode === "office" ? officeDistanceIn != null && officeDistanceIn <= effectiveRadiusIn : true;
+  const inRangeOut = modeOut === "office" ? officeDistanceOut != null && officeDistanceOut <= effectiveRadiusOut : true;
 
   // ── Early timeout prevention: map session types to their end times ──
   const SESSION_END_TIMES = {
@@ -210,10 +295,10 @@ const LocationAttendance = ({
 
   const fallbackLocation = useMemo(
     () => ({
-      latitude: officeConfig.latitude,
-      longitude: officeConfig.longitude,
+      latitude: officePoints[0]?.latitude ?? officeConfig.latitude,
+      longitude: officePoints[0]?.longitude ?? officeConfig.longitude,
     }),
-    [officeConfig.latitude, officeConfig.longitude]
+    [officeConfig.latitude, officeConfig.longitude, officePoints]
   );
 
   const mapCenter = locationOut || locationIn || fallbackLocation;
@@ -342,7 +427,8 @@ const LocationAttendance = ({
     error,
     handler,
     distance,
-    rangeOk
+    rangeOk,
+    effectiveRadius
   ) => {
     return (
       <div
@@ -369,7 +455,7 @@ const LocationAttendance = ({
             <StatusChip
               success={false}
               primaryText={`Outside ${officeLabel} radius`}
-              secondaryText={`You are ${distance ? distance.toFixed(0) : "—"}m away (max ${officeConfig.radius}m)`}
+              secondaryText={`You are ${distance ? distance.toFixed(0) : "—"}m away (allowed ${effectiveRadius.toFixed(0)}m with GPS accuracy)`}
             />
           )}
           {error && (
@@ -540,7 +626,8 @@ const LocationAttendance = ({
                     locationOutError,
                     () => requestCoordinates(setLocationOut, setLocationOutError),
                     officeDistanceOut,
-                    inRangeOut
+                    inRangeOut,
+                    effectiveRadiusOut
                   )}
                 </div>
               </div>
@@ -618,7 +705,8 @@ const LocationAttendance = ({
               locationInError,
               () => requestCoordinates(setLocationIn, setLocationInError),
               officeDistanceIn,
-              inRangeIn
+              inRangeIn,
+              effectiveRadiusIn
             )}
           </div>
 

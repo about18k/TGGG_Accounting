@@ -16,6 +16,7 @@ const DASHBOARD_LINKS = [
   { id: 'users', label: 'Manage Users', icon: Users, page: 'users' },
   { id: 'reviews', label: 'Design Reviews', icon: FileText, page: 'reviews' },
   { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge, page: 'coordination' },
+  { id: 'otrequest', label: 'OT Requests', icon: Clock, page: 'otrequest' },
 ];
 
 export default function StudioHeadSidebar({

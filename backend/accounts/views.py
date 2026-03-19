@@ -5,6 +5,7 @@ from django.conf import settings
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
 from django.db import transaction
+from django.db.models import Q
 from django.utils.dateparse import parse_date
 from rest_framework import viewsets, status
 from rest_framework.decorators import api_view, permission_classes
@@ -13,6 +14,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from supabase import create_client, Client
+from todos.services import NotificationService
 from .models import CustomUser, Department, ROLE_CHOICES
 from .serializers import CustomUserSerializer, PendingUserSerializer
 
@@ -48,6 +50,42 @@ Triple G Admin
         print(f"✅ Approval email sent to {user.email}")
     except Exception as e:
         print(f"⚠️ Approval email failed for user_id={user_id}: {e}")
+
+
+def _display_name(user):
+    return f"{user.first_name} {user.last_name}".strip() or user.email
+
+
+def _notify_accounting_user_verified(approved_user, approver):
+    """Notify accounting users when Studio Head verifies a pending account."""
+    approver_role = normalize_role_input(getattr(approver, 'role', None))
+    if approver_role != 'studio_head':
+        return
+
+    accounting_recipients = (
+        CustomUser.objects
+        .select_related('department')
+        .filter(is_active=True)
+        .filter(
+            Q(role='accounting')
+            | Q(department__name__iexact='accounting')
+            | Q(department__name__iexact='accounting department')
+        )
+        .exclude(id=approver.id)
+        .distinct()
+    )
+
+    approved_name = _display_name(approved_user)
+    approver_name = _display_name(approver)
+
+    for recipient in accounting_recipients:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=approver,
+            notif_type='user_verified',
+            title='User Verified by Studio Head',
+            message=f'{approved_name} was verified by {approver_name} and is now active.',
+        )
 
 # Create your views here.
 
@@ -337,6 +375,11 @@ def approve_user(request):
 
     # Send the approval email in the background so this response returns immediately.
     threading.Thread(target=_send_approval_email_async, args=(user.id,), daemon=True).start()
+
+    try:
+        _notify_accounting_user_verified(user, request.user)
+    except Exception as e:
+        print(f"⚠️ Accounting verification notification failed for user_id={user.id}: {e}")
 
     return Response({
         'success': True,

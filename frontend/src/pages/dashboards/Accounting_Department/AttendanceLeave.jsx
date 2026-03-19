@@ -219,16 +219,14 @@ export function AttendanceLeave() {
     return result;
   }, [attendanceRecords]);
 
-  // Default date range: first and last attendance entry in the system
-  const defaultExportStartDate = useMemo(() => {
-    const dates = attendanceRecords.map((r) => r.date).filter(Boolean).sort();
-    return dates[0] || '';
-  }, [attendanceRecords]);
+  const sortedAttendanceDates = useMemo(
+    () => attendanceRecords.map((record) => record.date).filter(Boolean).sort(),
+    [attendanceRecords]
+  );
 
-  const defaultExportEndDate = useMemo(() => {
-    const dates = attendanceRecords.map((r) => r.date).filter(Boolean).sort();
-    return dates[dates.length - 1] || '';
-  }, [attendanceRecords]);
+  // Default date range: first and last attendance entry in the system
+  const defaultExportStartDate = sortedAttendanceDates[0] || '';
+  const defaultExportEndDate = sortedAttendanceDates[sortedAttendanceDates.length - 1] || '';
 
   // Set default date range once records are loaded
   useEffect(() => {

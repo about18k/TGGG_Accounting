@@ -61,18 +61,40 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
         setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
       } catch { /* ignore */ }
     }
-    // Determine which tab to open based on notification type
+
+    // Only todo-specific notifications should open the Todo page.
     const type = notif.type || '';
-    let tab = 'team';
-    if (type.startsWith('dept_')) {
-      tab = 'department';
-    } else if (['task_suggested', 'completion_requested'].includes(type)) {
-      tab = 'team'; // leader manage tab items
-    } else if (['task_assigned', 'task_confirmed', 'completion_confirmed', 'completion_rejected'].includes(type)) {
-      tab = 'team';
+    const departmentTaskTypes = [
+      'dept_task_suggested',
+      'dept_task_grabbed',
+      'dept_task_completed',
+      'dept_task_abandoned',
+    ];
+    const todoTeamTypes = [
+      'task_suggested',
+      'task_assigned',
+      'task_confirmed',
+      'task_rejected',
+      'completion_requested',
+      'completion_confirmed',
+      'completion_rejected',
+    ];
+
+    if (type.startsWith('dept_') || departmentTaskTypes.includes(type)) {
+      localStorage.setItem('todoActiveTab', 'department');
+      onNavigate('todo');
+      return;
     }
-    localStorage.setItem('todoActiveTab', tab);
-    onNavigate('todo');
+
+    if (todoTeamTypes.includes(type)) {
+      localStorage.setItem('todoActiveTab', 'team');
+      onNavigate('todo');
+      return;
+    }
+
+    if (type.startsWith('ot_')) {
+      onNavigate('overtime');
+    }
   };
 
   const formatTime = (dateStr) => {
@@ -318,6 +340,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                         items = [
                           { id: 'attendance', label: 'Attendance', icon: Home, path: 'attendance' },
                           { id: 'overtime', label: 'Overtime & Leave', icon: Clock, path: 'overtime' },
+                          { id: 'otrequest', label: 'OT Requests', icon: ClipboardCheck, path: 'otrequest' },
                           { id: 'bim-docs', label: 'BIM Documentation', icon: FolderKanban, path: 'studio-head-bim-docs' },
                           { id: 'junior-architect-docs', label: 'Junior Architect Docs', icon: User, path: 'studio-head-junior-docs' },
                           { id: 'material-requests', label: 'Material Request', icon: ClipboardList, path: 'studio-head-material-requests' },

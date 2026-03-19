@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   getPayrollEmployees,
   getRecentPayroll,
   getPayrollPayslipImage,
-  getDeductions,
-  createDeduction,
-  deleteDeduction,
   processPayroll,
   getEmployeeContributions,
   updateEmployeeContributions,
@@ -72,19 +69,6 @@ const formatDisplayDate = (value) => {
   return d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
 };
 
-const formatDisplayDateTime = (value) => {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString('en-US', {
-    month: 'short',
-    day: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
 const getDateOnly = (value) => {
   if (!value) return '';
   const d = new Date(value);
@@ -92,17 +76,11 @@ const getDateOnly = (value) => {
   return d.toISOString().split('T')[0];
 };
 
+const cloneContributions = (items = []) => (
+  items.map((item) => ({ ...item }))
+);
 
-
-const detectFrequencyLabel = (periodStart, periodEnd) => {
-  const start = new Date(periodStart);
-  const end = new Date(periodEnd);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 'Bi-Weekly';
-  const days = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-  if (days <= 16) return 'Bi-Weekly';
-  if (days <= 22) return 'Semi-Monthly';
-  return 'Monthly';
-};
+const normalizeContributionAmount = (value) => Number(toNumber(value).toFixed(2));
 
 const getStoredUserFullName = () => {
   try {
@@ -152,14 +130,7 @@ export function PayrollManagement() {
   const [isPayslipImageViewerOpen, setIsPayslipImageViewerOpen] = useState(false);
   const [payslipImagePreviewUrl, setPayslipImagePreviewUrl] = useState('');
   const [selectedPayslipRecord, setSelectedPayslipRecord] = useState(null);
-  const [isSavingDeduction, setIsSavingDeduction] = useState(false);
-  const [isLoadingDeductions, setIsLoadingDeductions] = useState(false);
   const [payrollError, setPayrollError] = useState('');
-  const [deductionError, setDeductionError] = useState('');
-  const [deductions, setDeductions] = useState([]);
-  const [newDeductionName, setNewDeductionName] = useState('');
-  const [newDeductionRate, setNewDeductionRate] = useState('');
-  const [newDeductionType, setNewDeductionType] = useState('percentage');
 
   // Employee-specific contributions
   const [selectedContributionEmployee, setSelectedContributionEmployee] = useState('');
@@ -172,6 +143,7 @@ export function PayrollManagement() {
 
   // Employee contributions in the Process Payroll modal
   const [modalEmployeeContributions, setModalEmployeeContributions] = useState([]);
+  const [originalModalContributions, setOriginalModalContributions] = useState([]);
   const [isLoadingModalContributions, setIsLoadingModalContributions] = useState(false);
   const [isEditingModalContributions, setIsEditingModalContributions] = useState(false);
   const [isSavingModalContributions, setIsSavingModalContributions] = useState(false);
@@ -184,30 +156,27 @@ export function PayrollManagement() {
   const [filterEmployee, setFilterEmployee] = useState('all');
   const [filterPayrollPeriod, setFilterPayrollPeriod] = useState('all');
 
-  const selectedEmployeeData = employees.find((e) => e.id === selectedEmployee);
+  const selectedEmployeeData = useMemo(
+    () => employees.find((employee) => String(employee.id) === String(selectedEmployee)),
+    [employees, selectedEmployee]
+  );
 
   const fetchPayrollData = async () => {
     setIsLoadingPayrollData(true);
-    setIsLoadingDeductions(true);
     setPayrollError('');
-    setDeductionError('');
     try {
-      const [employeesData, recentData, deductionsData] = await Promise.all([
+      const [employeesData, recentData] = await Promise.all([
         getPayrollEmployees(),
         getRecentPayroll(),
-        getDeductions(),
       ]);
 
       setEmployees(Array.isArray(employeesData) ? employeesData : []);
       setRecentPayrollRecords(Array.isArray(recentData) ? recentData : []);
-      setDeductions(Array.isArray(deductionsData) ? deductionsData : []);
     } catch (error) {
       console.error('Failed to load payroll data:', error);
       setPayrollError(error.response?.data?.error || 'Failed to load payroll data.');
-      setDeductionError(error.response?.data?.error || 'Failed to load deductions.');
     } finally {
       setIsLoadingPayrollData(false);
-      setIsLoadingDeductions(false);
     }
   };
 
@@ -257,22 +226,25 @@ export function PayrollManagement() {
   };
 
   // Filtered payroll records based on employee and period filters
-  const filteredPayrollRecords = recentPayrollRecords.filter((record) => {
-    if (filterEmployee !== 'all' && record.employee_id !== filterEmployee) {
-      return false;
-    }
-    if (filterPayrollPeriod !== 'all') {
-      const period = getPayrollPeriodLabel(record.period_start, record.period_end);
-      if (period !== filterPayrollPeriod) {
+  const filteredPayrollRecords = useMemo(() => (
+    recentPayrollRecords.filter((record) => {
+      if (filterEmployee !== 'all' && String(record.employee_id) !== String(filterEmployee)) {
         return false;
       }
-    }
-    return true;
-  });
+      if (filterPayrollPeriod !== 'all') {
+        const period = getPayrollPeriodLabel(record.period_start, record.period_end);
+        if (period !== filterPayrollPeriod) {
+          return false;
+        }
+      }
+      return true;
+    })
+  ), [recentPayrollRecords, filterEmployee, filterPayrollPeriod]);
 
   useEffect(() => {
     if (!selectedEmployee) {
       setModalEmployeeContributions([]);
+      setOriginalModalContributions([]);
       return;
     }
 
@@ -281,10 +253,13 @@ export function PayrollManagement() {
       setIsLoadingModalContributions(true);
       try {
         const data = await getEmployeeContributions(selectedEmployee);
-        setModalEmployeeContributions(Array.isArray(data) ? data : []);
+        const safeData = Array.isArray(data) ? cloneContributions(data) : [];
+        setModalEmployeeContributions(safeData);
+        setOriginalModalContributions(cloneContributions(safeData));
       } catch (error) {
         console.error('Failed to load employee contributions:', error);
         setModalEmployeeContributions([]);
+        setOriginalModalContributions([]);
       } finally {
         setIsLoadingModalContributions(false);
       }
@@ -456,14 +431,34 @@ export function PayrollManagement() {
 
   const handleSaveModalContributions = async () => {
     if (!selectedEmployee) return;
+
+    const originalById = new Map(
+      originalModalContributions.map((item) => [
+        item.id,
+        normalizeContributionAmount(item.amount),
+      ])
+    );
+
+    const changedItems = modalEmployeeContributions.filter((item) => {
+      const previousAmount = originalById.get(item.id);
+      const currentAmount = normalizeContributionAmount(item.amount);
+      return previousAmount === undefined || currentAmount !== previousAmount;
+    });
+
+    if (changedItems.length === 0) {
+      setIsEditingModalContributions(false);
+      return;
+    }
+
     setIsSavingModalContributions(true);
     try {
       await Promise.all(
-        modalEmployeeContributions.map((item) => updateEmployeeContributions(selectedEmployee, {
+        changedItems.map((item) => updateEmployeeContributions(selectedEmployee, {
           name: item.name,
           amount: toNumber(item.amount),
         }))
       );
+      setOriginalModalContributions(cloneContributions(modalEmployeeContributions));
       setIsEditingModalContributions(false);
     } catch (error) {
       toast.error('Update Failed', {
@@ -546,51 +541,6 @@ export function PayrollManagement() {
     }
   };
 
-  const handleAddDeduction = async () => {
-    const name = newDeductionName.trim();
-    const rate = newDeductionRate;
-    if (!name || rate === '') {
-      toast.error('Validation Error', {
-        description: 'Deduction name and rate/amount are required.',
-      });
-      return;
-    }
-
-    setIsSavingDeduction(true);
-    setDeductionError('');
-    try {
-      const data = await createDeduction({
-        name,
-        type: newDeductionType,
-        rate,
-        category: newDeductionType === 'percentage' ? 'tax' : 'other',
-      });
-      setDeductions((prev) => [...prev, data]);
-      setNewDeductionName('');
-      setNewDeductionRate('');
-    } catch (error) {
-      const message = error.response?.data?.error || 'Failed to save deduction.';
-      setDeductionError(message);
-      toast.error('Save Failed', { description: message });
-    } finally {
-      setIsSavingDeduction(false);
-    }
-  };
-
-  const handleDeleteDeduction = async (deductionId) => {
-    const confirmed = window.confirm('Delete this deduction?');
-    if (!confirmed) return;
-
-    try {
-      await deleteDeduction(deductionId);
-      setDeductions((prev) => prev.filter((item) => item.id !== deductionId));
-    } catch (error) {
-      const message = error.response?.data?.error || 'Failed to delete deduction.';
-      setDeductionError(message);
-      toast.error('Delete Failed', { description: message });
-    }
-  };
-
   const handleCloseModal = () => {
     setIsProcessPayrollOpen(false);
     setSelectedEmployee('');
@@ -598,6 +548,7 @@ export function PayrollManagement() {
     setSelectedYear(new Date().getFullYear());
     setSelectedPayrollPeriod('29-13');
     setModalEmployeeContributions([]);
+    setOriginalModalContributions([]);
     setIsEditingModalContributions(false);
     setPayslipForm(createEmptyPayslipForm());
     setIsPayslipFormInitialized(false);
@@ -742,12 +693,6 @@ export function PayrollManagement() {
       return;
     }
 
-    console.log('\n' + '='.repeat(80));
-    console.log('🔍 DEBUG: Starting payroll processing');
-    console.log('='.repeat(80));
-    console.log('📋 Selected Employee ID:', selectedEmployee);
-    console.log('📋 Preview Data:', payslipPreviewData);
-
     setIsProcessingPayroll(true);
     try {
       const payload = {
@@ -756,12 +701,8 @@ export function PayrollManagement() {
         period_end: payslipPreviewData.endDate,
         payslip_form: payslipPreviewData.payslipFormPayload,
       };
-      
-      console.log('📤 Sending payload:', JSON.stringify(payload, null, 2));
-      
+
       const responseData = await processPayroll(payload);
-      
-      console.log('✅ Response received:', responseData);
 
       const name = responseData?.payslip?.employee_name || selectedEmployeeData?.name || 'Employee';
       const netSalary = responseData?.payslip?.net_salary || payslipPreviewData.salaryNetPay;
@@ -791,34 +732,46 @@ export function PayrollManagement() {
       setIsPayslipPreviewOpen(false);
       handleCloseModal();
     } catch (error) {
-      console.error('❌ Payroll processing error:', error);
-      console.error('❌ Error details:', {
-        message: error.message,
-        response: error.response,
-        status: error.response?.status,
-        data: error.response?.data,
-      });
+      console.error('Payroll processing error:', error);
       toast.error('Payroll Processing Failed', {
         description: error.response?.data?.error || error.message || 'Unknown error',
       });
     } finally {
       setIsProcessingPayroll(false);
-      console.log('='.repeat(80) + '\n');
     }
   };
 
   // Calculate analytics
-  const totalEmployees = employees.length;
-  const totalPayroll = recentPayrollRecords.reduce((sum, record) => sum + toNumber(record.net_salary), 0);
-  const averageSalary = totalEmployees > 0 ? totalPayroll / totalEmployees : 0;
-  const totalDeductions = recentPayrollRecords.reduce((sum, record) => {
-    const baseSalary = toNumber(record.base_salary);
-    const sss = baseSalary * 0.045;
-    const phic = baseSalary * 0.02;
-    const hdmf = 100;
-    const tax = toNumber(record.tax);
-    return sum + (sss + phic + hdmf + tax);
-  }, 0);
+  const payrollAnalytics = useMemo(() => {
+    const totalEmployeesCount = employees.length;
+    const totalPayrollAmount = recentPayrollRecords.reduce(
+      (sum, record) => sum + toNumber(record.net_salary),
+      0
+    );
+
+    const totalDeductionsAmount = recentPayrollRecords.reduce((sum, record) => {
+      const baseSalary = toNumber(record.base_salary);
+      const sss = baseSalary * 0.045;
+      const phic = baseSalary * 0.02;
+      const hdmf = 100;
+      const tax = toNumber(record.tax);
+      return sum + (sss + phic + hdmf + tax);
+    }, 0);
+
+    return {
+      totalEmployees: totalEmployeesCount,
+      totalPayroll: totalPayrollAmount,
+      averageSalary: totalEmployeesCount > 0 ? totalPayrollAmount / totalEmployeesCount : 0,
+      totalDeductions: totalDeductionsAmount,
+    };
+  }, [employees, recentPayrollRecords]);
+
+  const {
+    totalEmployees,
+    totalPayroll,
+    averageSalary,
+    totalDeductions,
+  } = payrollAnalytics;
 
   return (
     <div className="space-y-6">
