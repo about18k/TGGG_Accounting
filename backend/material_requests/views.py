@@ -3,8 +3,12 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import MaterialRequest
-from .serializers import MaterialRequestApprovalSerializer, MaterialRequestSerializer
+from .models import MaterialRequest, MaterialRequestComment
+from .serializers import (
+    MaterialRequestApprovalSerializer,
+    MaterialRequestSerializer,
+    MaterialRequestCommentSerializer
+)
 
 
 class MaterialRequestViewSet(viewsets.ModelViewSet):
@@ -231,3 +235,55 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             {'error': 'You do not have permission to approve material requests.'},
             status=status.HTTP_403_FORBIDDEN,
         )
+
+    @action(detail=True, methods=['get', 'post'], url_path='comments')
+    def comments(self, request, pk=None):
+        """
+        GET  /material-requests/{id}/comments/ – list threaded comments for this request
+        POST /material-requests/{id}/comments/ – post a new comment or reply
+        """
+        material_request = self.get_object()  # respects get_queryset permission scoping
+
+        if request.method == 'GET':
+            top_level = (
+                material_request.comments
+                .filter(parent__isnull=True)
+                .select_related('author')
+                .prefetch_related('replies__author')
+            )
+            serializer = MaterialRequestCommentSerializer(top_level, many=True)
+            return Response(serializer.data)
+
+        # POST – create comment or reply
+        content = (request.data.get('content') or '').strip()
+        if not content:
+            return Response({'error': 'Comment content cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Check permissions for commenting
+        allowed_roles = ['studio_head', 'ceo', 'president', 'site_coordinator', 'site_engineer']
+        if request.user.role not in allowed_roles:
+            return Response(
+                {'error': 'You do not have permission to comment on this request.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        parent_id = request.data.get('parent_id')
+        parent = None
+        if parent_id:
+            try:
+                parent = MaterialRequestComment.objects.get(id=parent_id, material_request=material_request)
+            except MaterialRequestComment.DoesNotExist:
+                return Response({'error': 'Parent comment not found.'}, status=status.HTTP_404_NOT_FOUND)
+            
+            # Flatten to one level like BIM: if replying to a reply, attach to its root
+            if parent.parent_id is not None:
+                parent = MaterialRequestComment.objects.get(id=parent.parent_id)
+
+        comment = MaterialRequestComment.objects.create(
+            material_request=material_request,
+            author=request.user,
+            content=content,
+            parent=parent,
+        )
+        serializer = MaterialRequestCommentSerializer(comment)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

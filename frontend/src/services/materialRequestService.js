@@ -93,6 +93,33 @@ const materialRequestService = {
       };
     }
   },
+  
+  getComments: async (id) => {
+    try {
+      const response = await api.get(`/material-requests/${id}/comments/`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to fetch discussion comments'),
+      };
+    }
+  },
+
+  postComment: async (requestId, content, parentId = null) => {
+    try {
+      const response = await api.post(`/material-requests/${requestId}/comments/`, {
+        content,
+        parent_id: parentId,
+      });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to post comment'),
+      };
+    }
+  },
 };
 
 export default materialRequestService;

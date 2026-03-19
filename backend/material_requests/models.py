@@ -87,6 +87,14 @@ class MaterialRequest(models.Model):
             'status',
             'updated_at',
         ])
+        
+        # Create system comment
+        MaterialRequestComment.objects.create(
+            material_request=self,
+            author=user,
+            content=f"Studio Head Decision: Forwarded to CEO. Note: {comments}" if comments else "Studio Head Decision: Forwarded to CEO.",
+            is_system_comment=True
+        )
 
     def approve_ceo(self, user, comments=''):
         self.reviewed_by_ceo = user
@@ -100,6 +108,14 @@ class MaterialRequest(models.Model):
             'status',
             'updated_at',
         ])
+        
+        # Create system comment
+        MaterialRequestComment.objects.create(
+            material_request=self,
+            author=user,
+            content=f"CEO Decision: Approved. Note: {comments}" if comments else "CEO Decision: Approved.",
+            is_system_comment=True
+        )
 
     def reject(self, user, reason, is_studio_head=False):
         if is_studio_head:
@@ -127,6 +143,15 @@ class MaterialRequest(models.Model):
 
         self.status = 'rejected'
         self.save(update_fields=update_fields)
+        
+        # Create system comment
+        role_pref = "Studio Head" if is_studio_head else "CEO"
+        MaterialRequestComment.objects.create(
+            material_request=self,
+            author=user,
+            content=f"{role_pref} Decision: Rejected. Reason: {reason}",
+            is_system_comment=True
+        )
 
 
 class MaterialRequestItem(models.Model):
@@ -147,3 +172,41 @@ class MaterialRequestItem(models.Model):
 
     def __str__(self):
         return f'{self.name} ({self.quantity} {self.unit})'
+
+
+class MaterialRequestComment(models.Model):
+    """
+    Threaded comment/reply system for Material Requests.
+    Visible to Site Engineers, Site Coordinators, Studio Heads, and CEO.
+    Top-level comments have parent=None; replies point to a parent comment.
+    """
+    material_request = models.ForeignKey(
+        MaterialRequest,
+        on_delete=models.CASCADE,
+        related_name='comments',
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='material_request_comments',
+    )
+    content = models.TextField()
+    parent = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name='replies',
+    )
+    is_system_comment = models.BooleanField(
+        default=False,
+        help_text='Auto-posted by the system on approval/rejection actions'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Comment by {self.author} on {self.material_request.project_name}"

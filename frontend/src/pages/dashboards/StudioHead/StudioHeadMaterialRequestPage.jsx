@@ -13,6 +13,7 @@ import {
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import StudioHeadSidebar from './components/StudioHeadSidebar';
 import materialRequestService from '../../../services/materialRequestService';
+import MaterialRequestCommentThread from '../../../components/MaterialRequestCommentThread';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -568,6 +569,10 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
                         <p className="mt-2 text-sm text-emerald-100">{selectedRequest.ceo_comments}</p>
                       </div>
                     )}
+
+                    <div className="border-t border-white/10 pt-6">
+                      <MaterialRequestCommentThread requestId={selectedRequest.id} />
+                    </div>
                   </div>
                 </section>
                 )}

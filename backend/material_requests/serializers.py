@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import MaterialRequest, MaterialRequestItem
+from .models import MaterialRequest, MaterialRequestItem, MaterialRequestComment
 
 
 class MaterialRequestItemSerializer(serializers.ModelSerializer):
@@ -136,3 +136,30 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
 class MaterialRequestApprovalSerializer(serializers.Serializer):
     action = serializers.ChoiceField(choices=['approve', 'reject'])
     comments = serializers.CharField(required=False, allow_blank=True)
+
+
+class MaterialRequestCommentReplySerializer(serializers.ModelSerializer):
+    author_name = serializers.SerializerMethodField()
+    author_role = serializers.CharField(source='author.role', read_only=True)
+
+    class Meta:
+        model = MaterialRequestComment
+        fields = ['id', 'content', 'author_name', 'author_role', 'is_system_comment', 'created_at']
+
+    def get_author_name(self, obj):
+        name = obj.author.get_full_name()
+        return name if name.strip() else obj.author.email
+
+
+class MaterialRequestCommentSerializer(serializers.ModelSerializer):
+    author_name = serializers.SerializerMethodField()
+    author_role = serializers.CharField(source='author.role', read_only=True)
+    replies = MaterialRequestCommentReplySerializer(many=True, read_only=True)
+
+    class Meta:
+        model = MaterialRequestComment
+        fields = ['id', 'content', 'author_name', 'author_role', 'is_system_comment', 'parent', 'replies', 'created_at']
+
+    def get_author_name(self, obj):
+        name = obj.author.get_full_name()
+        return name if name.strip() else obj.author.email

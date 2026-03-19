@@ -11,6 +11,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import materialRequestService from '../../../services/materialRequestService';
+import MaterialRequestCommentThread from '../../../components/MaterialRequestCommentThread';
 
 const DEFAULT_FORM = {
   projectName: '',
@@ -862,6 +863,10 @@ const MaterialRequest = ({ user }) => {
                             : 'Rejected by CEO. Final decision reached.'}
                         </div>
                       )}
+                    </div>
+
+                    <div className="border-t border-white/10 pt-4">
+                      <MaterialRequestCommentThread requestId={request.id} />
                     </div>
                   </div>
                 );
