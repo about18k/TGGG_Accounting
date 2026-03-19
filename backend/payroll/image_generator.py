@@ -7,6 +7,7 @@ import io
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
+import urllib.request
 
 from django.conf import settings
 from PIL import Image, ImageDraw, ImageFont
@@ -94,6 +95,42 @@ def _find_brand_logo_path():
     return None
 
 
+def _load_signature_image(source_url, max_width, max_height):
+    """Load and resize signature image from URL (or local path) for payslip rendering."""
+    if not source_url:
+        return None
+
+    try:
+        raw_data = None
+        source_value = str(source_url).strip()
+
+        if source_value.startswith(('http://', 'https://')):
+            with urllib.request.urlopen(source_value, timeout=8) as response:
+                raw_data = response.read()
+        else:
+            local_path = Path(source_value)
+            if local_path.exists():
+                raw_data = local_path.read_bytes()
+
+        if not raw_data:
+            return None
+
+        signature = Image.open(io.BytesIO(raw_data)).convert('RGBA')
+        bbox = signature.getbbox()
+        if bbox:
+            signature = signature.crop(bbox)
+
+        if signature.width == 0 or signature.height == 0:
+            return None
+
+        ratio = min(max_width / signature.width, max_height / signature.height)
+        target_w = max(1, int(signature.width * ratio))
+        target_h = max(1, int(signature.height * ratio))
+        return signature.resize((target_w, target_h), Image.LANCZOS)
+    except Exception:
+        return None
+
+
 def _draw_header_logo(img, draw, sheet_left, sheet_right, header_top, header_bottom):
     """Draw brand logo in header exactly positioned like sample."""
     logo_path = _find_brand_logo_path()
@@ -145,15 +182,19 @@ def generate_payslip_image(payslip_data):
     company_loan = _to_decimal(payslip_details.get('company_loan_cash_advance', 0))
 
     gross_salary = _to_decimal(payslip_data.get('gross_salary', 0))
-    total_deductions = _to_decimal(payslip_data.get('deductions_total', 0))
+    total_deductions = _to_decimal(payslip_details.get('total_deductions', payslip_data.get('deductions_total', 0)))
     payroll_tax = _to_decimal(payslip_details.get('payroll_tax', payslip_data.get('tax', 0)))
     net_salary = _to_decimal(payslip_data.get('net_salary', 0))
 
     sss, philhealth, pagibig = _extract_contributions(payslip_details)
-    net_taxable_salary = gross_salary - (sss + philhealth + pagibig)
+    net_taxable_salary = _to_decimal(
+        payslip_details.get('net_taxable_salary', gross_salary - (sss + philhealth + pagibig))
+    )
 
     prepared_by = str(payslip_details.get('prepared_by', 'Accounting Department')).upper()
     approved_by = str(payslip_details.get('approved_by_top_management', 'Top Management')).upper()
+    prepared_by_signature_url = str(payslip_details.get('prepared_by_signature', '')).strip()
+    approved_by_signature_url = str(payslip_details.get('approved_by_signature', '')).strip()
 
     # Exact sample dimensions scaled for high quality output.
     # Height is slightly extended so bottom labels are not clipped.
@@ -299,6 +340,26 @@ def generate_payslip_image(payslip_data):
     right_line_y = s(704)
     draw.line([(s(65), left_line_y), (s(270), left_line_y)], fill=black, width=1)
     draw.line([(s(563), right_line_y), (s(785), right_line_y)], fill=black, width=1)
+
+    left_signature = _load_signature_image(
+        prepared_by_signature_url,
+        max_width=s(170),
+        max_height=s(44),
+    )
+    if left_signature:
+        left_x = s(168) - (left_signature.width // 2)
+        left_y = s(646)
+        img.paste(left_signature, (left_x, left_y), left_signature)
+
+    right_signature = _load_signature_image(
+        approved_by_signature_url,
+        max_width=s(170),
+        max_height=s(44),
+    )
+    if right_signature:
+        right_x = s(674) - (right_signature.width // 2)
+        right_y = s(646)
+        img.paste(right_signature, (right_x, right_y), right_signature)
 
     draw.text((s(168), s(692)), prepared_by, fill=black, font=sign_name_font, anchor='mm')
     draw.text((s(168), s(717)), 'Accounting Department', fill=text_gray, font=sign_role_font, anchor='mm')

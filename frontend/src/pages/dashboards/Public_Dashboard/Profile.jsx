@@ -16,6 +16,8 @@ function Profile({ token, user, onLogout }) {
   const [totalDeductions, setTotalDeductions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [signatureFile, setSignatureFile] = useState(null);
+  const [isUploadingSignature, setIsUploadingSignature] = useState(false);
   const [showCharLimitModal, setShowCharLimitModal] = useState(false);
 
   const showAlert = (type, title, message) => {
@@ -107,6 +109,45 @@ function Profile({ token, user, onLogout }) {
       fetchProfile();
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const uploadSignature = async () => {
+    if (!signatureFile || isUploadingSignature) return;
+
+    const maxSize = 5 * 1024 * 1024;
+    if (signatureFile.size > maxSize) {
+      showAlert('error', 'File Too Large', 'Signature image must be less than 5MB.');
+      return;
+    }
+
+    setIsUploadingSignature(true);
+    const formData = new FormData();
+    formData.append('signature', signatureFile);
+
+    try {
+      const response = await profileService.uploadSignatureImage(formData);
+      showAlert('success', 'Signature Updated', 'Signature uploaded successfully.');
+      setSignatureFile(null);
+      await fetchProfile();
+
+      try {
+        const storedUser = JSON.parse(localStorage.getItem('user'));
+        if (storedUser) {
+          storedUser.signature_image = response.signature_image;
+          localStorage.setItem('user', JSON.stringify(storedUser));
+          window.dispatchEvent(new Event('userUpdated'));
+        }
+      } catch (_error) {
+        // no-op
+      }
+    } catch (err) {
+      const errorMsg = err.response?.data?.error || 'Failed to upload signature image.';
+      showAlert('error', 'Upload Failed', errorMsg);
+      setSignatureFile(null);
+      await fetchProfile();
+    } finally {
+      setIsUploadingSignature(false);
     }
   };
 
@@ -308,6 +349,96 @@ function Profile({ token, user, onLogout }) {
                     </button>
                   </div>
                 )}
+
+                <div style={{ marginTop: '1.5rem' }}>
+                  <p style={{ color: '#a0a4a8', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Signature (for payroll approvals)</p>
+                  <div
+                    style={{
+                      width: '100%',
+                      maxWidth: '280px',
+                      height: '90px',
+                      margin: '0 auto',
+                      borderRadius: '10px',
+                      border: '1px dashed rgba(255, 113, 32, 0.45)',
+                      background: '#001a2b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {profile.signature_image ? (
+                      <img
+                        src={profile.signature_image}
+                        alt="Signature"
+                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                      />
+                    ) : (
+                      <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>No signature uploaded</span>
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={isUploadingSignature}
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) {
+                          e.target.value = '';
+                          return;
+                        }
+                        if (file.size > 5 * 1024 * 1024) {
+                          showAlert('error', 'File Too Large', 'Signature image must be less than 5MB.');
+                          e.target.value = '';
+                          return;
+                        }
+                        setSignatureFile(file);
+                        e.target.value = '';
+                      }}
+                      id="signature-upload"
+                      style={{ display: 'none' }}
+                    />
+                    <label
+                      htmlFor="signature-upload"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        padding: '0.45rem 0.9rem',
+                        background: '#00273C',
+                        color: '#FFB36B',
+                        borderRadius: '6px',
+                        border: '1px solid rgba(255, 113, 32, 0.35)',
+                        cursor: isUploadingSignature ? 'not-allowed' : 'pointer',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      Choose Signature
+                    </label>
+                    <button
+                      onClick={uploadSignature}
+                      disabled={!signatureFile || isUploadingSignature}
+                      style={{
+                        background: (!signatureFile || isUploadingSignature) ? 'rgba(255, 113, 32, 0.45)' : '#FF7120',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '0.45rem 0.9rem',
+                        cursor: (!signatureFile || isUploadingSignature) ? 'not-allowed' : 'pointer',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      {isUploadingSignature ? 'Uploading...' : 'Upload Signature'}
+                    </button>
+                  </div>
+
+                  {signatureFile && (
+                    <p style={{ marginTop: '0.5rem', color: '#FFB36B', fontSize: '0.8rem' }}>
+                      Selected signature: {signatureFile.name}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div style={{ marginBottom: '1rem' }}>

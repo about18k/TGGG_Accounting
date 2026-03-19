@@ -171,7 +171,9 @@ def login_view(request):
                     'role': normalized_role if normalized_role else None,
                     'role_name': user.get_role_display() if user.role else None,
                     'permissions': user.permissions or [],
-                    'profile_picture': user.profile_picture or None
+                    'profile_picture': user.profile_picture or None,
+                    'signature_image': user.signature_image or None,
+                    'payroll_allowance_eligible': bool(user.payroll_allowance_eligible),
                 }
             }, status=status.HTTP_200_OK)
         else:
@@ -233,6 +235,8 @@ def user_profile(request):
         'role': user.role if user.role else None,
         'role_name': user.get_role_display() if user.role else None,
         'profile_picture': user.profile_picture,
+        'signature_image': user.signature_image,
+        'payroll_allowance_eligible': bool(user.payroll_allowance_eligible),
         'permissions': user.permissions or []
     })
 
@@ -289,6 +293,56 @@ def upload_profile_picture(request):
             'success': True,
             'message': 'Profile picture updated successfully.',
             'profile_picture': public_url
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_profile_signature(request):
+    """Upload user signature image to Supabase Storage."""
+    user = request.user
+    signature_file = request.FILES.get('signature') or request.FILES.get('signature_file')
+
+    if not signature_file:
+        return Response({'error': 'No signature image provided.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    supabase_url = getattr(settings, 'SUPABASE_URL', None)
+    supabase_key = getattr(settings, 'SUPABASE_KEY', None)
+
+    if not supabase_url or not supabase_key:
+        return Response({'error': 'Supabase configuration is missing in the backend.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    try:
+        supabase: Client = create_client(supabase_url, supabase_key)
+
+        file_extension = signature_file.name.split('.')[-1]
+        file_path = f"{user.id}/signature_{uuid.uuid4().hex}.{file_extension}"
+
+        file_content = signature_file.read()
+        supabase.storage.from_('profile_picture').upload(
+            file=file_content,
+            path=file_path,
+            file_options={'content-type': signature_file.content_type, 'upsert': 'true'}
+        )
+
+        public_url = supabase.storage.from_('profile_picture').get_public_url(file_path)
+
+        if user.signature_image and "supabase.co/storage/v1/object/public/profile_picture/" in user.signature_image:
+            try:
+                old_path = user.signature_image.split("profile_picture/")[-1]
+                supabase.storage.from_('profile_picture').remove([old_path])
+            except Exception as e:
+                print(f"Failed to delete old signature image: {e}")
+
+        user.signature_image = public_url
+        user.save(update_fields=['signature_image'])
+
+        return Response({
+            'success': True,
+            'message': 'Signature updated successfully.',
+            'signature_image': public_url,
         })
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

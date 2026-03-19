@@ -6,6 +6,7 @@ app_name = 'payroll'
 urlpatterns = [
     path('', views.payroll_overview, name='overview'),
     path('employees/', views.payroll_employees, name='payroll_employees'),
+    path('allowance-eligibility/', views.payroll_allowance_eligibility, name='payroll_allowance_eligibility'),
     path('employees/<str:employee_id>/contributions/', views.employee_contributions, name='employee_contributions'),
     path('employees/<str:employee_id>/contributions/<int:contribution_id>/', views.employee_contribution_detail, name='employee_contribution_detail'),
     path('attendance-summary/', views.attendance_summary, name='attendance_summary'),

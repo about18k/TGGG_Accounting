@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import {
   Badge,
   Button,
@@ -41,9 +42,53 @@ import {
   Video,
   Users2
 } from 'lucide-react';
+import { getProfile, uploadSignatureImage } from '../../../services/profileService';
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState('company');
+  const [profile, setProfile] = useState(null);
+  const [signatureFile, setSignatureFile] = useState(null);
+  const [isUploadingSignature, setIsUploadingSignature] = useState(false);
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const data = await getProfile();
+        setProfile(data);
+      } catch (_error) {
+        setProfile(null);
+      }
+    };
+    loadProfile();
+  }, []);
+
+  const handleUploadSignature = async () => {
+    if (!signatureFile || isUploadingSignature) return;
+    if (signatureFile.size > 5 * 1024 * 1024) {
+      toast.error('File Too Large', { description: 'Signature image must be less than 5MB.' });
+      return;
+    }
+
+    setIsUploadingSignature(true);
+    const formData = new FormData();
+    formData.append('signature', signatureFile);
+
+    try {
+      const response = await uploadSignatureImage(formData);
+      setSignatureFile(null);
+      setProfile((prev) => ({
+        ...(prev || {}),
+        signature_image: response?.signature_image || prev?.signature_image,
+      }));
+      toast.success('Signature Updated', { description: 'Profile signature uploaded successfully.' });
+    } catch (error) {
+      toast.error('Upload Failed', {
+        description: error.response?.data?.error || 'Failed to upload profile signature.',
+      });
+    } finally {
+      setIsUploadingSignature(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -54,6 +99,46 @@ export function Settings() {
           Save Changes
         </Button>
       </div>
+
+      <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="w-5 h-5 text-primary" />
+            Profile Signature
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            This signature will appear above your name in generated payroll payslips as "Prepared By".
+          </p>
+          <div className="rounded-lg border border-border/50 bg-background/20 p-4">
+            {profile?.signature_image ? (
+              <img
+                src={profile.signature_image}
+                alt="Profile signature"
+                className="h-24 w-full object-contain"
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">No signature uploaded yet.</p>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={(event) => setSignatureFile(event.target.files?.[0] || null)}
+              disabled={isUploadingSignature}
+              className="max-w-xs"
+            />
+            <Button
+              onClick={handleUploadSignature}
+              disabled={!signatureFile || isUploadingSignature}
+            >
+              {isUploadingSignature ? 'Uploading...' : 'Upload Signature'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Settings Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
