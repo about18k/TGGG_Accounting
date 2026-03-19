@@ -250,6 +250,7 @@ NOTIFICATION_TYPE_CHOICES = [
     ('dept_task_completed', 'Department Task Completed'),
     ('dept_task_abandoned', 'Department Task Abandoned'),
     ('user_verified', 'User Verified'),
+    ('user_pending_approval', 'User Pending Approval'),
     ('payroll_processed', 'Payroll Processed'),
     ('contribution_added', 'Contribution Added'),
     ('contribution_updated', 'Contribution Updated'),

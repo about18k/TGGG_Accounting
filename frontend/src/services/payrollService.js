@@ -14,6 +14,7 @@ const PAYROLL_CACHE_PREFIX = {
     deductions: 'payroll:deductions',
     attendanceSummary: 'payroll:attendance-summary',
     contributions: 'payroll:employee-contributions',
+    allowanceEligibility: 'payroll:allowance-eligibility',
 };
 
 const getContributionCacheKey = (employeeId) => `${PAYROLL_CACHE_PREFIX.contributions}:${employeeId}`;
@@ -88,6 +89,25 @@ export async function processPayroll(payload) {
     const { data } = await api.post('/payroll/process/', payload);
     invalidateRequestCache(PAYROLL_CACHE_PREFIX.recent);
     invalidateRequestCache(PAYROLL_CACHE_PREFIX.attendanceSummary);
+    return data;
+}
+
+export async function getPayrollAllowanceEligibility(options = {}) {
+    return withRequestCache({
+        key: PAYROLL_CACHE_PREFIX.allowanceEligibility,
+        ttlMs: 30000,
+        force: options.force === true,
+        request: async () => {
+            const { data } = await api.get('/payroll/allowance-eligibility/');
+            return data;
+        },
+    });
+}
+
+export async function updatePayrollAllowanceEligibility(payload) {
+    const { data } = await api.post('/payroll/allowance-eligibility/', payload);
+    invalidateRequestCache(PAYROLL_CACHE_PREFIX.allowanceEligibility);
+    invalidateRequestCache(PAYROLL_CACHE_PREFIX.employees);
     return data;
 }
 

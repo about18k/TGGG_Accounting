@@ -8,6 +8,7 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('profile/', views.user_profile, name='profile'),
     path('profile/picture/', views.upload_profile_picture, name='upload_profile_picture'),
+    path('profile/signature/', views.upload_profile_signature, name='upload_profile_signature'),
     path('pending/', views.pending_users, name='pending_users'),
     path('approve/', views.approve_user, name='approve_user'),
     path('departments/', views.get_departments, name='departments'),

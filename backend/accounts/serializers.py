@@ -25,7 +25,8 @@ class CustomUserSerializer(serializers.ModelSerializer):
             'id', 'email', 'username', 'first_name', 'last_name',
             'department', 'department_name', 'role', 'role_name',
             'permissions', 'phone_number', 'employee_id',
-            'is_active', 'is_leader', 'date_hired', 'profile_picture', 'created_at', 'updated_at'
+            'is_active', 'is_leader', 'date_hired', 'profile_picture', 'signature_image',
+            'payroll_allowance_eligible', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at']
 

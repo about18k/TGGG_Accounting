@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import {
   getPayrollEmployees,
+  getPayrollAllowanceEligibility,
   getRecentPayroll,
   getPayrollPayslipImage,
   processPayroll,
   getEmployeeContributions,
   updateEmployeeContributions,
+  updatePayrollAllowanceEligibility,
   deleteEmployeeContribution,
 } from '../../../services/payrollService';
 import {
@@ -29,7 +31,8 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
+  Switch,
 } from '../../../components/ui/accounting-ui';
 import {
   DollarSign,
@@ -39,7 +42,8 @@ import {
   CheckCircle,
   AlertCircle,
   Plus,
-  Trash2
+  Trash2,
+  UserCheck,
 } from 'lucide-react';
 
 const formatCurrency = (amount) => {
@@ -110,12 +114,15 @@ const createEmptyPayslipForm = () => ({
   preparedBy: getStoredUserFullName() || 'Accounting Department',
   approvedByTopManagement: '',
   approvedBy: '',
+  preparedBySignature: '',
+  approvedBySignature: '',
 });
 
 
 export function PayrollManagement() {
   const [isProcessPayrollOpen, setIsProcessPayrollOpen] = useState(false);
   const [isTaxDeductionsOpen, setIsTaxDeductionsOpen] = useState(false);
+  const [isAllowanceEligibilityOpen, setIsAllowanceEligibilityOpen] = useState(false);
   const [isPayslipPreviewOpen, setIsPayslipPreviewOpen] = useState(false);
   const [payslipPreviewData, setPayslipPreviewData] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState('');
@@ -131,6 +138,8 @@ export function PayrollManagement() {
   const [payslipImagePreviewUrl, setPayslipImagePreviewUrl] = useState('');
   const [selectedPayslipRecord, setSelectedPayslipRecord] = useState(null);
   const [payrollError, setPayrollError] = useState('');
+  const [allowanceEligibleEmployeeIds, setAllowanceEligibleEmployeeIds] = useState([]);
+  const [isSavingAllowanceEligibility, setIsSavingAllowanceEligibility] = useState(false);
 
   // Employee-specific contributions
   const [selectedContributionEmployee, setSelectedContributionEmployee] = useState('');
@@ -160,6 +169,29 @@ export function PayrollManagement() {
     () => employees.find((employee) => String(employee.id) === String(selectedEmployee)),
     [employees, selectedEmployee]
   );
+
+  const currentUserId = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('user');
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      return parsed?.id || null;
+    } catch (_error) {
+      return null;
+    }
+  }, []);
+
+  const currentAccountingUser = useMemo(
+    () => employees.find((employee) => String(employee.id) === String(currentUserId)),
+    [employees, currentUserId]
+  );
+
+  const topManagementUser = useMemo(
+    () => employees.find((employee) => ['ceo', 'president'].includes(String(employee.role || '').toLowerCase())),
+    [employees]
+  );
+
+  const isSelectedEmployeeAllowanceEligible = Boolean(selectedEmployeeData?.payroll_allowance_eligible);
 
   const fetchPayrollData = async () => {
     setIsLoadingPayrollData(true);
@@ -352,10 +384,16 @@ export function PayrollManagement() {
     const payrollTaxDefault = 0;
     const payrollAllowanceDefault = 0;
     const companyLoanDefault = 0;
-    const contributionsTotal = getContributionTotal(modalEmployeeContributions);
     const grossAmountDefault = basicSalaryDefault;
-    const totalDeductionsDefault = contributionsTotal;
-    const netSalaryDefault = 0;
+    const totalDeductionsDefault = getContributionTotal(modalEmployeeContributions);
+    const netTaxableSalaryDefault = Math.max(0, grossAmountDefault - lateUndertimeDefault);
+    const netSalaryDefault = Math.max(
+      0,
+      netTaxableSalaryDefault + payrollAllowanceDefault - totalDeductionsDefault - companyLoanDefault
+    );
+
+    const preparedByName = currentAccountingUser?.name || getStoredUserFullName() || 'Accounting Department';
+    const topManagementName = topManagementUser?.name || '';
 
     return {
       monthly: monthlyDefault.toFixed(2),
@@ -363,15 +401,70 @@ export function PayrollManagement() {
       regularOvertime: regularOvertimeDefault.toFixed(2),
       lateUndertime: lateUndertimeDefault.toFixed(2),
       restDayOt: restDayOtDefault.toFixed(2),
-      netTaxableSalary: grossAmountDefault.toFixed(2),
+      netTaxableSalary: netTaxableSalaryDefault.toFixed(2),
       payrollTax: payrollTaxDefault.toFixed(2),
       totalDeductions: totalDeductionsDefault.toFixed(2),
       grossAmount: grossAmountDefault.toFixed(2),
       payrollAllowance: payrollAllowanceDefault.toFixed(2),
       companyLoanCashAdvance: companyLoanDefault.toFixed(2),
       salaryNetPay: netSalaryDefault.toFixed(2),
+      preparedBy: preparedByName,
+      approvedByTopManagement: topManagementName,
+      approvedBy: topManagementName,
+      preparedBySignature: currentAccountingUser?.signature_image || '',
+      approvedBySignature: topManagementUser?.signature_image || '',
     };
   };
+
+  const computePayslipValues = (formValues = payslipForm) => {
+    const basicSalary = toNumber(formValues.basicSalary);
+    const regularOvertime = toNumber(formValues.regularOvertime);
+    const lateUndertime = toNumber(formValues.lateUndertime);
+    const restDayOt = toNumber(formValues.restDayOt);
+    const payrollAllowance = isSelectedEmployeeAllowanceEligible
+      ? toNumber(formValues.payrollAllowance)
+      : 0;
+    const companyLoanCashAdvance = toNumber(formValues.companyLoanCashAdvance);
+    const governmentContributionsTotal = getContributionTotal(modalEmployeeContributions);
+
+    const grossAmount = basicSalary + regularOvertime + restDayOt;
+    const netTaxableSalary = Math.max(0, grossAmount - lateUndertime);
+    const payrollTax = 0;
+    const totalDeductions = governmentContributionsTotal + payrollTax;
+    const salaryNetPay = Math.max(
+      0,
+      netTaxableSalary + payrollAllowance - totalDeductions - companyLoanCashAdvance
+    );
+
+    return {
+      grossAmount,
+      netTaxableSalary,
+      payrollTax,
+      totalDeductions,
+      salaryNetPay,
+      payrollAllowance,
+      companyLoanCashAdvance,
+      governmentContributionsTotal,
+      basicSalary,
+      regularOvertime,
+      lateUndertime,
+      restDayOt,
+    };
+  };
+
+  const computedPayslipValues = useMemo(
+    () => computePayslipValues(),
+    [
+      payslipForm.basicSalary,
+      payslipForm.regularOvertime,
+      payslipForm.lateUndertime,
+      payslipForm.restDayOt,
+      payslipForm.payrollAllowance,
+      payslipForm.companyLoanCashAdvance,
+      modalEmployeeContributions,
+      isSelectedEmployeeAllowanceEligible,
+    ]
+  );
 
   useEffect(() => {
     setIsPayslipFormInitialized(false);
@@ -392,27 +485,29 @@ export function PayrollManagement() {
     setPayslipForm((prev) => ({
       ...prev,
       ...initialValues,
-      preparedBy: prev.preparedBy || getStoredUserFullName() || 'Accounting Department',
     }));
     setIsPayslipFormInitialized(true);
   }, [
     selectedEmployee,
     selectedEmployeeData,
+    currentAccountingUser,
+    topManagementUser,
     modalEmployeeContributions,
     isLoadingModalContributions,
     isPayslipFormInitialized,
   ]);
 
-  // Auto-calculate Total Deductions from government contributions
+  // Keep allowance at zero when employee is not eligible.
   useEffect(() => {
-    if (!selectedEmployee) return;
-    
+    if (!selectedEmployee || isSelectedEmployeeAllowanceEligible) return;
+
     const contributionsTotal = getContributionTotal(modalEmployeeContributions);
     setPayslipForm((prev) => ({
       ...prev,
       totalDeductions: contributionsTotal.toFixed(2),
+      payrollAllowance: '0.00',
     }));
-  }, [modalEmployeeContributions, selectedEmployee]);
+  }, [modalEmployeeContributions, selectedEmployee, isSelectedEmployeeAllowanceEligible]);
 
   const handlePayslipFieldChange = (field, value) => {
     setPayslipForm((prev) => ({
@@ -471,6 +566,59 @@ export function PayrollManagement() {
 
   const handleProcessPayroll = () => {
     setIsProcessPayrollOpen(true);
+  };
+
+  const handleOpenAllowanceEligibility = async () => {
+    setIsAllowanceEligibilityOpen(true);
+    try {
+      const rows = await getPayrollAllowanceEligibility({ force: true });
+      const eligibleIds = Array.isArray(rows)
+        ? rows
+          .filter((row) => Boolean(row?.payroll_allowance_eligible))
+          .map((row) => String(row.id))
+        : [];
+      setAllowanceEligibleEmployeeIds(eligibleIds);
+    } catch (error) {
+      toast.error('Load Failed', {
+        description: error.response?.data?.error || 'Failed to load allowance eligibility list.',
+      });
+      setAllowanceEligibleEmployeeIds(
+        employees
+          .filter((employee) => Boolean(employee.payroll_allowance_eligible))
+          .map((employee) => String(employee.id))
+      );
+    }
+  };
+
+  const handleToggleAllowanceEligibility = (employeeId, isEnabled) => {
+    setAllowanceEligibleEmployeeIds((prev) => {
+      const id = String(employeeId);
+      const existing = new Set(prev.map((item) => String(item)));
+      if (isEnabled) {
+        existing.add(id);
+      } else {
+        existing.delete(id);
+      }
+      return Array.from(existing);
+    });
+  };
+
+  const handleSaveAllowanceEligibility = async () => {
+    setIsSavingAllowanceEligibility(true);
+    try {
+      await updatePayrollAllowanceEligibility({ employee_ids: allowanceEligibleEmployeeIds });
+      await fetchPayrollData();
+      toast.success('Updated', {
+        description: 'Payroll allowance eligibility has been updated.',
+      });
+      setIsAllowanceEligibilityOpen(false);
+    } catch (error) {
+      toast.error('Update Failed', {
+        description: error.response?.data?.error || 'Failed to update payroll allowance eligibility.',
+      });
+    } finally {
+      setIsSavingAllowanceEligibility(false);
+    }
   };
 
   const handleOpenTaxDeductions = async () => {
@@ -602,38 +750,56 @@ export function PayrollManagement() {
   const buildPayslipPayload = () => {
     const { startDate, endDate } = calculatePayrollDates();
 
-    const getFieldValueOrFallback = (value, fallback) => {
-      if (value === '' || value === null || value === undefined) {
-        return fallback;
-      }
-      return toNumber(value);
-    };
-
-    const basicSalary = getFieldValueOrFallback(payslipForm.basicSalary, 0);
-    const regularOvertime = getFieldValueOrFallback(payslipForm.regularOvertime, 0);
-    const lateUndertime = getFieldValueOrFallback(payslipForm.lateUndertime, 0);
-    const restDayOt = getFieldValueOrFallback(payslipForm.restDayOt, 0);
-    const payrollTax = getFieldValueOrFallback(payslipForm.payrollTax, 0);
-    const payrollAllowance = getFieldValueOrFallback(payslipForm.payrollAllowance, 0);
-    const companyLoanCashAdvance = getFieldValueOrFallback(payslipForm.companyLoanCashAdvance, 0);
-    const governmentContributionsTotal = getContributionTotal(modalEmployeeContributions);
-
-    const grossAmountComputed = basicSalary + regularOvertime + restDayOt;
-    const grossAmount = getFieldValueOrFallback(payslipForm.grossAmount, grossAmountComputed);
-    const netTaxableSalary = getFieldValueOrFallback(payslipForm.netTaxableSalary, grossAmount);
-
-    const totalDeductionsAmount = governmentContributionsTotal;
-
-    const salaryNetPayComputed = grossAmount + payrollAllowance - companyLoanCashAdvance - totalDeductionsAmount;
-    const salaryNetPay = getFieldValueOrFallback(payslipForm.salaryNetPay, salaryNetPayComputed);
-
-    const monthlyAmount = getFieldValueOrFallback(payslipForm.monthly, grossAmount);
+    const basicSalary = computedPayslipValues.basicSalary;
+    const regularOvertime = computedPayslipValues.regularOvertime;
+    const lateUndertime = computedPayslipValues.lateUndertime;
+    const restDayOt = computedPayslipValues.restDayOt;
+    const payrollTax = computedPayslipValues.payrollTax;
+    const payrollAllowance = computedPayslipValues.payrollAllowance;
+    const companyLoanCashAdvance = computedPayslipValues.companyLoanCashAdvance;
+    const grossAmount = computedPayslipValues.grossAmount;
+    const netTaxableSalary = computedPayslipValues.netTaxableSalary;
+    const totalDeductionsAmount = computedPayslipValues.totalDeductions;
+    const salaryNetPay = computedPayslipValues.salaryNetPay;
+    const monthlyAmount = toNumber(payslipForm.monthly);
 
     const governmentContributions = modalEmployeeContributions.map((item) => ({
       id: item.id,
       name: item.name,
       amount: toNumber(item.amount),
     }));
+
+    const preparedBy = (
+      payslipForm.preparedBy
+      || currentAccountingUser?.name
+      || getStoredUserFullName()
+      || 'Accounting Department'
+    ).trim();
+
+    const approvedByTopManagement = (
+      topManagementUser?.name
+      || payslipForm.approvedByTopManagement
+      || ''
+    ).trim();
+
+    const approvedBy = (
+      topManagementUser?.name
+      || payslipForm.approvedBy
+      || approvedByTopManagement
+      || ''
+    ).trim();
+
+    const preparedBySignature = (
+      payslipForm.preparedBySignature
+      || currentAccountingUser?.signature_image
+      || ''
+    ).trim();
+
+    const approvedBySignature = (
+      payslipForm.approvedBySignature
+      || topManagementUser?.signature_image
+      || ''
+    ).trim();
 
     return {
       startDate,
@@ -665,9 +831,11 @@ export function PayrollManagement() {
         payroll_allowance: payrollAllowance,
         company_loan_cash_advance: companyLoanCashAdvance,
         salary_net_pay: salaryNetPay,
-        prepared_by: (payslipForm.preparedBy || '').trim(),
-        approved_by_top_management: (payslipForm.approvedByTopManagement || '').trim(),
-        approved_by: (payslipForm.approvedBy || '').trim(),
+        prepared_by: preparedBy,
+        prepared_by_signature: preparedBySignature,
+        approved_by_top_management: approvedByTopManagement,
+        approved_by: approvedBy,
+        approved_by_signature: approvedBySignature,
         government_contributions: governmentContributions,
       },
     };
@@ -854,6 +1022,14 @@ export function PayrollManagement() {
             >
               <Settings className="w-4 h-4" />
               Government Contributions
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleOpenAllowanceEligibility}
+            >
+              <UserCheck className="w-4 h-4" />
+              Payroll Allowance Eligibility
             </Button>
           </div>
         </CardContent>
@@ -1165,6 +1341,64 @@ export function PayrollManagement() {
         </DialogContent>
       </Dialog>
 
+      {/* Payroll Allowance Eligibility Modal */}
+      <Dialog open={isAllowanceEligibilityOpen} onOpenChange={setIsAllowanceEligibilityOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="w-5 h-5" />
+              Payroll Allowance Eligibility
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Select employees who are eligible to receive payroll allowance.
+            </p>
+
+            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+              {employees.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No active employees found.</p>
+              ) : (
+                employees.map((employee) => {
+                  const checked = allowanceEligibleEmployeeIds.includes(String(employee.id));
+                  return (
+                    <div
+                      key={employee.id}
+                      className="flex items-center justify-between rounded-lg border border-white/10 bg-background/20 p-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-white">{employee.name}</p>
+                        <p className="text-xs text-white/60">
+                          {employee.position || 'Employee'}
+                        </p>
+                      </div>
+                      <Switch
+                        checked={checked}
+                        onCheckedChange={(value) => handleToggleAllowanceEligibility(employee.id, value)}
+                      />
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setIsAllowanceEligibilityOpen(false)}
+              disabled={isSavingAllowanceEligibility}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleSaveAllowanceEligibility} disabled={isSavingAllowanceEligibility}>
+              {isSavingAllowanceEligibility ? 'Saving...' : 'Save Eligibility'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Process Payroll Modal */}
       <Dialog open={isProcessPayrollOpen} onOpenChange={setIsProcessPayrollOpen}>
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -1398,9 +1632,9 @@ export function PayrollManagement() {
                     <Input
                       id="netTaxableSalary"
                       type="number"
-                      value={payslipForm.netTaxableSalary}
-                      onChange={(e) => handlePayslipFieldChange('netTaxableSalary', e.target.value)}
-                      className="bg-background border-white/10 text-white"
+                      value={computedPayslipValues.netTaxableSalary.toFixed(2)}
+                      readOnly
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white cursor-not-allowed"
                       min="0"
                       step="0.01"
                     />
@@ -1410,9 +1644,9 @@ export function PayrollManagement() {
                     <Input
                       id="payrollTax"
                       type="number"
-                      value={payslipForm.payrollTax}
-                      onChange={(e) => handlePayslipFieldChange('payrollTax', e.target.value)}
-                      className="bg-background border-white/10 text-white"
+                      value={computedPayslipValues.payrollTax.toFixed(2)}
+                      readOnly
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white cursor-not-allowed"
                       min="0"
                       step="0.01"
                     />
@@ -1422,7 +1656,7 @@ export function PayrollManagement() {
                     <Input
                       id="totalDeductions"
                       type="number"
-                      value={payslipForm.totalDeductions}
+                      value={computedPayslipValues.totalDeductions.toFixed(2)}
                       readOnly
                       className="bg-[#021B2C] border-[#AEAAAA]/20 text-white cursor-not-allowed"
                       min="0"
@@ -1441,9 +1675,9 @@ export function PayrollManagement() {
                     <Input
                       id="grossAmount"
                       type="number"
-                      value={payslipForm.grossAmount}
-                      onChange={(e) => handlePayslipFieldChange('grossAmount', e.target.value)}
-                      className="bg-background border-white/10 text-white"
+                      value={computedPayslipValues.grossAmount.toFixed(2)}
+                      readOnly
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white cursor-not-allowed"
                       min="0"
                       step="0.01"
                     />
@@ -1453,12 +1687,16 @@ export function PayrollManagement() {
                     <Input
                       id="payrollAllowance"
                       type="number"
-                      value={payslipForm.payrollAllowance}
+                      value={isSelectedEmployeeAllowanceEligible ? payslipForm.payrollAllowance : '0.00'}
                       onChange={(e) => handlePayslipFieldChange('payrollAllowance', e.target.value)}
                       className="bg-background border-white/10 text-white"
+                      disabled={!isSelectedEmployeeAllowanceEligible}
                       min="0"
                       step="0.01"
                     />
+                    {!isSelectedEmployeeAllowanceEligible && (
+                      <p className="text-xs text-muted-foreground">This employee is not allowance-eligible.</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="companyLoanCashAdvance" className="min-h-[2.5rem] flex items-end pb-1">Company Loan/Cash Advance</Label>
@@ -1479,9 +1717,9 @@ export function PayrollManagement() {
                   <Input
                     id="salaryNetPay"
                     type="number"
-                    value={payslipForm.salaryNetPay}
-                    onChange={(e) => handlePayslipFieldChange('salaryNetPay', e.target.value)}
-                    className="bg-[#021B2C] border-[#F27229]/40 text-[#F27229] font-semibold"
+                    value={computedPayslipValues.salaryNetPay.toFixed(2)}
+                    readOnly
+                    className="bg-[#021B2C] border-[#F27229]/40 text-[#F27229] font-semibold cursor-not-allowed"
                     min="0"
                     step="0.01"
                   />
@@ -1501,20 +1739,20 @@ export function PayrollManagement() {
                     <Label htmlFor="approvedByTopManagement" className="min-h-[2.5rem] flex items-end pb-1">Approved By (Top Management)</Label>
                     <Input
                       id="approvedByTopManagement"
-                      value={payslipForm.approvedByTopManagement}
-                      onChange={(e) => handlePayslipFieldChange('approvedByTopManagement', e.target.value)}
+                      value={topManagementUser?.name || payslipForm.approvedByTopManagement}
+                      readOnly
                       placeholder=""
-                      className="bg-background border-white/10 text-white"
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white cursor-not-allowed"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="approvedBy" className="min-h-[2.5rem] flex items-end pb-1">Approved By</Label>
                     <Input
                       id="approvedBy"
-                      value={payslipForm.approvedBy}
-                      onChange={(e) => handlePayslipFieldChange('approvedBy', e.target.value)}
+                      value={topManagementUser?.name || payslipForm.approvedBy}
+                      readOnly
                       placeholder=""
-                      className="bg-background border-white/10 text-white"
+                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white cursor-not-allowed"
                     />
                   </div>
                 </div>
@@ -1630,7 +1868,11 @@ export function PayrollManagement() {
                         <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.lateUndertime)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Payroll Allowance</span>
+                        <span className="text-muted-foreground">Company Loan/Cash Advance</span>
+                        <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.companyLoanCashAdvance)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Payroll Allowance (Added)</span>
                         <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.payrollAllowance)}</span>
                       </div>
                     </div>
@@ -1655,10 +1897,16 @@ export function PayrollManagement() {
                 <div>
                   <p className="text-xs text-muted-foreground">Prepared By</p>
                   <p className="text-sm font-semibold text-white">{payslipPreviewData.payslipFormPayload.prepared_by || 'Accounting'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {payslipPreviewData.payslipFormPayload.prepared_by_signature ? 'Signature attached' : 'No signature uploaded yet'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Approved By</p>
                   <p className="text-sm font-semibold text-white">{payslipPreviewData.payslipFormPayload.approved_by || '-'}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {payslipPreviewData.payslipFormPayload.approved_by_signature ? 'Signature attached' : 'No signature uploaded yet'}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Top Management</p>

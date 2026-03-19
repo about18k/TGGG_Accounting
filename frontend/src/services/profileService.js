@@ -20,6 +20,13 @@ export async function uploadProfilePicture(formData) {
     return data;
 }
 
+export async function uploadSignatureImage(formData) {
+    const { data } = await api.post('/profile/signature', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+}
+
 export async function changePassword(newPassword) {
     const { data } = await api.put('/profile/password', { password: newPassword });
     return data;
