@@ -19,7 +19,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Django Security Settings
 DEBUG = config('DEBUG', default='True') == 'True'
 
-SECRET_KEY = config('SECRET_KEY', default='django-insecure-your-secret-key-change-in-production')
+SECRET_KEY = config(
+    'SECRET_KEY',
+    default=config('SECRETKEY', default='django-insecure-your-secret-key-change-in-production')
+)
 
 ALLOWED_HOSTS = [
     'localhost',
@@ -51,6 +54,8 @@ INSTALLED_APPS = [
     'attendance',
     'payroll',
     'todos',
+    'bim_documentation',
+    'material_requests',
 ]
 
 MIDDLEWARE = [
@@ -93,18 +98,30 @@ SUPABASE_URL = config('SUPABASE_URL', default='')
 SUPABASE_KEY = config('SUPABASE_KEY', default='')
 
 if USE_SUPABASE:
+    supabase_db_host = config('SUPABASE_DB_HOST', default='')
+    is_supabase_pooler = 'pooler.supabase.com' in supabase_db_host
+    default_conn_max_age = 0 if is_supabase_pooler else 600
+
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': config('SUPABASE_DB_NAME', default='postgres'),
             'USER': config('SUPABASE_DB_USER', default='postgres'),
             'PASSWORD': config('SUPABASE_DB_PASSWORD', default=''),
-            'HOST': config('SUPABASE_DB_HOST', default=''),
+            'HOST': supabase_db_host,
             'PORT': config('SUPABASE_DB_PORT', default='5432'),
             'ATOMIC_REQUESTS': True,
-            'CONN_MAX_AGE': 0,
+            # Keep DB connections short-lived when using Supabase poolers.
+            'CONN_MAX_AGE': config('SUPABASE_CONN_MAX_AGE', default=default_conn_max_age, cast=int),
+            'OPTIONS': {
+                'sslmode': config('SUPABASE_DB_SSLMODE', default='require'),
+            },
         }
     }
+
+    if is_supabase_pooler:
+        # Recommended with transaction poolers.
+        DISABLE_SERVER_SIDE_CURSORS = config('DISABLE_SERVER_SIDE_CURSORS', default='True') == 'True'
 else:
     DATABASES = {
         'default': {
@@ -171,7 +188,7 @@ SIMPLE_JWT = {
     'UPDATE_LAST_LOGIN': False,
 
     'ALGORITHM': 'HS256',
-    'SIGNING_KEY': config('SECRET_KEY', default=''),
+    'SIGNING_KEY': SECRET_KEY,
     'VERIFYING_KEY': None,
     'AUDIENCE': None,
     'ISSUER': None,

@@ -1,13 +1,14 @@
 from django.urls import path, re_path
 from . import views
 
-from accounts.views import upload_profile_picture
+from accounts.views import upload_profile_picture, upload_profile_signature
 
 app_name = 'todos'
 
 urlpatterns = [
     # User profile (with is_leader)
     re_path(r'^profile/picture/?$', upload_profile_picture, name='upload_profile_picture'),
+    re_path(r'^profile/signature/?$', upload_profile_signature, name='upload_profile_signature'),
     re_path(r'^profile/password/?$', views.todo_profile_password, name='profile_password'),
     re_path(r'^profile/?$', views.todo_profile, name='profile'),
 

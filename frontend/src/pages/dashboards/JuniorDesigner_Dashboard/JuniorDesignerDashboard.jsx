@@ -6,15 +6,18 @@ import {
 } from 'lucide-react';
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import JuniorDesignerSidebar from './components/JuniorDesignerSidebar';
+import PrintAttendance from '../../globalattendancereport/PrintAttendance';
 import LocationAttendance from '../../../components/attendance/LocationAttendance';
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
 import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';
 import useMyAttendance from '../../../hooks/useMyAttendance';
+import { CardSkeleton } from '../../../components/SkeletonLoader';
 
 export default function JuniorDesignerDashboard({ user, onNavigate }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [workDoc, setWorkDoc] = useState('');
   const [workDocAttachments, setWorkDocAttachments] = useState([]);
+  const [showDTROverlay, setShowDTROverlay] = useState(false);
   const [attendanceReady, setAttendanceReady] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [lockMessage, setLockMessage] = useState(null);
@@ -44,15 +47,19 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
               {user?.profile_picture ? <img src={user.profile_picture} alt="Profile" className="h-full w-full object-cover" /> : <User className="h-8 w-8 sm:h-10 sm:w-10 text-[#FF7120]" />}
             </div>
             <div>
-              <h2 className="text-white font-semibold text-[clamp(1rem,3.5vw,1.5rem)]">Welcome, {user?.first_name || 'Junior'} {user?.last_name || 'Designer'}</h2>
-              <p className="text-white/60 text-sm">Role: <span className="text-white/80">{user?.role || 'junior_architect'}</span></p>
+              <h2 className="text-white font-semibold text-[clamp(1rem,3.5vw,1.5rem)]">Welcome, {user?.first_name || 'Junior'}</h2>
+              <p className="text-white/60 text-sm capitalize">Role: <span className="text-white/80">{user?.role?.replace('_', ' ') || 'junior designer'}</span></p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border bg-white/5 text-white/70 border-white/10"><ShieldCheck className="h-3.5 w-3.5 mr-1" />Attendance &amp; Work Logs</span>
-            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${attendanceReady ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : 'bg-[#FF7120]/10 text-[#FF7120] border-[#FF7120]/30'}`}>
-              {attendanceReady ? 'Location Ready' : 'Location Needed'}
-            </span>
+            <button
+              type="button"
+              onClick={() => setShowDTROverlay(true)}
+              className="px-3 py-2 rounded-xl border border-[#FF7120]/40 bg-[#FF7120]/10 text-[#FF7120] hover:bg-[#FF7120]/20 hover:text-white transition text-sm font-semibold"
+            >
+              Print DTR
+            </button>
           </div>
         </div>
       </div>
@@ -71,10 +78,10 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
                 className={`${cardClass} p-4 sm:p-6`}
                 workDoc={workDoc}
                 workDocAttachments={workDocAttachments}
-                onStatusChange={({ ready, isBeforeSessionEnd, earlyTimeoutMessage }) => {
+                onStatusChange={({ ready, isBeforeSessionEnd, earlyTimeoutMessage, processing }) => {
                     setAttendanceReady(ready);
-                    setIsLocked(!!isBeforeSessionEnd);
-                    setLockMessage(earlyTimeoutMessage || null);
+                    setIsLocked(!!isBeforeSessionEnd || !!processing);
+                    setLockMessage(processing ? "Processing attendance..." : (earlyTimeoutMessage || null));
                   }}
                 onRecordSaved={(attendance) => {
                   // Clear work documentation after successful clock-out (documentation saved)
@@ -113,15 +120,15 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0">
+    <div className="min-h-screen bg-[#00273C] relative">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
 
       <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
 
       <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
-        <div className="max-w-[1600px] mx-auto flex gap-6">
+        <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-6">
           <aside className="w-64 shrink-0 hidden lg:block">
             <JuniorDesignerSidebar currentPage="attendance" onNavigate={onNavigate} activeSection="attendance" onSelectSection={() => { }} />
           </aside>
@@ -131,6 +138,16 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
           </main>
         </div>
       </div>
+
+      {showDTROverlay && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
+          <PrintAttendance
+            internId={user?.id}
+            internName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email || 'Employee'}
+            onClose={() => setShowDTROverlay(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

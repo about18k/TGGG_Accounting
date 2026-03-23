@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { getAccountingEmployees, addAccountingEmployee, updateAccountingEmployee } from '../../../services/adminService';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { getAllAttendance } from '../../../services/attendanceService';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
@@ -51,6 +51,22 @@ const normalizeRole = (value = '') => {
   return v;
 };
 
+const timeToMinutes = (timeValue) => {
+  if (!timeValue || typeof timeValue !== 'string' || !timeValue.includes(':')) return null;
+  const [hourPart, minutePart] = timeValue.split(':');
+  const hours = Number(hourPart);
+  const minutes = Number(minutePart);
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+  return (hours * 60) + minutes;
+};
+
+const getWorkedHours = (record) => {
+  const inMinutes = timeToMinutes(record?.time_in);
+  const outMinutes = timeToMinutes(record?.time_out);
+  if (inMinutes === null || outMinutes === null || outMinutes < inMinutes) return 0;
+  return (outMinutes - inMinutes) / 60;
+};
+
 export function EmployeeManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('All');
@@ -69,7 +85,9 @@ export function EmployeeManagement() {
   const [isAddEmployeeOpen, setIsAddEmployeeOpen] = useState(false);
 
   const [employees, setEmployees] = useState([]);
+  const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [isAddingEmployee, setIsAddingEmployee] = useState(false);
   const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
@@ -103,6 +121,34 @@ export function EmployeeManagement() {
     fetchEmployees();
   }, [selectedDepartment]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    const fetchAttendanceRecords = async () => {
+      setIsAttendanceLoading(true);
+      try {
+        const data = await getAllAttendance();
+        if (!isActive) return;
+        setAttendanceRecords(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Failed to fetch attendance records:', error);
+        if (isActive) {
+          setAttendanceRecords([]);
+        }
+      } finally {
+        if (isActive) {
+          setIsAttendanceLoading(false);
+        }
+      }
+    };
+
+    fetchAttendanceRecords();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const handleAddEmployee = async () => {
     const firstName = formData.first_name.trim();
     const lastName = formData.last_name.trim();
@@ -110,12 +156,16 @@ export function EmployeeManagement() {
     const temporaryPassword = formData.temporary_password;
 
     if (!firstName || !lastName || !email) {
-      alert('First name, last name, and email are required.');
+      toast.error('Validation Error', {
+        description: 'First name, last name, and email are required.',
+      });
       return;
     }
 
     if (!temporaryPassword || temporaryPassword.length < 8) {
-      alert('Temporary password is required and must be at least 8 characters.');
+      toast.error('Validation Error', {
+        description: 'Temporary password is required and must be at least 8 characters.',
+      });
       return;
     }
 
@@ -142,9 +192,13 @@ export function EmployeeManagement() {
         temporary_password: '',
       });
       fetchEmployees();
-      alert('Employee submitted successfully. The account is pending Studio Head/Admin approval and a confirmation email has been sent.');
+      toast.success('Employee Submitted', {
+        description: 'The account is pending Studio Head/Admin approval and a confirmation email has been sent.',
+      });
     } catch (error) {
-      alert("Failed to add employee: " + (error.response?.data?.error || error.message));
+      toast.error('Addition Failed', {
+        description: error.response?.data?.error || error.message,
+      });
     } finally {
       setIsAddingEmployee(false);
     }
@@ -153,9 +207,14 @@ export function EmployeeManagement() {
   const handleExportEmployees = async () => {
     setIsExporting(true);
     try {
+      const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+        import('jspdf'),
+        import('jspdf-autotable'),
+      ]);
+
       const allEmployees = await getAccountingEmployees({ active_only: true });
       if (!allEmployees?.length) {
-        alert('No employees available to export.');
+        toast.error('Export Failed', { description: 'No employees available to export.' });
         return;
       }
 
@@ -206,7 +265,9 @@ export function EmployeeManagement() {
 
       doc.save(`employees-${now.toISOString().slice(0, 10)}.pdf`);
     } catch (error) {
-      alert(`Failed to export employees: ${error.response?.data?.error || error.message}`);
+      toast.error('Export Failed', {
+        description: error.response?.data?.error || error.message,
+      });
     } finally {
       setIsExporting(false);
     }
@@ -246,7 +307,9 @@ export function EmployeeManagement() {
     const email = editFormData.email.trim();
 
     if (!firstName || !lastName || !email) {
-      alert('First name, last name, and email are required.');
+      toast.error('Validation Error', {
+        description: 'First name, last name, and email are required.',
+      });
       return;
     }
 
@@ -261,28 +324,132 @@ export function EmployeeManagement() {
         salary: editFormData.salary || null,
       });
 
-      alert('Employee updated successfully.');
+      toast.success('Employee Updated', { description: 'Employee updated successfully.' });
       setIsEditingEmployee(false);
       closeEmployeeDialog();
       fetchEmployees();
     } catch (error) {
-      alert(`Failed to update employee: ${error.response?.data?.error || error.message}`);
+      toast.error('Update Failed', {
+        description: error.response?.data?.error || error.message,
+      });
     } finally {
       setIsUpdatingEmployee(false);
     }
   };
 
-  const filteredEmployees = employees.filter(employee => {
-    const matchesSearch = employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      employee.department.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDepartment =
-      selectedDepartment === 'All' ||
-      normalizeRole(employee.position) === normalizeRole(selectedDepartment);
-    const matchesStatus = selectedStatus === 'All' || employee.status === selectedStatus;
+  const filteredEmployees = useMemo(() => {
+    const search = searchTerm.toLowerCase().trim();
 
-    return matchesSearch && matchesDepartment && matchesStatus;
-  });
+    return employees.filter((employee) => {
+      const name = String(employee.name || '').toLowerCase();
+      const email = String(employee.email || '').toLowerCase();
+      const department = String(employee.department || '').toLowerCase();
+
+      const matchesSearch =
+        !search ||
+        name.includes(search) ||
+        email.includes(search) ||
+        department.includes(search);
+
+      const matchesDepartment =
+        selectedDepartment === 'All' ||
+        normalizeRole(employee.position) === normalizeRole(selectedDepartment);
+
+      const matchesStatus = selectedStatus === 'All' || employee.status === selectedStatus;
+
+      return matchesSearch && matchesDepartment && matchesStatus;
+    });
+  }, [employees, searchTerm, selectedDepartment, selectedStatus]);
+
+  const employeeStats = useMemo(() => {
+    let active = 0;
+    let onLeave = 0;
+
+    for (const employee of employees) {
+      if (employee.status === 'Active') active += 1;
+      if (employee.status === 'On Leave') onLeave += 1;
+    }
+
+    return {
+      total: employees.length,
+      active,
+      onLeave,
+    };
+  }, [employees]);
+
+  const employeeAttendanceStats = useMemo(() => {
+    const byEmployee = new Map();
+
+    attendanceRecords.forEach((record) => {
+      const employeeId = record?.employee_id ?? record?.user_id;
+      if (employeeId === undefined || employeeId === null) return;
+
+      const key = String(employeeId);
+      const status = String(record?.status || '').toLowerCase();
+      const dateKey = record?.date || (record?.created_at ? String(record.created_at).slice(0, 10) : null);
+
+      if (!byEmployee.has(key)) {
+        byEmployee.set(key, {
+          totalHours: 0,
+          totalLateHours: 0,
+          dayMap: new Map(),
+        });
+      }
+
+      const current = byEmployee.get(key);
+      current.totalHours += getWorkedHours(record);
+
+      const lateHours = Number(record?.late_deduction_hours || 0);
+      if (Number.isFinite(lateHours) && lateHours > 0) {
+        current.totalLateHours += lateHours;
+      }
+
+      if (dateKey) {
+        const dayStats = current.dayMap.get(dateKey) || {
+          hasPresent: false,
+          hasLate: false,
+        };
+
+        if (status === 'present' || status === 'late') {
+          dayStats.hasPresent = true;
+        }
+
+        if (status === 'late' || Boolean(record?.is_late)) {
+          dayStats.hasLate = true;
+        }
+
+        current.dayMap.set(dateKey, dayStats);
+      }
+    });
+
+    const summary = new Map();
+
+    byEmployee.forEach((data, employeeId) => {
+      let totalDays = 0;
+      let onTime = 0;
+      let late = 0;
+
+      data.dayMap.forEach((dayStats) => {
+        if (!dayStats.hasPresent) return;
+        totalDays += 1;
+        if (dayStats.hasLate) {
+          late += 1;
+        } else {
+          onTime += 1;
+        }
+      });
+
+      summary.set(employeeId, {
+        totalDays,
+        totalHours: Number(data.totalHours.toFixed(2)),
+        onTime,
+        late,
+        totalLate: Number(data.totalLateHours.toFixed(2)),
+      });
+    });
+
+    return summary;
+  }, [attendanceRecords]);
 
   const getStatusBadge = (status) => {
     const variants = {
@@ -297,12 +464,6 @@ export function EmployeeManagement() {
       </Badge>
     );
   };
-
-  const departmentStats = roleFilters.slice(1).map(dept => ({
-    name: dept,
-    count: employees.filter(emp => normalizeRole(emp.position) === normalizeRole(dept)).length,
-    active: employees.filter(emp => normalizeRole(emp.position) === normalizeRole(dept) && emp.status === 'Active').length,
-  }));
 
   return (
     <div className="space-y-6">
@@ -386,7 +547,7 @@ export function EmployeeManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Employees</p>
-                <p className="text-2xl font-medium">{employees.length}</p>
+                <p className="text-2xl font-medium">{employeeStats.total}</p>
               </div>
               <Users className="w-8 h-8 text-primary" />
             </div>
@@ -397,7 +558,7 @@ export function EmployeeManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Active</p>
-                <p className="text-2xl font-medium">{employees.filter(emp => emp.status === 'Active').length}</p>
+                <p className="text-2xl font-medium">{employeeStats.active}</p>
               </div>
               <UserCheck className="w-8 h-8 text-primary" />
             </div>
@@ -408,7 +569,7 @@ export function EmployeeManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">On Leave</p>
-                <p className="text-2xl font-medium">{employees.filter(emp => emp.status === 'On Leave').length}</p>
+                <p className="text-2xl font-medium">{employeeStats.onLeave}</p>
               </div>
               <UserX className="w-8 h-8 text-primary" />
             </div>
@@ -470,7 +631,16 @@ export function EmployeeManagement() {
 
       {/* Employee Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {filteredEmployees.map((employee) => (
+        {filteredEmployees.map((employee) => {
+          const attendanceMetrics = employeeAttendanceStats.get(String(employee.id)) || {
+            totalDays: 0,
+            totalHours: 0,
+            onTime: 0,
+            late: 0,
+            totalLate: 0,
+          };
+
+          return (
           <Card key={employee.id} className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm hover:shadow-xl transition-shadow cursor-pointer flex flex-col" onClick={() => openEmployeeDetails(employee)}>
             <CardContent className="p-6 flex flex-col h-full">
               <div className="flex items-start justify-between mb-4 gap-2">
@@ -499,29 +669,30 @@ export function EmployeeManagement() {
               <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="bg-background rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">Total Days</p>
-                  <p className="text-2xl font-bold text-primary">---</p>
+                  <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : attendanceMetrics.totalDays}</p>
                 </div>
                 <div className="bg-background rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">Total Hours</p>
-                  <p className="text-2xl font-bold text-primary">---</p>
+                  <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : attendanceMetrics.totalHours.toFixed(2)}</p>
                 </div>
                 <div className="bg-background rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">On-Time</p>
-                  <p className="text-2xl font-bold text-primary">---</p>
+                  <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : attendanceMetrics.onTime}</p>
                 </div>
                 <div className="bg-background rounded-lg p-3">
                   <p className="text-xs text-muted-foreground mb-1">Late</p>
-                  <p className="text-2xl font-bold text-primary">---</p>
+                  <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : attendanceMetrics.late}</p>
                 </div>
               </div>
 
               <div className="bg-background rounded-lg p-3">
                 <p className="text-xs text-muted-foreground mb-1">Total Late</p>
-                <p className="text-2xl font-bold text-primary">---</p>
+                <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : `${attendanceMetrics.totalLate.toFixed(2)}h`}</p>
               </div>
             </CardContent>
           </Card>
-        ))}
+        );
+        })}
       </div>
 
       {/* Employee Detail Dialog */}

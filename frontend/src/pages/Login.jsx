@@ -222,7 +222,7 @@ export default function Login({ onLoginSuccess }) {
                     </button>
                   </span>
                 ) : (
-                  <span>Triple G (Design Studio + Construction)</span>
+                  <span>Triple<span className="text-[#FF7120]">G</span> (Design Studio + Construction)</span>
                 )}
               </p>
 

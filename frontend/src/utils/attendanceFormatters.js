@@ -185,8 +185,16 @@ export const calculateTotalDeduction = (am, pm, ot) => {
  * @returns {string} Location string or "-"
  */
 export const getPrimaryLocation = (am, pm, ot) => {
-  return am?.clock_in_address || pm?.clock_in_address || ot?.clock_in_address ||
+  const loc = am?.clock_in_address || pm?.clock_in_address || ot?.clock_in_address ||
     am?.location || pm?.location || ot?.location || '-';
+  
+  // Clean coordinates if present
+  if (loc && loc.includes('lat=') && loc.includes('lng=')) {
+    const lat = loc.match(/lat=([\d.-]+)/)?.[1];
+    const lng = loc.match(/lng=([\d.-]+)/)?.[2];
+    if (lat && lng) return `${lat}, ${lng}`;
+  }
+  return loc;
 };
 
 /**

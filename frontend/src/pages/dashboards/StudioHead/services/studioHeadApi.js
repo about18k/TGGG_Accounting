@@ -12,6 +12,7 @@ export {
   getAllUsers,
   updateUserAccount,
   deleteUserAccount,
+  getDepartments,
 } from '../../../../services/adminService';
 
 // ── Groups & Leaders ──────────────────────────────────────

@@ -67,14 +67,12 @@ export function DashboardOverview({ user }) {
   const [topPerformers, setTopPerformers] = useState([]);
   const [events, setEvents] = useState(mockData.upcomingEvents);
 
-  const userName =
-    user?.full_name ||
-    [user?.first_name, user?.last_name].filter(Boolean).join(' ') ||
-    user?.username ||
-    'there';
+  const userName = user?.first_name || 'Staff';
 
   useEffect(() => {
     if (!user) return;
+
+    let isActive = true;
 
     const fetchOverview = async () => {
       setLoading(true);
@@ -144,14 +142,20 @@ export function DashboardOverview({ user }) {
           return date.startsWith(todayStr) && ['absent', 'no show'].includes(status);
         }).length;
 
+        const pending = (overtime || []).filter(
+          (o) => !o.management_signature && !o.approval_date
+        );
+
+        if (!isActive) return;
+
         setMetrics((prev) => ({
           ...prev,
-          totalEmployees: totalEmployees || prev.totalEmployees,
-          activeEmployees: activeEmployees || prev.activeEmployees,
+          totalEmployees,
+          activeEmployees,
           onLeaveToday,
-          newHires: newHires || prev.newHires,
-          attendanceRate: attendanceRate || prev.attendanceRate,
-          monthlyPayroll: monthlyPayroll || prev.monthlyPayroll,
+          newHires,
+          attendanceRate,
+          monthlyPayroll: Number(monthlyPayroll.toFixed(2)),
           overtimePending: pending.length,
           absencesToday,
         }));
@@ -170,12 +174,9 @@ export function DashboardOverview({ user }) {
         setActivities(recentActivities);
 
         // Pending approvals from overtime requests lacking management signature
-        const pending = (overtime || []).filter(
-          (o) => !o.management_signature && !o.approval_date
-        );
         setPendingApprovals(pending.slice(0, 5).map((o) => ({
           id: o.id,
-          type: 'Overtime Request',
+          type: 'OT Request',
           employee: o.employee_name || o.full_name || 'Unknown',
           status: 'pending',
         })));
@@ -210,12 +211,18 @@ export function DashboardOverview({ user }) {
       } catch (error) {
         console.error('Failed to load dashboard overview metrics:', error);
       } finally {
-        setLoading(false);
+        if (isActive) {
+          setLoading(false);
+        }
       }
     };
 
     fetchOverview();
-  }, [user]);
+
+    return () => {
+      isActive = false;
+    };
+  }, [user?.id]);
 
   return (
     <div className="space-y-6">
@@ -327,9 +334,9 @@ export function DashboardOverview({ user }) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[320px] overflow-y-auto pr-2">
               {activities.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg transition-colors">
+                <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg transition-colors hover:bg-white/5">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                     {activity.type === 'leave' && <CalendarDays className="w-4 h-4 text-primary" />}
                     {activity.type === 'performance' && <TrendingUp className="w-4 h-4 text-primary" />}
@@ -343,6 +350,11 @@ export function DashboardOverview({ user }) {
                   </div>
                 </div>
               ))}
+              {activities.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground italic text-sm">
+                  No recent activities recorded.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

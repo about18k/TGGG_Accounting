@@ -10,6 +10,7 @@ import {
   getCombinedNotes,
   formatLateDeduction,
 } from '../../utils/attendanceFormatters';
+import { X, FileText } from 'lucide-react';
 
 /**
  * Standardized Attendance History Table component
@@ -32,7 +33,7 @@ export default function AttendanceHistoryTable({
   selectedDate = new Date().toISOString().split('T')[0],
   onDateChange = () => { },
 }) {
-  const [expandedWorkIdx, setExpandedWorkIdx] = useState(null);
+  const [selectedWorkData, setSelectedWorkData] = useState(null);
 
   const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -52,7 +53,7 @@ export default function AttendanceHistoryTable({
         </div>
       </div>
 
-      <div className="max-h-[520px] overflow-auto">
+      <div className="max-h-[520px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <table className="w-full min-w-[1200px] border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[#001a2b] border-b border-white/10">
@@ -165,26 +166,75 @@ export default function AttendanceHistoryTable({
                             <span className="text-emerald-300">On time</span>
                           )}
                         </td>
-                        <td className="px-4 py-4 text-white/70 text-sm max-w-[180px]">
-                          <span className="truncate block" title={address}>
-                            {address}
-                          </span>
+                        <td className="px-4 py-4 text-white/70 text-sm max-w-[200px]">
+                          <div className="flex flex-col gap-1.5">
+                            {(am || pm || ot) && (
+                              <>
+                                {am && (
+                                  <div className="border-l-2 border-emerald-500/30 pl-2 py-0.5">
+                                    <div className="text-[10px] text-white/40 uppercase font-bold mb-0.5 tracking-tight">AM Session</div>
+                                    <div className="flex flex-col gap-0.5" title={`In: ${am.clock_in_address || am.location}\nOut: ${am.clock_out_address || am.location}`}>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] text-emerald-400/70 font-bold w-6">IN:</span>
+                                        <span className="truncate text-[11px] block">{am.clock_in_address || am.location || '-'}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] text-orange-400/70 font-bold w-6">OUT:</span>
+                                        <span className="truncate text-[11px] block">{am.time_out ? (am.clock_out_address || am.location || '-') : '---'}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                {pm && (
+                                  <div className="border-l-2 border-blue-500/30 pl-2 py-0.5 mt-1">
+                                    <div className="text-[10px] text-white/40 uppercase font-bold mb-0.5 tracking-tight">PM Session</div>
+                                    <div className="flex flex-col gap-0.5" title={`In: ${pm.clock_in_address || pm.location}\nOut: ${pm.clock_out_address || pm.location}`}>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] text-emerald-400/70 font-bold w-6">IN:</span>
+                                        <span className="truncate text-[11px] block">{pm.clock_in_address || pm.location || '-'}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <span className="text-[10px] text-orange-400/70 font-bold w-6">OUT:</span>
+                                        <span className="truncate text-[11px] block">{pm.time_out ? (pm.clock_out_address || pm.location || '-') : '---'}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </>
+                            )}
+                            {!(am || pm) && ot && (
+                               <div className="border-l-2 border-purple-500/30 pl-2 py-0.5">
+                                 <div className="text-[10px] text-white/40 uppercase font-bold mb-0.5 tracking-tight">OT Session</div>
+                                 <div className="flex flex-col gap-0.5">
+                                   <div className="flex items-center gap-1">
+                                      <span className="text-[10px] text-emerald-400/70 font-bold w-6">IN:</span>
+                                      <span className="truncate text-[11px] block">{ot.clock_in_address || ot.location || '-'}</span>
+                                   </div>
+                                   <div className="flex items-center gap-1">
+                                      <span className="text-[10px] text-orange-400/70 font-bold w-6">OUT:</span>
+                                      <span className="truncate text-[11px] block">{ot.time_out ? (ot.clock_out_address || ot.location || '-') : '---'}</span>
+                                   </div>
+                                 </div>
+                               </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-4 py-4 text-white/85 text-sm max-w-[180px]">
                           <div className="flex items-center gap-2">
                             <span className="truncate">{allNotes || '-'}</span>
                             {allNotes && (
                               <button
-                                className="shrink-0 p-1 px-2 text-[10px] rounded bg-[#FF7120] text-white hover:bg-[#e0611b] transition"
+                                className="shrink-0 p-1 px-2 text-[10px] rounded bg-[#FF7120] text-white hover:bg-[#e0611b] transition shadow-lg shadow-[#FF7120]/20"
                                 onClick={() =>
-                                  setExpandedWorkIdx((v) =>
-                                    v === index ? null : index
-                                  )
+                                  setSelectedWorkData({
+                                    date: day.date,
+                                    notes: allNotes,
+                                  })
                                 }
                                 type="button"
-                                aria-label="Toggle work done details"
+                                aria-label="View work done details"
                               >
-                                ...
+                                View Full
                               </button>
                             )}
                           </div>
@@ -220,21 +270,7 @@ export default function AttendanceHistoryTable({
                         </td>
                       </tr>
 
-                      {expandedWorkIdx === index && (
-                        <tr className="border-b border-white/5 bg-[#001a2b]">
-                          <td colSpan={12} className="px-6 py-4">
-                            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-                              <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">
-                                WORK DONE (FULL)
-                              </p>
-                              <p className="mt-2 text-white/90 text-sm leading-relaxed whitespace-pre-line">
-                                {allNotes}
-                              </p>
-                            </div>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
+                      </React.Fragment>
                   );
                 });
               })()}
@@ -243,6 +279,52 @@ export default function AttendanceHistoryTable({
 
         {error && <p className="mt-3 text-xs text-red-200 px-4 py-2">{error}</p>}
       </div>
+
+      {/* Work Done Modal */}
+      {selectedWorkData && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setSelectedWorkData(null)}
+        >
+          <div 
+            className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#001f35] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="bg-[#FF7120]/10 p-2 rounded-xl">
+                  <FileText className="h-5 w-5 text-[#FF7120]" />
+                </div>
+                <div>
+                  <h4 className="text-white font-semibold">Work Done (Full)</h4>
+                  <p className="text-white/40 text-xs">{selectedWorkData.date}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedWorkData(null)}
+                className="p-2 rounded-lg text-white/40 hover:text-white hover:bg-white/5 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="p-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+              <p className="text-white/80 text-sm leading-relaxed whitespace-pre-line">
+                {selectedWorkData.notes}
+              </p>
+            </div>
+            <div className="p-4 border-t border-white/10 bg-[#001a2b]/50">
+              <button
+                type="button"
+                onClick={() => setSelectedWorkData(null)}
+                className="w-full py-2.5 rounded-xl bg-white/5 text-white/70 text-sm font-semibold hover:bg-white/10 hover:text-white transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

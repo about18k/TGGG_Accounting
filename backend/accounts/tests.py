@@ -1,6 +1,7 @@
 from django.test import TestCase
 from rest_framework.test import APITestCase
 from rest_framework import status
+from todos.models import TodoNotification
 from .models import CustomUser, Department, ROLE_CHOICES
 from .serializers import CustomUserSerializer, PendingUserSerializer
 from django.utils import timezone
@@ -316,7 +317,7 @@ class RegisterViewTests(APITestCase):
 
     def test_register_success(self):
         """Test successful registration"""
-        response = self.client.post('/api/auth/register/', {
+        response = self.client.post('/api/accounts/register/', {
             'email': 'newuser@example.com',
             'password': 'testpass123',
             'first_name': 'Jane',
@@ -328,14 +329,14 @@ class RegisterViewTests(APITestCase):
 
     def test_register_missing_email(self):
         """Test registration without email"""
-        response = self.client.post('/api/auth/register/', {
+        response = self.client.post('/api/accounts/register/', {
             'password': 'testpass123'
         })
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_register_missing_password(self):
         """Test registration without password"""
-        response = self.client.post('/api/auth/register/', {
+        response = self.client.post('/api/accounts/register/', {
             'email': 'newuser@example.com'
         })
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -346,7 +347,7 @@ class RegisterViewTests(APITestCase):
             email='existing@example.com',
             password='testpass123'
         )
-        response = self.client.post('/api/auth/register/', {
+        response = self.client.post('/api/accounts/register/', {
             'email': 'existing@example.com',
             'password': 'newpass123'
         })
@@ -354,7 +355,7 @@ class RegisterViewTests(APITestCase):
 
     def test_register_user_inactive_by_default(self):
         """Test that registered users are inactive by default"""
-        response = self.client.post('/api/auth/register/', {
+        response = self.client.post('/api/accounts/register/', {
             'email': 'newuser@example.com',
             'password': 'testpass123',
             'first_name': 'John'
@@ -364,7 +365,7 @@ class RegisterViewTests(APITestCase):
 
     def test_register_response_structure(self):
         """Test register response has correct structure"""
-        response = self.client.post('/api/auth/register/', {
+        response = self.client.post('/api/accounts/register/', {
             'email': 'newuser@example.com',
             'password': 'testpass123',
             'first_name': 'Bob',
@@ -373,3 +374,127 @@ class RegisterViewTests(APITestCase):
         self.assertIn('success', response.data)
         self.assertIn('message', response.data)
         self.assertIn('user', response.data)
+
+    def test_register_notifies_studio_head_pending_verification(self):
+        """New user registration should notify Studio Head/Admin approvers."""
+        studio_head = CustomUser.objects.create_user(
+            username='studioheadregister',
+            email='studiohead-register@example.com',
+            password='testpass123',
+            role='studio_head',
+            is_active=True,
+        )
+
+        response = self.client.post('/api/accounts/register/', {
+            'email': 'newpending@example.com',
+            'password': 'testpass123',
+            'first_name': 'New',
+            'last_name': 'Pending',
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=studio_head, type='user_pending_approval')
+            .order_by('-created_at')
+            .first()
+        )
+
+        self.assertIsNotNone(notification)
+        self.assertIn('waiting for studio head/admin verification', notification.message.lower())
+
+
+class ApprovalNotificationTests(APITestCase):
+    """Test account approval notification scenarios."""
+
+    def setUp(self):
+        self.department = Department.objects.create(name='Accounting Department')
+        self.studio_head = CustomUser.objects.create_user(
+            username='studioheadnotif',
+            email='studiohead-notif@example.com',
+            password='testpass123',
+            role='studio_head',
+            is_active=True,
+        )
+        self.accounting_user = CustomUser.objects.create_user(
+            username='accountingnotif',
+            email='accounting-notif@example.com',
+            password='testpass123',
+            role='accounting',
+            department=self.department,
+            is_active=True,
+        )
+        self.pending_user = CustomUser.objects.create_user(
+            username='pendingapprovalnotif',
+            email='pending-approval@example.com',
+            password='testpass123',
+            first_name='Pending',
+            last_name='Employee',
+            is_active=False,
+        )
+
+    def test_studio_head_approval_notifies_accounting(self):
+        self.client.force_authenticate(user=self.studio_head)
+
+        response = self.client.post('/api/accounts/approve/', {
+            'user_id': self.pending_user.id,
+            'role': 'intern',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.accounting_user, type='user_verified')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('verified', notification.message.lower())
+
+
+class PendingApprovalNotificationTests(APITestCase):
+    """Test pending-approval notifications for account creation workflows."""
+
+    def setUp(self):
+        self.department = Department.objects.create(name='Accounting Department')
+        self.studio_head = CustomUser.objects.create_user(
+            username='studioheadpending',
+            email='studiohead-pending@example.com',
+            password='testpass123',
+            role='studio_head',
+            is_active=True,
+        )
+        self.accounting_user = CustomUser.objects.create_user(
+            username='accountingpending',
+            email='accounting-pending@example.com',
+            password='testpass123',
+            role='accounting',
+            department=self.department,
+            is_active=True,
+        )
+
+    def test_accounting_created_employee_notifies_studio_head(self):
+        self.client.force_authenticate(user=self.accounting_user)
+
+        response = self.client.post('/api/accounts/accounting/employees/', {
+            'email': 'new-employee-pending@example.com',
+            'first_name': 'New',
+            'last_name': 'Employee',
+            'department': self.department.name,
+            'position': 'Employee',
+            'temporary_password': 'testpass123',
+        }, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.studio_head, type='user_pending_approval')
+            .order_by('-created_at')
+            .first()
+        )
+
+        self.assertIsNotNone(notification)
+        self.assertEqual(notification.actor_id, self.accounting_user.id)
+        self.assertIn('waiting for studio head/admin verification', notification.message.lower())

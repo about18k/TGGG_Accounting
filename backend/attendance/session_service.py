@@ -70,22 +70,23 @@ def is_late_for_session(session_type, check_in_time):
     if isinstance(check_in_time, datetime):
         check_in_time = check_in_time.time()
 
-    return check_in_time >= LATE_THRESHOLDS[session_type]
+    return check_in_time > LATE_THRESHOLDS[session_type]
 
 
 def calculate_late_deduction(session_type, check_in_time):
     """
-    Calculate late deduction with tiered penalty for opening hour lateness.
+    Calculate late deduction. Late minutes only start counting AFTER the 5-minute grace period.
 
-    The late threshold (baseline + 5 min) determines IF you are late.
-    - If late within opening hour (baseline to baseline+60 mins): 1hr flat deduction
-    - If late after opening hour: actual minutes late converted to hours
+    Policy:
+    - If clock-in is within the 5-minute grace period (baseline to baseline+5 mins): 0h deduction.
+    - If clock-in is past the grace period: (actual minutes late - 5 mins) converted to hours.
     
-    Examples (morning baseline 8:00 AM, late after 8:05 AM):
+    Examples (morning baseline 8:00 AM, grace period ends 8:05 AM):
       - 8:03 AM → not late → 0h
-      - 8:10 AM → late in opening hour → 1h
-      - 8:30 AM → late in opening hour → 1h
-      - 9:15 AM → late after opening hour → 1.25h (75 min)
+      - 8:05 AM → not late → 0h
+      - 8:06 AM → late (1 min counted) → 0.02h
+      - 8:10 AM → late (5 mins counted) → 0.08h
+      - 9:00 AM → late (55 mins counted) → 0.92h
     """
     if not is_late_for_session(session_type, check_in_time):
         return Decimal('0')
@@ -96,12 +97,18 @@ def calculate_late_deduction(session_type, check_in_time):
     baseline = SESSION_BASELINES[session_type]
     max_hours = SESSION_MAX_HOURS[session_type]
 
-    late_minutes = (check_in_time.hour * 60 + check_in_time.minute) - (baseline.hour * 60 + baseline.minute)
-    if late_minutes <= 0:
+    # Total minutes from baseline
+    total_minutes_late = (check_in_time.hour * 60 + check_in_time.minute) - (baseline.hour * 60 + baseline.minute)
+    
+    # We subtract 5 minutes as the policy states lates only "start counting after" the baseline 5 mins.
+    # If someone checks in at 8:06, they are 6 mins past baseline, but only 1 min is counted.
+    counted_late_minutes = max(0, total_minutes_late - 5)
+
+    if counted_late_minutes <= 0:
         return Decimal('0')
 
-    # After opening hour: actual minutes late converted to hours
-    deduction = Decimal(str(round(late_minutes / 60, 2)))
+    # Convert counted minutes to hours
+    deduction = Decimal(str(round(counted_late_minutes / 60, 2)))
     return min(deduction, max_hours)
 
 

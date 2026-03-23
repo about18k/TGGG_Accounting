@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import OvertimeForm from '../Public_Dashboard/OvertimeForm.jsx';
 import OvertimeStatus from '../Public_Dashboard/OvertimeStatus.jsx';
-import LeaveForm from '../Public_Dashboard/LeaveForm.jsx';
-import LeaveStatus from '../Public_Dashboard/LeaveStatus.jsx';
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import SiteCoordinatorSidebar from './components/SiteCoordinatorSidebar';
 
@@ -49,14 +47,14 @@ const SiteCoordinatorOvertimePage = ({ user, token, onNavigate }) => {
   );
 
   return (
-    <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0">
+    <div className="min-h-screen bg-[#00273C] relative">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
 
       <PublicNavigation onNavigate={onNavigate} currentPage="overtime" user={user} />
 
-      <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
+      <div className="relative pt-28 px-3 sm:px-6 pb-10">
         <div className="max-w-[1600px] mx-auto flex gap-6">
           <aside className="w-64 shrink-0 hidden lg:block">
             <SiteCoordinatorSidebar currentPage="overtime" onNavigate={onNavigate} />
@@ -65,16 +63,12 @@ const SiteCoordinatorOvertimePage = ({ user, token, onNavigate }) => {
           <main className="flex-1 min-w-0">
             <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-4 sm:p-6">
               <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                {renderTabButton('ot-form', 'Request Overtime')}
+                {renderTabButton('ot-form', 'Request OT')}
                 {renderTabButton('ot-status', 'OT Status')}
-                {renderTabButton('leave-form', 'Request Leave')}
-                {renderTabButton('leave-status', 'Leave Status')}
               </div>
 
               {activeTab === 'ot-form' && <OvertimeForm token={token} />}
               {activeTab === 'ot-status' && <OvertimeStatus token={token} />}
-              {activeTab === 'leave-form' && <LeaveForm token={token} />}
-              {activeTab === 'leave-status' && <LeaveStatus token={token} />}
             </div>
           </main>
         </div>

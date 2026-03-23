@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Alert from '../../../components/Alert.jsx';
+import { toast } from 'sonner';
 import { TableSkeleton } from '../../../components/SkeletonLoader.jsx';
 import { getMyOvertime } from '../../../services/overtimeService';
 
@@ -14,17 +14,13 @@ const escapeHtml = (value) => {
 };
 
 const statusLabel = (req) => {
-  const sup = !!req.supervisor_signature;
-  const mgmt = !!req.management_signature;
-  if (sup && mgmt) return 'Approved';
-  if (sup && !mgmt) return 'Waiting for Top Management Approval';
-  if (!sup && mgmt) return 'Waiting for Supervisor Approval';
-  return 'Pending';
+  const accountingApproved = !!req.management_signature;
+  if (accountingApproved) return 'Approved';
+  return 'Pending Accounting Approval';
 };
 
 function OvertimeStatus({ token }) {
   const [requests, setRequests] = useState([]);
-  const [alert, setAlert] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedForView, setSelectedForView] = useState(null);
 
@@ -35,10 +31,8 @@ function OvertimeStatus({ token }) {
         const data = await getMyOvertime();
         setRequests(data);
       } catch (err) {
-        setAlert({
-          type: 'error',
-          title: 'Load failed',
-          message: err.response?.data?.error || 'Could not load OT requests.'
+        toast.error('Load Failed', {
+          description: err.response?.data?.error || 'Could not load OT requests.'
         });
       } finally {
         setLoading(false);
@@ -69,7 +63,7 @@ function OvertimeStatus({ token }) {
     const html = `
       <html>
         <head>
-          <title>Overtime Request Form</title>
+          <title>OT Request Form</title>
           <style>
             @page { size: A4; margin: 0.5in; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -110,7 +104,7 @@ function OvertimeStatus({ token }) {
             <div class="header">
               <img src="/imgs/formlogo.png" alt="Company Logo" class="logo" />
               <div class="header-text">
-                <div class="form-title">Overtime Request Form</div>
+                <div class="form-title">OT Request Form</div>
               </div>
             </div>
             <div class="section">
@@ -152,8 +146,7 @@ function OvertimeStatus({ token }) {
               <div class="approval-title">For Official Use Only - Approval</div>
               <div class="field-row" style="margin-bottom:15px;"><div class="field-group"><span class="field-label">Approval Date:</span><span class="field-value">${escapeHtml(req.approval_date || '')}</span><div class="approval-note" style="margin-left:15px;">Approved</div></div></div>
               <div class="approval-signatures">
-                <div class="approval-block"><div class="signature-line" style="margin-top:15px;"></div><div class="signature-label">Supervisor Signature</div></div>
-                <div class="approval-block"><div class="signature-line" style="margin-top:15px;"></div><div class="signature-label">Management Signature</div></div>
+                <div class="approval-block"><div class="signature-line" style="margin-top:15px;"></div><div class="signature-label">Accounting Signature</div></div>
               </div>
             </div>
           </div>
@@ -168,17 +161,9 @@ function OvertimeStatus({ token }) {
 
   return (
     <div className="dashboard">
-      {alert && (
-        <Alert
-          type={alert.type}
-          title={alert.title}
-          message={alert.message}
-          onClose={() => setAlert(null)}
-        />
-      )}
-      <div className="welcome">
-        <h2>OT Request Status</h2>
-        <p>View your submitted overtime requests.</p>
+      <div className="welcome p-4 sm:p-6 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold">OT Request Status</h2>
+        <p className="text-sm sm:text-base text-gray-400">View your submitted OT requests.</p>
       </div>
       <div className="attendance-table">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -203,7 +188,7 @@ function OvertimeStatus({ token }) {
                 {requests.length === 0 ? (
                   <tr>
                     <td colSpan="6" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
-                      No overtime requests yet.
+                      No OT requests yet.
                     </td>
                   </tr>
                 ) : (
@@ -268,7 +253,7 @@ function OvertimeStatus({ token }) {
               alignItems: 'center',
               marginBottom: '1.5rem'
             }}>
-              <h3 style={{ color: '#e8eaed', margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>Overtime Request Form</h3>
+              <h3 style={{ color: '#e8eaed', margin: 0, fontSize: '1.1rem', fontWeight: '600' }}>OT Request Form</h3>
               <button
                 onClick={() => setSelectedForView(null)}
                 style={{
@@ -283,12 +268,7 @@ function OvertimeStatus({ token }) {
               >×</button>
             </div>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: window.innerWidth <= 768 ? '1fr' : '1fr 1fr',
-              gap: '1rem',
-              marginBottom: '1rem'
-            }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               <div>
                 <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Employee Name</label>
                 <div style={{ color: '#e8eaed' }}>{selectedForView.employee_name || '-'}</div>

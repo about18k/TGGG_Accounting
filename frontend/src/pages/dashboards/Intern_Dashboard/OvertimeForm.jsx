@@ -45,7 +45,6 @@ const getInitialFormState = () => ({
   anticipated_hours: '',
   explanation: '',
   employee_signature: '',
-  supervisor_signature: '',
   management_signature: '',
   approval_date: ''
 });
@@ -130,7 +129,7 @@ function OvertimeForm({ token }) {
       period.start_date === todayIso && period.end_date === todayIso
     );
     if (hasSameDayPeriod && nowMinutes >= cutoffMinutes) {
-      return 'Same-day overtime requests must be submitted before 3:00 PM.';
+      return 'Same-day OT requests must be submitted before 3:00 PM.';
     }
     const hasAnyPeriod = periods.some(period => period.start_date || period.end_date || period.start_time || period.end_time);
     if (!hasAnyPeriod) {
@@ -250,7 +249,7 @@ function OvertimeForm({ token }) {
         periods: periods.filter(p => p.start_date || p.end_date || p.start_time || p.end_time)
       };
       await submitOvertime(payload);
-      setAlert({ type: 'success', title: 'Submitted', message: 'Overtime request submitted successfully.' });
+      setAlert({ type: 'success', title: 'Submitted', message: 'OT request submitted successfully.' });
       setPeriods([{
         start_date: '',
         end_date: '',
@@ -262,7 +261,7 @@ function OvertimeForm({ token }) {
       }
       setForm(getInitialFormState());
     } catch (err) {
-      const msg = err.response?.data?.error || 'Failed to submit overtime request.';
+      const msg = err.response?.data?.error || 'Failed to submit OT request.';
       setAlert({ type: 'error', title: 'Error', message: msg });
     } finally {
       setSaving(false);
@@ -331,8 +330,8 @@ function OvertimeForm({ token }) {
         ) : (
           <>
             <div className="overtime-heading">
-              <h2>Overtime Request Form</h2>
-              <p>Submit overtime details for approval.</p>
+              <h2>OT Request Form</h2>
+              <p>Submit OT details for approval.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="overtime-form">
@@ -583,15 +582,7 @@ function OvertimeForm({ token }) {
                     </div>
                   </div>
                   <div className="overtime-field">
-                    <label>Supervisor Signature</label>
-                    <input
-                      type="text"
-                      placeholder="To be signed"
-                      disabled
-                    />
-                  </div>
-                  <div className="overtime-field">
-                    <label>Top Management Signature</label>
+                    <label>Accounting Signature</label>
                     <input
                       type="text"
                       placeholder="To be signed"
@@ -614,7 +605,7 @@ function OvertimeForm({ token }) {
                 <ul>
                   <li>No overtime will be paid unless this form has been completed prior to overtime. In emergencies, complete within the same week.</li>
                   <li>The employee must submit a signed timesheet for specific overtime work before payroll completion.</li>
-                  <li>The form will be returned to the immediate supervisor.</li>
+                  <li>The form will be reviewed by the Accounting department.</li>
                 </ul>
               </div>
 
@@ -638,7 +629,7 @@ function OvertimeForm({ token }) {
                     }
                   }}
                 >
-                  {saving ? 'Submitting...' : 'Submit Overtime Request'}
+                  {saving ? 'Submitting...' : 'Submit OT Request'}
                 </button>
               </div>
             </form>

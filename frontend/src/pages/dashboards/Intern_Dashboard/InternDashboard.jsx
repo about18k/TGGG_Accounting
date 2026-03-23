@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Calendar, MapPin, ShieldCheck, User } from 'lucide-react';
-import PublicNavigation from './PublicNavigation';
+import PublicNavigation from '../Public_Dashboard/PublicNavigation';
+import InternSidebar from './components/InternSidebar';
 import LocationAttendance from '../../../components/attendance/LocationAttendance';
 import WorkDocCard from '../../../components/attendance/WorkDocCard';
 import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';
@@ -66,8 +67,8 @@ export default function InternDashboard({ user, onNavigate }) {
               {user?.profile_picture ? <img src={user.profile_picture} alt="Profile" className="h-full w-full object-cover" /> : <User className="h-8 w-8 sm:h-10 sm:w-10 text-[#FF7120]" />}
             </div>
             <div>
-              <h2 className="text-white font-semibold text-[clamp(1rem,3.5vw,1.5rem)]">Welcome, {user?.first_name || 'Intern'} {user?.last_name || 'User'}</h2>
-              <p className="text-white/60 text-sm">Role: <span className="text-white/80">{user?.role || 'intern'}</span></p>
+              <h2 className="text-white font-semibold text-[clamp(1rem,3.5vw,1.5rem)]">Welcome, {user?.first_name || 'Intern'}</h2>
+              <p className="text-white/60 text-sm capitalize">Role: <span className="text-white/80">{user?.role?.replace('_', ' ') || 'intern'}</span></p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -93,10 +94,10 @@ export default function InternDashboard({ user, onNavigate }) {
                 className={`${cardClass} p-4 sm:p-6`}
                 workDoc={workDoc}
                 workDocAttachments={workDocAttachments}
-                onStatusChange={({ ready, isBeforeSessionEnd, earlyTimeoutMessage }) => {
+                onStatusChange={({ ready, isBeforeSessionEnd, earlyTimeoutMessage, processing }) => {
                     setAttendanceReady(ready);
-                    setIsLocked(!!isBeforeSessionEnd);
-                    setLockMessage(earlyTimeoutMessage || null);
+                    setIsLocked(!!isBeforeSessionEnd || !!processing);
+                    setLockMessage(processing ? "Processing attendance..." : (earlyTimeoutMessage || null));
                   }}
                 onRecordSaved={(attendance) => {
                   // Clear work documentation after successful clock-out (documention saved)
@@ -135,16 +136,27 @@ export default function InternDashboard({ user, onNavigate }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
-      <div className="pointer-events-none absolute inset-0">
+    <div className="min-h-screen bg-[#00273C] relative">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
 
       <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
 
-      <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10 w-full">
-        <div className="max-w-[1400px] mx-auto px-2 sm:px-10 space-y-5 sm:space-y-8">
-          {activeSection === 'attendance' && renderAttendance()}
+      <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
+        <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-6">
+          <aside className="w-64 shrink-0 hidden lg:block">
+            <InternSidebar 
+              currentPage="attendance" 
+              onNavigate={onNavigate} 
+              activeSection={activeSection} 
+              onSelectSection={setActiveSection} 
+            />
+          </aside>
+
+          <main className="flex-1 min-w-0">
+            {activeSection === 'attendance' && renderAttendance()}
+          </main>
         </div>
       </div>
     </div>

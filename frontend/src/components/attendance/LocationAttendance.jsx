@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { clockIn, clockOut, getTodayAttendance, uploadWorkDocFile } from "../../services/attendanceService";
 import { toast } from "sonner";
 import {
@@ -72,8 +72,24 @@ const calculateDistanceMeters = (lat1, lng1, lat2, lng2) => {
   return earthRadius * c;
 };
 
+const normalizeNumber = (value, fallback = null) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const getAccuracyBufferMeters = (accuracyValue) => {
+  const accuracy = normalizeNumber(accuracyValue, 0);
+  // Cap accuracy allowance so very low-quality fixes don't allow huge jumps.
+  return Math.min(Math.max(accuracy, 0), 60);
+};
+
+const getEffectiveRadiusMeters = (baseRadius, accuracyValue) => {
+  const safeRadius = Math.max(normalizeNumber(baseRadius, 0), 0);
+  return safeRadius + getAccuracyBufferMeters(accuracyValue);
+};
+
 /* ── Status chip — larger, clearer, with primary + secondary text ── */
-const StatusChip = ({ success, primaryText, secondaryText }) => {
+const StatusChip = ({ success, primaryText, secondaryText, noIcon = false, centered = false }) => {
   const base =
     "flex items-start gap-2.5 rounded-xl px-3.5 py-2.5 text-[0.8rem] leading-snug font-medium border w-full";
   const Icon = success ? CheckCircle : XCircle;
@@ -82,8 +98,8 @@ const StatusChip = ({ success, primaryText, secondaryText }) => {
     : "bg-red-500/10 text-red-300 border-red-500/20";
 
   return (
-    <div className={`${base} ${colors}`}>
-      <Icon className="h-4 w-4 mt-0.5 shrink-0" />
+    <div className={`${base} ${colors} ${centered ? "justify-center text-center items-center" : ""}`}>
+      {!noIcon && <Icon className="h-4 w-4 mt-0.5 shrink-0" />}
       <div className="min-w-0">
         <span className="block font-semibold">{primaryText}</span>
         {secondaryText && (
@@ -114,6 +130,7 @@ const LocationAttendance = ({
   const [todayRecord, setTodayRecord] = useState(null);
   const [banner, setBanner] = useState(null);
   const [loadingToday, setLoadingToday] = useState(false);
+  const [mapView, setMapView] = useState("roadmap");
 
   const officeConfig = attendanceLocations.mainOffice || {
     name: "Office",
@@ -122,6 +139,50 @@ const LocationAttendance = ({
     radius: 1000,
   };
   const officeLabel = officeConfig?.name ?? "Office";
+
+  const officePoints = useMemo(() => {
+    const primaryPoint = {
+      latitude: normalizeNumber(officeConfig.latitude),
+      longitude: normalizeNumber(officeConfig.longitude),
+      name: officeConfig.name || "Office",
+    };
+
+    const alternatePoints = Array.isArray(officeConfig.alternateCoordinates)
+      ? officeConfig.alternateCoordinates
+          .map((point, index) => ({
+            latitude: normalizeNumber(point?.latitude),
+            longitude: normalizeNumber(point?.longitude),
+            name: point?.name || `${officeConfig.name || "Office"} Alt ${index + 1}`,
+          }))
+          .filter((point) => point.latitude != null && point.longitude != null)
+      : [];
+
+    return [primaryPoint, ...alternatePoints].filter(
+      (point) => point.latitude != null && point.longitude != null
+    );
+  }, [officeConfig]);
+
+  const getNearestOfficePoint = (location) => {
+    if (!location || officePoints.length === 0) return null;
+
+    let nearest = null;
+    for (const point of officePoints) {
+      const distance = calculateDistanceMeters(
+        location.latitude,
+        location.longitude,
+        point.latitude,
+        point.longitude
+      );
+
+      if (distance == null) continue;
+
+      if (!nearest || distance < nearest.distance) {
+        nearest = { ...point, distance };
+      }
+    }
+
+    return nearest;
+  };
 
   useEffect(() => {
     const fetchToday = async () => {
@@ -152,37 +213,101 @@ const LocationAttendance = ({
           accuracy: position.coords.accuracy,
         });
       },
-      () => {
+      (geoError) => {
+        if (geoError?.code === 1) {
+          errorSetter("Location permission denied. Please allow location access in your browser.");
+          return;
+        }
+        if (geoError?.code === 2) {
+          errorSetter("Location unavailable. Move to an open area and try again.");
+          return;
+        }
+        if (geoError?.code === 3) {
+          errorSetter("Location request timed out. Please try capturing again.");
+          return;
+        }
         errorSetter("Unable to retrieve location. Please enable location access.");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
       }
     );
   };
 
-  const officeDistanceIn = useMemo(() => {
+
+  const nearestOfficeIn = useMemo(() => {
     if (!locationIn) return null;
-    return calculateDistanceMeters(
-      locationIn.latitude,
-      locationIn.longitude,
-      officeConfig.latitude,
-      officeConfig.longitude
-    );
-  }, [locationIn, officeConfig]);
+    return getNearestOfficePoint(locationIn);
+  }, [locationIn, officePoints]);
+
+  const nearestOfficeOut = useMemo(() => {
+    if (!locationOut) return null;
+    return getNearestOfficePoint(locationOut);
+  }, [locationOut, officePoints]);
+
+  const officeDistanceIn = useMemo(() => {
+    return nearestOfficeIn?.distance ?? null;
+  }, [nearestOfficeIn]);
 
   const officeDistanceOut = useMemo(() => {
-    if (!locationOut) return null;
-    return calculateDistanceMeters(
-      locationOut.latitude,
-      locationOut.longitude,
-      officeConfig.latitude,
-      officeConfig.longitude
-    );
-  }, [locationOut, officeConfig]);
+    return nearestOfficeOut?.distance ?? null;
+  }, [nearestOfficeOut]);
+
+  const effectiveRadiusIn = useMemo(
+    () => getEffectiveRadiusMeters(officeConfig.radius, locationIn?.accuracy),
+    [officeConfig.radius, locationIn?.accuracy]
+  );
+
+  const effectiveRadiusOut = useMemo(
+    () => getEffectiveRadiusMeters(officeConfig.radius, locationOut?.accuracy),
+    [officeConfig.radius, locationOut?.accuracy]
+  );
+
+  // Helper to validate mode vs. location alignment
+  const validateModeAlignment = (currentMode, location, dist, radius) => {
+    if (!location) return true;
+
+    const inside = dist != null && dist <= radius;
+    
+    if (currentMode === "construction" && inside) {
+      toast.warning("Location Alignment", {
+        description: `You are inside the ${officeLabel} geofence. Please select 'Office' work mode instead.`,
+      });
+      return false;
+    }
+
+    if (currentMode === "office" && !inside) {
+      toast.error("Location Error", {
+        description: `You are outside the ${officeLabel}. Please move closer or select 'Construction / Outside' mode if working in the field.`,
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  useEffect(() => {
+    if (locationIn) {
+      validateModeAlignment(mode, locationIn, officeDistanceIn, effectiveRadiusIn);
+    }
+  }, [mode, locationIn, officeDistanceIn, effectiveRadiusIn]);
+
+  useEffect(() => {
+    if (locationOut) {
+      validateModeAlignment(modeOut, locationOut, officeDistanceOut, effectiveRadiusOut);
+    }
+  }, [modeOut, locationOut, officeDistanceOut, effectiveRadiusOut]);
 
   const hasClockedIn = Boolean(todayRecord?.time_in);
   const hasClockedOut = Boolean(todayRecord?.time_out);
 
-  const inRangeIn = mode === "office" ? officeDistanceIn != null && officeDistanceIn <= officeConfig.radius : true;
-  const inRangeOut = modeOut === "office" ? officeDistanceOut != null && officeDistanceOut <= officeConfig.radius : true;
+  const isInsideOfficeIn = officeDistanceIn != null && officeDistanceIn <= effectiveRadiusIn;
+  const isInsideOfficeOut = officeDistanceOut != null && officeDistanceOut <= effectiveRadiusOut;
+
+  const inRangeIn = mode === "office" ? isInsideOfficeIn : true;
+  const inRangeOut = modeOut === "office" ? isInsideOfficeOut : true;
 
   // ── Early timeout prevention: map session types to their end times ──
   const SESSION_END_TIMES = {
@@ -204,42 +329,63 @@ const LocationAttendance = ({
   const canTimeOut = Boolean(locationOut) && inRangeOut && !hasClockedOut;
 
   useEffect(() => {
-    onStatusChange?.({ ready: canTimeIn || canTimeOut, locationIn, locationOut, isBeforeSessionEnd, earlyTimeoutMessage });
-  }, [canTimeIn, canTimeOut, locationIn, locationOut, onStatusChange, isBeforeSessionEnd, earlyTimeoutMessage]);
+    onStatusChange?.({ ready: canTimeIn || canTimeOut, locationIn, locationOut, isBeforeSessionEnd, earlyTimeoutMessage, processing: !!processing });
+  }, [canTimeIn, canTimeOut, locationIn, locationOut, onStatusChange, isBeforeSessionEnd, earlyTimeoutMessage, processing]);
 
   const fallbackLocation = useMemo(
     () => ({
-      latitude: officeConfig.latitude,
-      longitude: officeConfig.longitude,
+      latitude: officePoints[0]?.latitude ?? officeConfig.latitude,
+      longitude: officePoints[0]?.longitude ?? officeConfig.longitude,
     }),
-    [officeConfig.latitude, officeConfig.longitude]
+    [officeConfig.latitude, officeConfig.longitude, officePoints]
   );
 
   const mapCenter = locationOut || locationIn || fallbackLocation;
+  const mapLat = mapCenter.latitude ?? fallbackLocation.latitude;
+  const mapLng = mapCenter.longitude ?? fallbackLocation.longitude;
+  const mapTypeParam = mapView === "satellite" ? "k" : "m";
+  const mapSrc = `https://maps.google.com/maps?output=embed&hl=en&q=${encodeURIComponent(
+    `${mapLat},${mapLng}`
+  )}&z=17&t=${mapTypeParam}`;
 
-  const mapBounds = useMemo(() => {
-    const lat = locationOut?.latitude ?? locationIn?.latitude ?? fallbackLocation.latitude;
-    const lng = locationOut?.longitude ?? locationIn?.longitude ?? fallbackLocation.longitude;
-    const radiusOffset = Math.max(0.001, (officeConfig.radius || 500) / 111000);
-    return {
-      minLat: lat - radiusOffset,
-      maxLat: lat + radiusOffset,
-      minLng: lng - radiusOffset,
-      maxLng: lng + radiusOffset,
-    };
-  }, [
-    locationIn?.latitude,
-    locationIn?.longitude,
-    locationOut?.latitude,
-    locationOut?.longitude,
-    fallbackLocation.latitude,
-    fallbackLocation.longitude,
-    officeConfig.radius,
-  ]);
-
-  const mapSrc = `https://www.openstreetmap.org/export/embed.html?bbox=${mapBounds.minLng},${mapBounds.minLat},${mapBounds.maxLng},${mapBounds.maxLat}&layer=mapnik&marker=${mapCenter.latitude ?? fallbackLocation.latitude},${mapCenter.longitude ?? fallbackLocation.longitude}`;
+  const renderMapViewToggle = () => (
+    <div className="inline-flex items-center rounded-lg border border-white/15 bg-black/30 p-1 text-[0.65rem] font-semibold uppercase tracking-wider">
+      <button
+        type="button"
+        onClick={() => setMapView("roadmap")}
+        className={`rounded-md px-2.5 py-1 transition ${
+          mapView === "roadmap"
+            ? "bg-white/15 text-white"
+            : "text-white/55 hover:text-white/80"
+        }`}
+      >
+        Map
+      </button>
+      <button
+        type="button"
+        onClick={() => setMapView("satellite")}
+        className={`rounded-md px-2.5 py-1 transition ${
+          mapView === "satellite"
+            ? "bg-white/15 text-white"
+            : "text-white/55 hover:text-white/80"
+        }`}
+      >
+        Satellite
+      </button>
+    </div>
+  );
 
   const handleTimeAction = async (type) => {
+    const isTimeIn = type === "in";
+    const loc = isTimeIn ? locationIn : locationOut;
+    const currentMode = isTimeIn ? mode : modeOut;
+    const dist = isTimeIn ? officeDistanceIn : officeDistanceOut;
+    const radius = isTimeIn ? effectiveRadiusIn : effectiveRadiusOut;
+
+    if (!validateModeAlignment(currentMode, loc, dist, radius, !isTimeIn)) {
+      return;
+    }
+
     if ((type === "in" && !canTimeIn) || (type === "out" && !canTimeOut)) return;
 
     const token = localStorage.getItem("token");
@@ -248,9 +394,8 @@ const LocationAttendance = ({
       return;
     }
 
-    const isTimeIn = type === "in";
-    const location = isTimeIn ? locationIn : locationOut;
-    const modeValue = isTimeIn ? mode : modeOut;
+    const location = loc;
+    const modeValue = currentMode;
 
     // Validate work documentation on clock-out for PM session only
     if (!isTimeIn && todayRecord?.session_type === 'afternoon') {
@@ -330,16 +475,12 @@ const LocationAttendance = ({
     error,
     handler,
     distance,
-    rangeOk
+    rangeOk,
+    effectiveRadius
   ) => {
-    const borderAccent =
-      accentColor === "emerald"
-        ? "border-l-emerald-400/60"
-        : "border-l-amber-400/60";
-
     return (
       <div
-        className={`rounded-xl border border-white/8 bg-white/[0.03] border-l-[3px] ${borderAccent} p-4 space-y-3`}
+        className="rounded-xl border border-white/8 bg-white/[0.03] p-4 space-y-3"
       >
         {/* Section header */}
         <div className="flex items-center gap-2.5">
@@ -362,7 +503,7 @@ const LocationAttendance = ({
             <StatusChip
               success={false}
               primaryText={`Outside ${officeLabel} radius`}
-              secondaryText={`You are ${distance ? distance.toFixed(0) : "—"}m away (max ${officeConfig.radius}m)`}
+              secondaryText={`You are ${distance ? distance.toFixed(0) : "—"}m away (allowed ${effectiveRadius.toFixed(0)}m with GPS accuracy)`}
             />
           )}
           {error && (
@@ -373,6 +514,8 @@ const LocationAttendance = ({
               success={false}
               primaryText="Waiting for location"
               secondaryText="Tap the button below to capture your position"
+              noIcon
+              centered
             />
           )}
         </div>
@@ -380,8 +523,9 @@ const LocationAttendance = ({
         {/* Capture button */}
         <button
           type="button"
+          disabled={!!processing}
           onClick={handler}
-          className="w-full flex items-center justify-center gap-2 rounded-xl border border-[#FF7120]/40 bg-[#FF7120]/10 px-4 py-2.5 text-sm font-semibold text-[#FF7120] hover:bg-[#FF7120]/20 active:scale-[0.98] transition"
+          className={`w-full flex items-center justify-center gap-2 rounded-xl border border-[#FF7120]/40 bg-[#FF7120]/10 px-4 py-2.5 text-sm font-semibold text-[#FF7120] hover:bg-[#FF7120]/20 active:scale-[0.98] transition ${!!processing ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <Navigation className="h-4 w-4" />
           {location ? "Re-capture Location" : "Capture My Location"}
@@ -407,9 +551,7 @@ const LocationAttendance = ({
       {/* ── Mode selector ── */}
       {!hasClockedIn && (
         <div className="mt-5">
-          <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-2.5">
-            Time In Work Mode
-          </p>
+          <div className="h-6" />
           <div className="grid gap-3 lg:grid-cols-2">
             {RADIO_OPTIONS.map((option) => {
               const OptionIcon = option.icon;
@@ -456,9 +598,7 @@ const LocationAttendance = ({
               <div>
                 {/* Mode selector */}
                 <div className="mb-4">
-                  <p className="text-white/50 text-xs font-semibold uppercase tracking-widest mb-2.5">
-                    Time Out Work Mode
-                  </p>
+                  <div className="h-6" />
                   <div className="grid gap-3 lg:grid-cols-2 mb-4">
                     {RADIO_OPTIONS.map((option) => {
                       const OptionIcon = option.icon;
@@ -502,15 +642,14 @@ const LocationAttendance = ({
                   <div className="flex items-center gap-2">
                     <p className="text-white text-sm font-semibold">Location Preview</p>
                   </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[0.65rem] font-semibold text-emerald-300 uppercase tracking-wider">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Live
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {renderMapViewToggle()}
+                  </div>
                 </div>
                 <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden mt-2">
                   <iframe
                     title="Attendance location map"
-                    className="w-full h-60 sm:h-64 border-0"
+                    className="w-full h-60 sm:h-64 lg:h-72 border-0"
                     src={mapSrc}
                     loading="lazy"
                     referrerPolicy="no-referrer"
@@ -535,7 +674,8 @@ const LocationAttendance = ({
                     locationOutError,
                     () => requestCoordinates(setLocationOut, setLocationOutError),
                     officeDistanceOut,
-                    inRangeOut
+                    inRangeOut,
+                    effectiveRadiusOut
                   )}
                 </div>
               </div>
@@ -567,15 +707,6 @@ const LocationAttendance = ({
             </div>
 
             {/* Footer info for Time Out */}
-            <div className="mt-4 flex flex-col gap-2 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2.5 text-xs text-white/45">
-              <div className="flex items-start gap-2">
-                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-white/35" />
-                <p>
-                  Geofence radius <strong className="text-white/60">{officeConfig.radius}m</strong> around{" "}
-                  <strong className="text-white/60">{officeLabel}</strong>. You must be within range for Office Mode.
-                </p>
-              </div>
-            </div>
 
           
         </MapPortal>
@@ -589,15 +720,14 @@ const LocationAttendance = ({
               <div className="flex items-center gap-2">
                 <p className="text-white text-sm font-semibold">Location Preview</p>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-[0.65rem] font-semibold text-emerald-300 uppercase tracking-wider">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live
-              </span>
+              <div className="flex items-center gap-2">
+                {renderMapViewToggle()}
+              </div>
             </div>
             <div className="rounded-2xl border border-white/10 bg-black/40 overflow-hidden">
               <iframe
                 title="Attendance location map"
-                className="w-full h-60 sm:h-64 border-0"
+                className="w-full h-60 sm:h-64 lg:h-72 border-0"
                 src={mapSrc}
                 loading="lazy"
                 referrerPolicy="no-referrer"
@@ -623,7 +753,8 @@ const LocationAttendance = ({
               locationInError,
               () => requestCoordinates(setLocationIn, setLocationInError),
               officeDistanceIn,
-              inRangeIn
+              inRangeIn,
+              effectiveRadiusIn
             )}
           </div>
 
@@ -647,15 +778,6 @@ const LocationAttendance = ({
           </div>
 
           {/* ── Footer info ── */}
-          <div className="mt-4 flex flex-col gap-2 rounded-lg border border-white/6 bg-white/[0.02] px-3 py-2.5 text-xs text-white/45">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0 text-white/35" />
-              <p>
-                Geofence radius <strong className="text-white/60">{officeConfig.radius}m</strong> around{" "}
-                <strong className="text-white/60">{officeLabel}</strong>. You must be within range for Office Mode.
-              </p>
-            </div>
-          </div>
         </>
       )}
     </div>

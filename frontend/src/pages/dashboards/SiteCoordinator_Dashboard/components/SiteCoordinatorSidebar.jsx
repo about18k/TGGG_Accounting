@@ -1,7 +1,7 @@
-import { ClipboardList, Clock, Calendar, CheckSquare, User } from 'lucide-react';
+import { ClipboardList, Clock, CheckSquare, Home } from 'lucide-react';
 
 const SECTION_LINKS = [
-  { id: 'attendance', label: 'Attendance', icon: Calendar, section: 'attendance' },
+  { id: 'attendance', label: 'Attendance', icon: Home, section: 'attendance' },
 ];
 
 const PAGE_LINKS = [
@@ -27,11 +27,12 @@ export default function SiteCoordinatorSidebar({
   };
 
   return (
-    <div className={`${cardClass} p-4 sticky top-24`}>
+    <div className={`${cardClass} p-4 lg:sticky lg:top-28`}>
       <nav className="space-y-2">
         {SECTION_LINKS.map((item) => {
           const Icon = item.icon;
           const isActive = currentPage === 'attendance' && activeSection === item.section;
+
           return (
             <button
               key={item.id}

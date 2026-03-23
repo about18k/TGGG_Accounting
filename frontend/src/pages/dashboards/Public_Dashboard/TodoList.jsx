@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { toast } from 'sonner';
 import { CardSkeleton } from '../../../components/SkeletonLoader.jsx';
 import { CreateGroupModal, ManageGroupsModal, ManageLeadersModal, ConfirmTaskModal, DeleteConfirmModal } from '../../../components/modals/TodoModals.jsx';
 import { TabNavigation, ManagementButtons, Calendar, GroupInfo, TaskForm, TeamFilter } from '../../../components/TodoUI.jsx';
@@ -60,7 +61,13 @@ function TodoList({ token, user, onNotificationUpdate }) {
   const [alertConfig, setAlertConfig] = useState({ show: false, type: '', title: '', message: '' });
 
   const showAlert = (message, type = 'error', title = 'Error') => {
-    setAlertConfig({ show: true, type, title, message });
+    if (type === 'success') {
+      toast.success(title, { description: message });
+    } else if (type === 'error') {
+      toast.error(title, { description: message });
+    } else {
+      toast(title, { description: message });
+    }
   };
 
   const handleRequestConfirm = (message, action) => {
@@ -290,7 +297,7 @@ function TodoList({ token, user, onNotificationUpdate }) {
       await deleteTodoService(id);
       fetchTodos(activeTab);
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to delete task.');
+      toast.error('Deletion Failed', { description: error.response?.data?.error || 'Failed to delete task.' });
     } finally {
       setActionInProgress(false);
     }

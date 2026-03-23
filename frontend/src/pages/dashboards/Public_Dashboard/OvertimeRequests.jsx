@@ -39,7 +39,7 @@ function OvertimeRequests({ token }) {
       setAlert({
         type: 'error',
         title: 'Load failed',
-        message: err.response?.data?.error || 'Could not load overtime requests.'
+        message: err.response?.data?.error || 'Could not load OT requests.'
       });
     } finally {
       setLoading(false);
@@ -52,12 +52,9 @@ function OvertimeRequests({ token }) {
   };
 
   const statusLabel = (req) => {
-    const sup = !!req.supervisor_signature;
-    const mgmt = !!req.management_signature;
-    if (sup && mgmt) return 'Approved';
-    if (sup && !mgmt) return 'Waiting for Top Management Approval';
-    if (!sup && mgmt) return 'Waiting for Supervisor Approval';
-    return 'Pending';
+    const accountingApproved = !!req.management_signature;
+    if (accountingApproved) return 'Approved';
+    return 'Pending Accounting Approval';
   };
 
   const isSelectedApproved = selected ? statusLabel(selected) === 'Approved' : false;
@@ -66,7 +63,6 @@ function OvertimeRequests({ token }) {
     if (!selected) return;
     try {
       await approveOvertime(selected.id, {
-        supervisor_signature: 'approved',
         management_signature: 'approved',
         approval_date: approvalDate
       });
@@ -101,7 +97,7 @@ function OvertimeRequests({ token }) {
     const html = `
       <html>
         <head>
-          <title>Overtime Request Form</title>
+          <title>OT Request Form</title>
           <style>
             @page {
               size: A4;
@@ -324,7 +320,7 @@ function OvertimeRequests({ token }) {
             <div class="header">
               <img src="/imgs/formlogo.png" alt="Company Logo" class="logo" />
               <div class="header-text">
-                <div class="form-title">Overtime Request Form</div>
+                <div class="form-title">OT Request Form</div>
               </div>
             </div>
 
@@ -413,11 +409,7 @@ function OvertimeRequests({ token }) {
               <div class="approval-signatures">
                 <div class="approval-block">
                   <div class="signature-line" style="margin-top: 15px;"></div>
-                  <div class="signature-label">Supervisor Signature</div>
-                </div>
-                <div class="approval-block">
-                  <div class="signature-line" style="margin-top: 15px;"></div>
-                  <div class="signature-label">Management Signature</div>
+                  <div class="signature-label">Accounting Signature</div>
                 </div>
               </div>
             </div>
@@ -446,8 +438,8 @@ function OvertimeRequests({ token }) {
         />
       )}
       <div className="welcome box-border w-full">
-        <h2>Overtime Requests</h2>
-        <p>Coordinator view of all overtime submissions</p>
+        <h2>OT Requests</h2>
+        <p>Coordinator view of all OT submissions</p>
       </div>
       <div className="attendance-table box-border w-full">
         <div className="flex justify-between items-center p-5 border-b border-white/5 flex-wrap gap-4">

@@ -8,9 +8,8 @@ export default function AccountingPersonalAttendance(props) {
   return (
     <AttendanceDashboard
       {...props}
-      NavComponent={BlankNav}
+      embedded={true}
       currentPage="personal-attendance"
-      topSpacingClass="pt-24 sm:pt-5"
     />
   );
 }

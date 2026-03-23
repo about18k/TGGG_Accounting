@@ -12,6 +12,7 @@ from rest_framework.response import Response
 
 from accounts.models import CustomUser
 from attendance.models import Attendance
+from todos.services import NotificationService
 from .models import DeductionType, PaySlip, PayrollProcessing, EmployeeContribution
 
 # Create your views here.
@@ -26,6 +27,23 @@ PAYROLL_MANAGER_ROLES = {
 
 def _can_manage_payroll(user):
     return bool(user.is_staff or user.is_superuser or user.role in PAYROLL_MANAGER_ROLES)
+
+
+def _display_name(user):
+    return f"{user.first_name} {user.last_name}".strip() or user.email
+
+
+def _notify_employee(recipient, actor, notif_type, title, message):
+    try:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=actor,
+            notif_type=notif_type,
+            title=title,
+            message=message,
+        )
+    except Exception as e:
+        print(f"⚠️ Notification failed for recipient_id={getattr(recipient, 'id', None)}: {e}")
 
 
 def _parse_iso_date(value, field_name):
@@ -257,13 +275,60 @@ def payroll_employees(request):
             'user_id': user.id,
             'employee_id': user.employee_id,
             'name': f"{user.first_name} {user.last_name}".strip() or user.email,
+            'role': user.role,
             'position': user.get_role_display() if user.role else 'Unassigned',
             'avatar': user.profile_picture,
+            'signature_image': user.signature_image,
+            'payroll_allowance_eligible': bool(user.payroll_allowance_eligible),
             'default_daily_rate': str(default_daily_rate) if default_daily_rate is not None else None,
             'salary': str(salary_structure.base_salary) if salary_structure else None,
         })
 
     return Response(data)
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def payroll_allowance_eligibility(request):
+    """Manage which employees are eligible for payroll allowance."""
+    if not _can_manage_payroll(request.user):
+        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+    employees_qs = (
+        CustomUser.objects
+        .filter(is_active=True)
+        .order_by('last_name', 'first_name', 'email')
+    )
+
+    if request.method == 'GET':
+        return Response([
+            {
+                'id': str(user.id),
+                'name': f"{user.first_name} {user.last_name}".strip() or user.email,
+                'role': user.role,
+                'position': user.get_role_display() if user.role else 'Unassigned',
+                'payroll_allowance_eligible': bool(user.payroll_allowance_eligible),
+            }
+            for user in employees_qs
+        ])
+
+    employee_ids = request.data.get('employee_ids')
+    if not isinstance(employee_ids, list):
+        return Response({'error': 'employee_ids must be an array.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    normalized_ids = {str(item) for item in employee_ids if str(item).strip()}
+
+    with transaction.atomic():
+        for user in employees_qs:
+            next_value = str(user.id) in normalized_ids
+            if bool(user.payroll_allowance_eligible) != next_value:
+                user.payroll_allowance_eligible = next_value
+                user.save(update_fields=['payroll_allowance_eligible'])
+
+    return Response({
+        'success': True,
+        'message': 'Payroll allowance eligibility updated.',
+    })
 
 
 @api_view(['GET'])
@@ -299,66 +364,31 @@ def attendance_summary(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def process_payroll(request):
-    """Process payroll using manual payslip inputs for a given employee and period."""
-    import traceback
-    print("\n" + "="*80)
-    print("🔍 DEBUG: process_payroll called")
-    print("="*80)
-    
-    try:
-        print(f"📥 Request data: {request.data}")
-        print(f"👤 User: {request.user} (authenticated: {request.user.is_authenticated})")
-        
-        if not _can_manage_payroll(request.user):
-            print("❌ Authorization failed")
-            return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+    """Process payroll with server-side computed totals and profile-based signatures."""
+    if not _can_manage_payroll(request.user):
+        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
-        employee_id = request.data.get('employee_id')
-        period_start_raw = request.data.get('period_start')
-        period_end_raw = request.data.get('period_end')
-        payslip_form = request.data.get('payslip_form') or {}
-        
-        print(f"📋 employee_id: {employee_id}")
-        print(f"📅 period_start: {period_start_raw}")
-        print(f"📅 period_end: {period_end_raw}")
-        print(f"📝 payslip_form keys: {list(payslip_form.keys())}")
-        
-        if not isinstance(payslip_form, dict):
-            print("❌ payslip_form is not a dict")
-            return Response({'error': 'payslip_form must be an object.'}, status=status.HTTP_400_BAD_REQUEST)
+    employee_id = request.data.get('employee_id')
+    period_start_raw = request.data.get('period_start')
+    period_end_raw = request.data.get('period_end')
+    payslip_form = request.data.get('payslip_form') or {}
 
-        if not employee_id or not period_start_raw or not period_end_raw:
-            print("❌ Missing required fields")
-            return Response({'error': 'employee_id, period_start, and period_end are required.'}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:
-        print(f"❌ Initial validation error: {e}")
-        print(traceback.format_exc())
-        return Response({'error': f'Initial validation error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    if not isinstance(payslip_form, dict):
+        return Response({'error': 'payslip_form must be an object.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if not employee_id or not period_start_raw or not period_end_raw:
+        return Response({'error': 'employee_id, period_start, and period_end are required.'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
-        print(f"🔍 Looking up employee with ID: {employee_id}")
         employee = CustomUser.objects.get(id=employee_id, is_active=True)
-        print(f"✅ Employee found: {employee.email}")
     except CustomUser.DoesNotExist:
-        print(f"❌ Employee not found with ID: {employee_id}")
         return Response({'error': 'Employee not found.'}, status=status.HTTP_404_NOT_FOUND)
-    except Exception as e:
-        print(f"❌ Error looking up employee: {e}")
-        print(traceback.format_exc())
-        return Response({'error': f'Error looking up employee: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     try:
-        print(f"🔍 Parsing dates...")
         period_start = _parse_iso_date(period_start_raw, 'period_start')
         period_end = _parse_iso_date(period_end_raw, 'period_end')
-        print(f"✅ Dates parsed: {period_start} to {period_end}")
     except ValueError as exc:
-        print(f"❌ Date parsing error: {exc}")
         return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:
-        print(f"❌ Unexpected date parsing error: {e}")
-        print(traceback.format_exc())
-        return Response({'error': f'Date parsing error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if period_end < period_start:
         return Response({'error': 'period_end cannot be earlier than period_start.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -389,7 +419,6 @@ def process_payroll(request):
                 'amount': str(amount),
             })
     else:
-        # Keep backward compatibility by using configured employee contributions when payload is empty.
         employee_contributions = EmployeeContribution.objects.filter(employee=employee, is_active=True).order_by('name')
         contribution_items = [{
             'id': row.id,
@@ -400,85 +429,77 @@ def process_payroll(request):
             'amount': str(_safe_money(row.amount)),
         } for row in employee_contributions]
 
-    contribution_total = _safe_money(sum(Decimal(item['amount']) for item in contribution_items) if contribution_items else Decimal('0'))
+    contribution_total = _safe_money(
+        sum(Decimal(item['amount']) for item in contribution_items) if contribution_items else Decimal('0')
+    )
 
-    print(f"🔍 Validating required fields...")
     if payslip_form.get('monthly') in [None, '']:
-        print("❌ monthly is missing")
         return Response({'error': 'monthly is required in payslip_form.'}, status=status.HTTP_400_BAD_REQUEST)
     if payslip_form.get('basic_salary') in [None, '']:
-        print("❌ basic_salary is missing")
         return Response({'error': 'basic_salary is required in payslip_form.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    print(f"✅ Required fields present")
-    print(f"🔍 Parsing money inputs...")
     try:
         monthly_amount = _parse_money_input(payslip_form.get('monthly'), 'monthly')
-        print(f"  monthly_amount: {monthly_amount}")
         basic_salary = _parse_money_input(payslip_form.get('basic_salary'), 'basic_salary')
-        print(f"  basic_salary: {basic_salary}")
         regular_overtime = _parse_money_input(payslip_form.get('regular_overtime'), 'regular_overtime')
         late_undertime = _parse_money_input(payslip_form.get('late_undertime'), 'late_undertime')
         rest_day_ot = _parse_money_input(payslip_form.get('rest_day_ot'), 'rest_day_ot')
-        gross_salary = _parse_money_input(
-            payslip_form.get('gross_amount'),
-            'gross_amount',
-            _safe_money(basic_salary + regular_overtime + rest_day_ot),
-        )
-        print(f"  gross_salary: {gross_salary}")
-        net_taxable_salary = _parse_money_input(
-            payslip_form.get('net_taxable_salary'),
-            'net_taxable_salary',
-            gross_salary,
-        )
-        payroll_tax = _parse_money_input(payslip_form.get('payroll_tax'), 'payroll_tax')
-        submitted_total_deductions = _parse_money_input(
-            payslip_form.get('total_deductions'),
-            'total_deductions',
-            contribution_total,
-        )
         payroll_allowance = _parse_money_input(payslip_form.get('payroll_allowance'), 'payroll_allowance')
         company_loan_cash_advance = _parse_money_input(
             payslip_form.get('company_loan_cash_advance'),
             'company_loan_cash_advance',
         )
-        salary_net_pay = _parse_money_input(
-            payslip_form.get('salary_net_pay'),
-            'salary_net_pay',
-            _safe_money(gross_salary + payroll_allowance - company_loan_cash_advance - contribution_total),
-        )
-        print(f"✅ All money inputs parsed successfully")
     except ValueError as exc:
-        print(f"❌ Money parsing error: {exc}")
         return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-    except Exception as e:
-        print(f"❌ Unexpected money parsing error: {e}")
-        print(traceback.format_exc())
-        return Response({'error': f'Money parsing error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     if monthly_amount <= 0:
         return Response({'error': 'monthly must be greater than 0.'}, status=status.HTTP_400_BAD_REQUEST)
     if basic_salary <= 0:
         return Response({'error': 'basic_salary must be greater than 0.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    if submitted_total_deductions != contribution_total:
-        return Response(
-            {'error': 'total_deductions must equal the sum of government contributions.'},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
+    if not employee.payroll_allowance_eligible:
+        payroll_allowance = _safe_money(Decimal('0'))
 
-    deductions_total = contribution_total
+    gross_salary = _safe_money(basic_salary + regular_overtime + rest_day_ot)
+    net_taxable_salary = _safe_money(max(Decimal('0'), gross_salary - late_undertime))
+
+    # Payroll Tax is disabled in the current payroll flow.
+    payroll_tax = _safe_money(Decimal('0'))
+
+    deductions_total = _safe_money(contribution_total + payroll_tax)
+    salary_net_pay = _safe_money(
+        max(
+            Decimal('0'),
+            net_taxable_salary + payroll_allowance - deductions_total - company_loan_cash_advance,
+        )
+    )
+
     tax_amount = payroll_tax
     allowances_total = payroll_allowance
     overtime_amount = regular_overtime
     bonus_amount = rest_day_ot
-    net_salary = _safe_money(max(Decimal('0'), salary_net_pay))
+    net_salary = salary_net_pay
 
     deduction_items = list(contribution_items)
 
     prepared_by_name = (payslip_form.get('prepared_by') or '').strip()
     if not prepared_by_name:
-        prepared_by_name = f"{request.user.first_name} {request.user.last_name}".strip() or request.user.email
+        prepared_by_name = _display_name(request.user)
+
+    prepared_by_signature = (payslip_form.get('prepared_by_signature') or '').strip() or (request.user.signature_image or '')
+
+    top_management_user = (
+        CustomUser.objects
+        .filter(is_active=True, role__in=['ceo', 'president'])
+        .order_by('last_name', 'first_name', 'email')
+        .first()
+    )
+    top_management_name = _display_name(top_management_user) if top_management_user else ''
+    top_management_signature = (top_management_user.signature_image or '').strip() if top_management_user else ''
+
+    approved_by_top_management = (payslip_form.get('approved_by_top_management') or '').strip() or top_management_name
+    approved_by = (payslip_form.get('approved_by') or '').strip() or approved_by_top_management or top_management_name
+    approved_by_signature = (payslip_form.get('approved_by_signature') or '').strip() or top_management_signature
 
     payslip_details = {
         'designation': payslip_form.get('designation') or (employee.get_role_display() if employee.role else ''),
@@ -501,8 +522,10 @@ def process_payroll(request):
         'company_loan_cash_advance': str(company_loan_cash_advance),
         'salary_net_pay': str(net_salary),
         'prepared_by': prepared_by_name,
-        'approved_by_top_management': (payslip_form.get('approved_by_top_management') or '').strip(),
-        'approved_by': (payslip_form.get('approved_by') or '').strip(),
+        'prepared_by_signature': prepared_by_signature,
+        'approved_by_top_management': approved_by_top_management,
+        'approved_by': approved_by,
+        'approved_by_signature': approved_by_signature,
     }
 
     working_days = _count_weekdays(period_start, period_end)
@@ -542,7 +565,6 @@ def process_payroll(request):
         if 'pag-ibig' in (item.get('name') or '').lower() or 'pag ibig' in (item.get('name') or '').lower()
     ))
 
-    print(f"🔍 Saving payslip to database...")
     try:
         with transaction.atomic():
             payslip = PaySlip.objects.create(
@@ -564,40 +586,31 @@ def process_payroll(request):
                 notes=notes_payload,
                 status='generated',
             )
-        print(f"✅ PaySlip saved: ID={payslip.id}")
 
-        PayrollProcessing.objects.create(
-            period_start=period_start,
-            period_end=period_end,
-            department=employee.department,
-            total_employees=1,
-            payslips_generated=1,
-            status='completed',
-            processed_by=request.user,
-            completed_at=timezone.now(),
-        )
-        print(f"✅ PayrollProcessing record created")
-
+            PayrollProcessing.objects.create(
+                period_start=period_start,
+                period_end=period_end,
+                department=employee.department,
+                total_employees=1,
+                payslips_generated=1,
+                status='completed',
+                processed_by=request.user,
+                completed_at=timezone.now(),
+            )
     except IntegrityError:
         return Response(
             {'error': 'Payroll already exists for this employee and period.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
-    
-    except Exception as e:
-        print(f"❌ Database transaction error: {e}")
-        print(traceback.format_exc())
-        return Response({'error': f'Database error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as exc:
+        return Response({'error': f'Database error: {str(exc)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    # Generate payslip image and send via Email
-    print(f"🔍 Generating payslip image...")
     image_result = None
     email_result = None
     try:
         from .image_generator import generate_payslip_image
         from .email_utils import save_payslip_image_and_send_email
-        
-        # Prepare payslip data for image generation
+
         payslip_data = {
             'employee_name': f"{employee.first_name} {employee.last_name}".strip() or employee.email,
             'employee_email': employee.email,
@@ -618,66 +631,59 @@ def process_payroll(request):
             'days_on_leave': summary['days_on_leave'],
             'payslip_details': payslip_details,
         }
-        
-        # Generate image
+
         image_buffer = generate_payslip_image(payslip_data)
-        print(f"✅ Payslip image generated successfully")
-        
-        # Save image to DB and send via Email
         period_str = f"{period_start.year}-{period_start.month:02d}"
         delivery_result = save_payslip_image_and_send_email(employee, payslip, payslip_data, image_buffer, period_str)
-        
+
         image_result = {
             'success': delivery_result.get('image_saved', False),
             'image_endpoint': delivery_result.get('image_endpoint'),
             'storage': delivery_result.get('storage', 'database'),
         }
         email_result = delivery_result.get('email', {})
-        
-        if image_result.get('success'):
-            print(f"✅ Payslip image saved to DB endpoint: {image_result.get('image_endpoint')}")
-        else:
-            print(f"⚠️ Image save failed")
-        
-        if email_result and email_result.get('sent'):
-            print(f"✅ Email sent successfully to {email_result.get('recipient')}")
-        else:
-            print(f"⚠️ Email send failed or skipped: {email_result.get('message') if email_result else 'No result'}")
-    
-    except Exception as e:
-        print(f"⚠️ Image/Email error (non-critical): {e}")
-        print(traceback.format_exc())
-        # Don't fail the entire request if Image/Email fails
-        image_result = {'success': False, 'error': str(e), 'image_endpoint': None, 'storage': 'database'}
-        email_result = {'sent': False, 'error': str(e), 'message': f'Error: {str(e)}'}
+    except Exception as exc:
+        image_result = {'success': False, 'error': str(exc), 'image_endpoint': None, 'storage': 'database'}
+        email_result = {'sent': False, 'error': str(exc), 'message': f'Error: {str(exc)}'}
 
-    print(f"🔍 Preparing response...")
-    try:
-        # Ensure email_result has proper structure
-        if not email_result:
-            email_result = {'sent': False, 'message': 'Email not attempted'}
-        if 'message' not in email_result:
-            email_result['message'] = email_result.get('error', 'Unknown error')
-        
-        response_data = {
-            'success': True,
-            'message': 'Payroll processed successfully.',
-            'payslip': _serialize_payslip(payslip),
-            'calculation': {
-                'daily_rate': str(daily_rate),
-                'base_salary': str(basic_salary),
-                'deductions': {
-                    'late_undertime': payslip_details.get('late_undertime', '0.00'),
-                    'sss': str(sss_amount),
-                    'philHealth': str(philhealth_amount),
-                    'pagIbig': str(pagibig_amount),
-                    'tax': str(tax_amount),
-                },
-                'deduction_items': deduction_items,
-                'configured_deductions_total': str(deductions_total),
-                'government_contributions_total': str(contribution_total),
-                'total_deductions': str(deductions_total),
-                'gross_amount': str(gross_salary),
+    if email_result and email_result.get('sent'):
+        period_label = f"{period_start.strftime('%b %d, %Y')} to {period_end.strftime('%b %d, %Y')}"
+        _notify_employee(
+            recipient=employee,
+            actor=request.user,
+            notif_type='payroll_processed',
+            title='Payroll Processed and Emailed',
+            message=(
+                f'Your payroll for {period_label} has been processed and your payslip was emailed to {employee.email}.'
+            ),
+        )
+
+    if not email_result:
+        email_result = {'sent': False, 'message': 'Email not attempted'}
+    if 'message' not in email_result:
+        email_result['message'] = email_result.get('error', 'Unknown error')
+
+    response_data = {
+        'success': True,
+        'message': 'Payroll processed successfully.',
+        'payslip': _serialize_payslip(payslip),
+        'calculation': {
+            'daily_rate': str(daily_rate),
+            'base_salary': str(basic_salary),
+            'net_taxable_salary': str(net_taxable_salary),
+            'deductions': {
+                'late_undertime': str(late_undertime),
+                'sss': str(sss_amount),
+                'philHealth': str(philhealth_amount),
+                'pagIbig': str(pagibig_amount),
+                'company_loan_cash_advance': str(company_loan_cash_advance),
+                'tax': str(tax_amount),
+            },
+            'deduction_items': deduction_items,
+            'configured_deductions_total': str(deductions_total),
+            'government_contributions_total': str(contribution_total),
+            'total_deductions': str(deductions_total),
+            'gross_amount': str(gross_salary),
             'payroll_allowance': str(allowances_total),
             'net_salary': str(net_salary),
         },
@@ -692,15 +698,9 @@ def process_payroll(request):
             'sent': email_result.get('sent', False) if email_result else False,
             'message': email_result.get('message') if email_result else 'Not attempted',
             'recipient': email_result.get('recipient') if email_result else employee.email,
-        }
+        },
     }
-        print(f"✅ Response prepared successfully")
-        print("="*80 + "\n")
-        return Response(response_data, status=status.HTTP_201_CREATED)
-    except Exception as e:
-        print(f"❌ Response preparation error: {e}")
-        print(traceback.format_exc())
-        return Response({'error': f'Response preparation error: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET', 'POST'])
@@ -887,6 +887,19 @@ def employee_contributions(request, employee_id):
         existing.amount = amount
         existing.is_active = True
         existing.save()
+
+        actor_name = _display_name(request.user)
+        _notify_employee(
+            recipient=employee,
+            actor=request.user,
+            notif_type='contribution_updated',
+            title='Government Contribution Updated',
+            message=(
+                f'{actor_name} updated your {existing.name} government contribution to PHP {existing.amount}. '
+                'This will be reflected in your payroll deductions.'
+            ),
+        )
+
         return Response({
             'id': existing.id,
             'name': existing.name,
@@ -898,6 +911,18 @@ def employee_contributions(request, employee_id):
         employee=employee,
         name=name,
         amount=amount,
+    )
+
+    actor_name = _display_name(request.user)
+    _notify_employee(
+        recipient=employee,
+        actor=request.user,
+        notif_type='contribution_added',
+        title='Government Contribution Added',
+        message=(
+            f'{actor_name} added a new {contribution.name} government contribution '
+            f'worth PHP {contribution.amount} to your payroll profile.'
+        ),
     )
 
     return Response({

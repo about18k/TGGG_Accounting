@@ -139,20 +139,17 @@ export default function WorkDocCard({
                 <button
                     type="button"
                     onClick={() => setIsEditing(!isEditing)}
-                    className={`inline-flex items-center gap-1 rounded-md px-2 py-1 text-[0.65rem] font-semibold border transition ${isEditing
-                        ? 'bg-white/10 text-white/70 border-white/20 hover:bg-white/15'
-                        : 'bg-blue-500/10 text-blue-300 border-blue-500/20 hover:bg-blue-500/20'
-                        }`}
+                    className="inline-flex items-center gap-2 text-[0.85rem] font-semibold transition bg-transparent border-none text-white hover:text-[#FF7120]"
                 >
                     {isEditing ? (
                         <>
-                            <X className="h-3 w-3" />
+                            <X className="h-4 w-4" />
                             <span className="hidden sm:inline">Close</span>
                         </>
                     ) : (
                         <>
-                            <Plus className="h-3 w-3" />
-                            Add Work Documentation
+                            <Plus className="h-4 w-4" />
+                            Work Documentation
                         </>
                     )}
                 </button>

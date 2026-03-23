@@ -45,8 +45,8 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
               {user?.profile_picture ? <img src={user.profile_picture} alt="Profile" className="h-full w-full object-cover" /> : <User className="h-8 w-8 sm:h-10 sm:w-10 text-[#FF7120]" />}
             </div>
             <div>
-              <h2 className="text-white font-semibold text-[clamp(1rem,3.5vw,1.5rem)]">Welcome, {user?.first_name || 'Site'} {user?.last_name || 'Coordinator'}</h2>
-              <p className="text-white/60 text-sm">Role: <span className="text-white/80">{user?.role || 'site_coordinator'}</span></p>
+              <h2 className="text-white font-semibold text-[clamp(1rem,3.5vw,1.5rem)]">Welcome, {user?.first_name || 'Site Coordinator'}</h2>
+              <p className="text-white/60 text-sm capitalize">Role: <span className="text-white/80">{user?.role?.replace('_', ' ') || 'site coordinator'}</span></p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -69,10 +69,10 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
                 className={`${cardClass} p-4 sm:p-6`}
                 workDoc={workDoc}
                 workDocAttachments={workDocAttachments}
-                onStatusChange={({ ready, isBeforeSessionEnd, earlyTimeoutMessage }) => {
+                onStatusChange={({ ready, isBeforeSessionEnd, earlyTimeoutMessage, processing }) => {
                     setAttendanceReady(ready);
-                    setIsLocked(!!isBeforeSessionEnd);
-                    setLockMessage(earlyTimeoutMessage || null);
+                    setIsLocked(!!isBeforeSessionEnd || !!processing);
+                    setLockMessage(processing ? "Processing attendance..." : (earlyTimeoutMessage || null));
                   }}
                 onRecordSaved={(attendance) => {
                   // Clear work documentation after successful clock-out (documention saved)
@@ -111,7 +111,7 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#00273C] relative overflow-hidden">
+    <div className="min-h-screen bg-[#00273C] relative">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
@@ -119,7 +119,7 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
       <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
 
       <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
-        <div className="max-w-[1600px] mx-auto flex gap-6">
+        <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-6">
           <aside className="w-64 shrink-0 hidden lg:block">
             <SiteCoordinatorSidebar currentPage="attendance" onNavigate={onNavigate} activeSection="attendance" onSelectSection={() => { }} />
           </aside>

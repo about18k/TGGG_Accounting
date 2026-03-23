@@ -30,7 +30,7 @@ export default function BimSpecialistSidebar({
   };
 
   return (
-    <div className={`${cardClass} p-4 sticky top-24`}>
+    <div className={`${cardClass} p-4 lg:sticky lg:top-28`}>
       <nav className="space-y-2">
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -38,18 +38,20 @@ export default function BimSpecialistSidebar({
             ? currentPage === item.page
             : currentPage === 'attendance' && activeSection === item.section;
           return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => handleClick(item)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive
-                ? 'bg-[#FF7120] text-white'
-                : 'text-white/70 hover:text-white hover:bg-white/5'
-                }`}
-            >
-              <Icon className="h-5 w-5" />
-              <span className="font-medium">{item.label}</span>
-            </button>
+            <div key={item.id}>
+              {item.id === 'documentation' && <div className="my-2 border-t border-white/15" />}
+              <button
+                type="button"
+                onClick={() => handleClick(item)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${isActive
+                  ? 'bg-[#FF7120] text-white'
+                  : 'text-white/70 hover:text-white hover:bg-white/5'
+                  }`}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="font-medium">{item.label}</span>
+              </button>
+            </div>
           );
         })}
       </nav>

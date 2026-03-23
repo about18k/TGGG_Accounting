@@ -2,9 +2,14 @@
  * Route configuration extracted from App.jsx
  * Maps user roles + currentPage to the correct dashboard component.
  */
+import { lazy, Suspense } from 'react';
+
 import StudioHeadDashboard from '../pages/dashboards/StudioHead/StudioHeadDashboard';
 import StudioHeadAttendance from '../pages/dashboards/StudioHead/StudioHeadAttendance';
 import StudioHeadProfilePage from '../pages/dashboards/StudioHead/StudioHeadProfilePage';
+import StudioHeadBimDocumentationPage from '../pages/dashboards/StudioHead/StudioHeadBimDocumentationPage';
+import StudioHeadJuniorArchitectDocumentationPage from '../pages/dashboards/StudioHead/StudioHeadJuniorArchitectDocumentationPage';
+import StudioHeadMaterialRequestPage from '../pages/dashboards/StudioHead/StudioHeadMaterialRequestPage';
 
 import InternAttendanceDashboard from '../pages/dashboards/Intern_Dashboard/InternAttendance';
 import InternOvertimePage from '../pages/dashboards/Intern_Dashboard/OvertimePage';
@@ -38,32 +43,71 @@ import JuniorDesignerAttendanceDashboard from '../pages/dashboards/JuniorDesigne
 import JuniorDesignerOvertimePage from '../pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerOvertimePage';
 import JuniorDesignerTodoPage from '../pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerTodoPage';
 import JuniorDesignerProfilePage from '../pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerProfilePage';
+import JuniorDesignerDocumentationPage from '../pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerDocumentationPage';
 
 import CeoAttendanceDashboard from '../pages/dashboards/ceo/ceoAttendance';
+import CeoDashboardPage from '../pages/dashboards/ceo/CeoDashboardPage';
+import CeoBimDocumentationPage from '../pages/dashboards/ceo/CeoBimDocumentationPage';
+import CeoJuniorArchitectDocumentationPage from '../pages/dashboards/ceo/CeoJuniorArchitectDocumentationPage';
+import CeoMaterialRequestPage from '../pages/dashboards/ceo/CeoMaterialRequestPage';
+import CeoOvertimePage from '../pages/dashboards/ceo/CeoOvertimePage';
+import CeoTodoPage from '../pages/dashboards/ceo/CeoTodoPage';
+import CeoProfilePage from '../pages/dashboards/ceo/CeoProfilePage';
 
-import { DashboardLayout } from '../pages/dashboards/Accounting_Department/DashboardLayout';
-import { DashboardOverview } from '../pages/dashboards/Accounting_Department/DashboardOverview';
-import { EmployeeManagement } from '../pages/dashboards/Accounting_Department/EmployeeManagement';
-import { AttendanceLeave } from '../pages/dashboards/Accounting_Department/AttendanceLeave';
-import { PayrollManagement } from '../pages/dashboards/Accounting_Department/PayrollManagement';
-import { Settings } from '../pages/dashboards/Accounting_Department/Settings';
-import AccountingPersonalAttendance from '../pages/dashboards/Accounting_Department/AccountingPersonalAttendance';
-import AccountingOvertimePage from '../pages/dashboards/Accounting_Department/AccountingOvertimePage';
+const AccountingDashboardLayout = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/DashboardLayout').then((mod) => ({ default: mod.DashboardLayout }))
+);
+const AccountingDashboardOverview = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/DashboardOverview').then((mod) => ({ default: mod.DashboardOverview }))
+);
+const AccountingEmployeeManagement = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/EmployeeManagement').then((mod) => ({ default: mod.EmployeeManagement }))
+);
+const AccountingAttendanceLeave = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/AttendanceLeave').then((mod) => ({ default: mod.AttendanceLeave }))
+);
+const AccountingPayrollManagement = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/PayrollManagement').then((mod) => ({ default: mod.PayrollManagement }))
+);
+const AccountingSettings = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/Settings').then((mod) => ({ default: mod.Settings }))
+);
+const AccountingPersonalAttendance = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/AccountingPersonalAttendance')
+);
+const AccountingOvertimePage = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/AccountingOvertimePage')
+);
+const AccountingEventsPanel = lazy(() =>
+    import('../pages/dashboards/Accounting_Department/AccountingEventsPanel')
+);
+const AccountingOvertimeRequestsPanel = lazy(() =>
+    import('../pages/dashboards/shared/OvertimeRequestApprovalsPanel')
+);
 
 /**
  * Renders the accounting dashboard with its own layout and tabs.
  */
 export function renderAccountingDashboard({
-    user, token, currentPage, accountingSection, activeTab,
-    setActiveTab, setAccountingSection, handleLogout, handleNavigate,
+    user, token, currentPage, handleLogout, handleNavigate,
+    notifications, markNotificationRead, markAllNotificationsRead,
 }) {
-    const effectiveSection =
-        accountingSection !== 'main'
-            ? accountingSection
-            : currentPage === 'personal-attendance'
-                ? 'personal-attendance'
-                : currentPage === 'overtime'
-                    ? 'overtime'
+    // Standard accounting tabs that map directly to pages
+    const accountingTabs = ['dashboard', 'employees', 'attendance', 'payroll', 'settings'];
+    
+    // Determine the active tab from the URL (currentPage)
+    const activeTab = accountingTabs.includes(currentPage) ? currentPage : 'dashboard';
+    
+    // Determine if we are in a sub-section (Personal Attendance or Overtime)
+    const effectiveSection = 
+        currentPage === 'personal-attendance'
+            ? 'personal-attendance'
+            : currentPage === 'overtime'
+                ? 'overtime'
+                : currentPage === 'events'
+                    ? 'events'
+                    : currentPage === 'otrequest'
+                        ? 'otrequest'
                     : 'main';
 
     const renderContent = () => {
@@ -84,34 +128,45 @@ export function renderAccountingDashboard({
                 />
             );
         }
+        if (effectiveSection === 'events') {
+            return <AccountingEventsPanel />;
+        }
+        if (effectiveSection === 'otrequest') {
+            return <AccountingOvertimeRequestsPanel reviewerRole="accounting" />;
+        }
         switch (activeTab) {
             case 'dashboard':
-                return <DashboardOverview user={user} />;
+                return <AccountingDashboardOverview user={user} />;
             case 'employees':
-                return <EmployeeManagement />;
+                return <AccountingEmployeeManagement />;
             case 'attendance':
-                return <AttendanceLeave />;
+                return <AccountingAttendanceLeave />;
             case 'payroll':
-                return <PayrollManagement />;
+                return <AccountingPayrollManagement />;
             case 'settings':
-                return <Settings />;
+                return <AccountingSettings />;
             default:
-                return <DashboardOverview user={user} />;
+                return <AccountingDashboardOverview user={user} />;
         }
     };
 
     return (
-        <DashboardLayout
-            activeTab={activeTab}
-            setActiveTab={setActiveTab}
-            activeSection={effectiveSection}
-            setActiveSection={setAccountingSection}
-            onLogout={handleLogout}
-            onNavigate={handleNavigate}
-            currentPage={currentPage}
-        >
-            {renderContent()}
-        </DashboardLayout>
+        <Suspense fallback={<div className="min-h-screen bg-[#00273C] text-white flex items-center justify-center text-sm">Loading accounting workspace...</div>}>
+            <AccountingDashboardLayout
+                activeTab={activeTab}
+                activeSection={effectiveSection}
+                onLogout={handleLogout}
+                onNavigate={handleNavigate}
+                currentPage={currentPage}
+                notifications={notifications}
+                onNotificationClick={markNotificationRead}
+                onMarkAllRead={markAllNotificationsRead}
+            >
+                <Suspense fallback={<div className="py-8 text-sm text-white/70">Loading page...</div>}>
+                    {renderContent()}
+                </Suspense>
+            </AccountingDashboardLayout>
+        </Suspense>
     );
 }
 
@@ -121,6 +176,7 @@ export function renderAccountingDashboard({
 export function renderDashboard({
     user, token, currentPage, accountingSection, activeTab,
     setActiveTab, setAccountingSection, handleLogout, handleNavigate, fetchNotifications,
+    notifications, markNotificationRead, markAllNotificationsRead,
 }) {
     if (!user) return null;
 
@@ -129,18 +185,33 @@ export function renderDashboard({
         if (currentPage === 'attendance') return <StudioHeadAttendance user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'profile') return <StudioHeadProfilePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'studio-head') return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'studio-head-bim-docs') return <StudioHeadBimDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'studio-head-junior-docs') return <StudioHeadJuniorArchitectDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'studio-head-material-requests') return <StudioHeadMaterialRequestPage user={user} onNavigate={handleNavigate} />;
+
+        // These keys map to panels inside StudioHeadDashboard
+        const studioHeadPages = ['approvals', 'users', 'reviews', 'coordination', 'studio-head'];
+        if (studioHeadPages.includes(currentPage)) {
+            return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} currentPage={currentPage} />;
+        }
+        
+        return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} currentPage="approvals" />;
     }
 
     // Accounting
     if (user.role === 'accounting') {
-        return renderAccountingDashboard({ user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate });
+        return renderAccountingDashboard({
+            user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate,
+            notifications, markNotificationRead, markAllNotificationsRead
+        });
     }
 
     // Employee in Accounting Department
     if (user.role === 'employee' && (user.department_name?.toLowerCase() === 'accounting department' || user.department_name?.toLowerCase() === 'accounting')) {
-        return renderAccountingDashboard({ user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate });
+        return renderAccountingDashboard({
+            user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate,
+            notifications, markNotificationRead, markAllNotificationsRead
+        });
     }
 
     // Site Engineer
@@ -164,6 +235,7 @@ export function renderDashboard({
     // Junior Designer / Architect
     if (user.role === 'junior_architect') {
         if (currentPage === 'designer-hub') return <JuniorDesignerAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'documentation') return <JuniorDesignerDocumentationPage user={user} onNavigate={handleNavigate} />;
         if (currentPage === 'overtime') return <JuniorDesignerOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'todo') return <JuniorDesignerTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
         if (currentPage === 'profile') return <JuniorDesignerProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
@@ -196,17 +268,24 @@ export function renderDashboard({
     }
 
     // CEO / President
-    if (user.role === 'president') {
-        if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'todo') return <EmployeeTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
-        if (currentPage === 'profile') return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    if (user.role === 'president' || user.role === 'ceo') {
+        if (currentPage === 'ceo-dashboard') return <CeoDashboardPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'overtime') return <CeoOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'todo') return <CeoTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
+        if (currentPage === 'profile') return <CeoProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'ceo-bim-docs') return <CeoBimDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'ceo-junior-docs') return <CeoJuniorArchitectDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'ceo-material-requests') return <CeoMaterialRequestPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
         return <CeoAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
     }
 
     // Department-based fallback — Accounting
     const departmentKey = (user.department_name || '').toLowerCase();
     if (departmentKey === 'accounting department' || departmentKey === 'accounting') {
-        return renderAccountingDashboard({ user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate });
+        return renderAccountingDashboard({
+            user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate,
+            notifications, markNotificationRead, markAllNotificationsRead
+        });
     }
 
     // Fallback → Employee Dashboard
