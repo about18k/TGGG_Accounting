@@ -236,6 +236,7 @@ const LocationAttendance = ({
     );
   };
 
+
   const nearestOfficeIn = useMemo(() => {
     if (!locationIn) return null;
     return getNearestOfficePoint(locationIn);
@@ -264,11 +265,49 @@ const LocationAttendance = ({
     [officeConfig.radius, locationOut?.accuracy]
   );
 
+  // Helper to validate mode vs. location alignment
+  const validateModeAlignment = (currentMode, location, dist, radius) => {
+    if (!location) return true;
+
+    const inside = dist != null && dist <= radius;
+    
+    if (currentMode === "construction" && inside) {
+      toast.warning("Location Alignment", {
+        description: `You are inside the ${officeLabel} geofence. Please select 'Office' work mode instead.`,
+      });
+      return false;
+    }
+
+    if (currentMode === "office" && !inside) {
+      toast.error("Location Error", {
+        description: `You are outside the ${officeLabel}. Please move closer or select 'Construction / Outside' mode if working in the field.`,
+      });
+      return false;
+    }
+
+    return true;
+  };
+
+  useEffect(() => {
+    if (locationIn) {
+      validateModeAlignment(mode, locationIn, officeDistanceIn, effectiveRadiusIn);
+    }
+  }, [mode, locationIn, officeDistanceIn, effectiveRadiusIn]);
+
+  useEffect(() => {
+    if (locationOut) {
+      validateModeAlignment(modeOut, locationOut, officeDistanceOut, effectiveRadiusOut);
+    }
+  }, [modeOut, locationOut, officeDistanceOut, effectiveRadiusOut]);
+
   const hasClockedIn = Boolean(todayRecord?.time_in);
   const hasClockedOut = Boolean(todayRecord?.time_out);
 
-  const inRangeIn = mode === "office" ? officeDistanceIn != null && officeDistanceIn <= effectiveRadiusIn : true;
-  const inRangeOut = modeOut === "office" ? officeDistanceOut != null && officeDistanceOut <= effectiveRadiusOut : true;
+  const isInsideOfficeIn = officeDistanceIn != null && officeDistanceIn <= effectiveRadiusIn;
+  const isInsideOfficeOut = officeDistanceOut != null && officeDistanceOut <= effectiveRadiusOut;
+
+  const inRangeIn = mode === "office" ? isInsideOfficeIn : true;
+  const inRangeOut = modeOut === "office" ? isInsideOfficeOut : true;
 
   // ── Early timeout prevention: map session types to their end times ──
   const SESSION_END_TIMES = {
@@ -337,6 +376,16 @@ const LocationAttendance = ({
   );
 
   const handleTimeAction = async (type) => {
+    const isTimeIn = type === "in";
+    const loc = isTimeIn ? locationIn : locationOut;
+    const currentMode = isTimeIn ? mode : modeOut;
+    const dist = isTimeIn ? officeDistanceIn : officeDistanceOut;
+    const radius = isTimeIn ? effectiveRadiusIn : effectiveRadiusOut;
+
+    if (!validateModeAlignment(currentMode, loc, dist, radius, !isTimeIn)) {
+      return;
+    }
+
     if ((type === "in" && !canTimeIn) || (type === "out" && !canTimeOut)) return;
 
     const token = localStorage.getItem("token");
@@ -345,9 +394,8 @@ const LocationAttendance = ({
       return;
     }
 
-    const isTimeIn = type === "in";
-    const location = isTimeIn ? locationIn : locationOut;
-    const modeValue = isTimeIn ? mode : modeOut;
+    const location = loc;
+    const modeValue = currentMode;
 
     // Validate work documentation on clock-out for PM session only
     if (!isTimeIn && todayRecord?.session_type === 'afternoon') {

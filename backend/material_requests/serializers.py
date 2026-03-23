@@ -57,6 +57,7 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
             'reviewed_by_ceo_name',
             'ceo_reviewed_at',
             'ceo_comments',
+            'request_image',
             'items',
             'item_count',
             'created_at',
@@ -84,14 +85,43 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
             return len(prefetched['items'])
         return obj.items.count()
 
+    def to_internal_value(self, data):
+        # Support stringified 'items' from FormData submissions
+        if 'items' in data and isinstance(data['items'], str):
+            try:
+                import json
+                # Convert QueryDict to a standard dict to avoid 'getlist' issues
+                if hasattr(data, 'dict'):
+                    data = data.dict()
+                elif hasattr(data, 'copy'):
+                    data = data.copy()
+                
+                data['items'] = json.loads(data['items'])
+            except (ValueError, TypeError):
+                pass
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
         items = attrs.get('items')
+        request_image = attrs.get('request_image')
 
-        if self.instance is None and not items:
-            raise serializers.ValidationError({'items': 'At least one material item is required.'})
+        # For new requests, ensure at least one is provided
+        if self.instance is None:
+            if not items and not request_image:
+                raise serializers.ValidationError(
+                    'At least one material item or an uploaded image is required.'
+                )
+        else:
+            # For updates, check the combination of new data and existing instance data
+            has_items = (items is not None and len(items) > 0) or \
+                        (items is None and self.instance.items.exists())
+            has_image = (request_image is not None) or \
+                        ('request_image' not in attrs and self.instance.request_image)
 
-        if items is not None and len(items) == 0:
-            raise serializers.ValidationError({'items': 'At least one material item is required.'})
+            if not has_items and not has_image:
+                raise serializers.ValidationError(
+                    'At least one material item or an uploaded image is required.'
+                )
 
         return attrs
 

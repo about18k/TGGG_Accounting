@@ -3,6 +3,7 @@ import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import JuniorDesignerSidebar from './components/JuniorDesignerSidebar';
 import bimDocumentationService from '../../../services/bimDocumentationService';
 import CommentThread from '../../../components/CommentThread';
+import { toast } from 'sonner';
 
 const MODEL_ACCEPT = '.rvt,.ifc,.obj,.fbx,.skp,.dwg,.dxf,.stl';
 
@@ -15,7 +16,6 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
     const [modelFiles, setModelFiles] = useState([]);
     const [imageFiles, setImageFiles] = useState([]);
     const [savedDocs, setSavedDocs] = useState([]);
-    const [docMessage, setDocMessage] = useState('');
     const [loading, setLoading] = useState(false);
     const [zoomedImage, setZoomedImage] = useState(null);
     const [zoomScale, setZoomScale] = useState(1);
@@ -49,7 +49,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
             const docs = Array.isArray(result.data) ? result.data : (result.data?.results || []);
             setSavedDocs(docs);
         } else {
-            setDocMessage('Failed to load documentations: ' + result.error);
+            toast.error('Load Failed', { description: 'Failed to load documentations: ' + result.error });
         }
         setLoading(false);
     };
@@ -83,9 +83,11 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
         setEditingDocId(doc.id);
         setEditingRejectedDoc(isStudioHeadRejected(doc));
         setActiveTab('create');
-        setDocMessage(isStudioHeadRejected(doc)
+        
+        const message = isStudioHeadRejected(doc)
             ? 'Editing rejected documentation. Save your changes, then resubmit for review.'
-            : 'Editing draft documentation.');
+            : 'Editing draft documentation.';
+        toast.info('Editing Mode', { description: message });
     };
 
     const getStatusColor = (doc) => {
@@ -125,15 +127,15 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
         e.preventDefault();
 
         if (!docTitle.trim()) {
-            setDocMessage('Please enter a title.');
+            toast.error('Validation Error', { description: 'Please enter a title.' });
             return;
         }
         if (!docDate) {
-            setDocMessage('Please select a date.');
+            toast.error('Validation Error', { description: 'Please select a date.' });
             return;
         }
         if (!editingDocId && !modelFiles.length && !imageFiles.length) {
-            setDocMessage('Upload at least one file.');
+            toast.error('Validation Error', { description: 'Upload at least one file.' });
             return;
         }
 
@@ -155,7 +157,10 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
             });
 
         if (result.success) {
-            setDocMessage(editingDocId ? 'Documentation updated successfully!' : 'Design documentation saved successfully!');
+            const successTitle = editingDocId ? 'Documentation Updated' : 'Design Documentation Saved';
+            const successDesc = editingDocId ? 'Design documentation updated successfully!' : 'Design documentation saved successfully!';
+            toast.success(successTitle, { description: successDesc });
+            
             const wasEditing = Boolean(editingDocId);
             const wasRejectedRevision = editingRejectedDoc;
             fetchDocumentations();
@@ -163,12 +168,11 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
             if (wasEditing) {
                 setActiveTab('manage');
                 if (wasRejectedRevision) {
-                    setDocMessage('Documentation updated. Click "Resubmit for Review" in Manage Documentation.');
+                    toast.info('Ready for Resubmission', { description: 'Documentation updated. Click "Resubmit for Review" in Manage Documentation.' });
                 }
             }
-            setTimeout(() => setDocMessage(''), 3000);
         } else {
-            setDocMessage('Error: ' + result.error);
+            toast.error('Save Failed', { description: 'Error: ' + result.error });
         }
         setLoading(false);
     };
@@ -177,13 +181,13 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
         setLoading(true);
         const result = await bimDocumentationService.submitForReview(doc.id);
         if (result.success) {
-            setDocMessage(isStudioHeadRejected(doc)
+            const msg = isStudioHeadRejected(doc)
                 ? 'Documentation resubmitted for Studio Head review!'
-                : 'Documentation submitted for Studio Head review!');
+                : 'Documentation submitted for Studio Head review!';
+            toast.success('Submission Successful', { description: msg });
             fetchDocumentations();
-            setTimeout(() => setDocMessage(''), 3000);
         } else {
-            setDocMessage('Error: ' + result.error);
+            toast.error('Submission Failed', { description: 'Error: ' + result.error });
         }
         setLoading(false);
     };
@@ -194,11 +198,10 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
         setLoading(true);
         const result = await bimDocumentationService.deleteDocumentation(docId);
         if (result.success) {
-            setDocMessage('Documentation deleted successfully!');
+            toast.success('Documentation Deleted', { description: 'Documentation deleted successfully!' });
             fetchDocumentations();
-            setTimeout(() => setDocMessage(''), 3000);
         } else {
-            setDocMessage('Error: ' + result.error);
+            toast.error('Deletion Failed', { description: 'Error: ' + result.error });
         }
         setLoading(false);
     };
@@ -390,15 +393,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                         >
                                             {loading ? 'Saving...' : (editingDocId ? 'Save Changes' : 'Save as Draft')}
                                         </button>
-                                        {docMessage && (
-                                            <p className={`text-xs ${
-                                                docMessage.includes('Error')
-                                                    ? 'text-red-400'
-                                                    : 'text-emerald-400'
-                                            }`}>
-                                                {docMessage}
-                                            </p>
-                                        )}
+                                        {loading && <p className="text-xs text-white/50 animate-pulse">Processing request...</p>}
                                     </div>
                                 </form>
                             </div>

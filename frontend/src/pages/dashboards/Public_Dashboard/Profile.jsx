@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import Alert from '../../../components/Alert.jsx';
+import React, { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { CardSkeleton } from '../../../components/SkeletonLoader.jsx';
 import { getMyAttendance } from '../../../services/attendanceService';
 import * as profileService from '../../../services/profileService';
@@ -8,7 +8,6 @@ import { calcSessionMinutes } from '../../../utils/attendanceFormatters';
 function Profile({ token, user, onLogout }) {
   const [profile, setProfile] = useState({ full_name: '', email: '' });
   const [profilePic, setProfilePic] = useState(null);
-  const [alert, setAlert] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
   const [password, setPassword] = useState({ new: '', confirm: '' });
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -16,12 +15,21 @@ function Profile({ token, user, onLogout }) {
   const [totalDeductions, setTotalDeductions] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [signatureFile, setSignatureFile] = useState(null);
   const [isUploadingSignature, setIsUploadingSignature] = useState(false);
+  const [showSignatureSection, setShowSignatureSection] = useState(false);
   const [showCharLimitModal, setShowCharLimitModal] = useState(false);
+  const sigCanvasRef = useRef(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasSigned, setHasSigned] = useState(false);
 
   const showAlert = (type, title, message) => {
-    setAlert({ type, title, message });
+    if (type === 'success') {
+      toast.success(title, { description: message });
+    } else if (type === 'error') {
+      toast.error(title, { description: message });
+    } else {
+      toast(title, { description: message });
+    }
   };
 
   useEffect(() => {
@@ -112,23 +120,64 @@ function Profile({ token, user, onLogout }) {
     }
   };
 
-  const uploadSignature = async () => {
-    if (!signatureFile || isUploadingSignature) return;
+  const startDrawing = (e) => {
+    if (isUploadingSignature) return;
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
 
-    const maxSize = 5 * 1024 * 1024;
-    if (signatureFile.size > maxSize) {
-      showAlert('error', 'File Too Large', 'Signature image must be less than 5MB.');
-      return;
-    }
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    setIsDrawing(true);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing || isUploadingSignature) return;
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
+    const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    setHasSigned(true);
+  };
+
+  const endDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearSignature = () => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setHasSigned(false);
+  };
+
+  const uploadSignature = async () => {
+    if (!hasSigned || isUploadingSignature) return;
 
     setIsUploadingSignature(true);
-    const formData = new FormData();
-    formData.append('signature', signatureFile);
-
     try {
+      const canvas = sigCanvasRef.current;
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+      const file = new File([blob], `signature_${Date.now()}.png`, { type: 'image/png' });
+
+      const formData = new FormData();
+      formData.append('signature', file);
+
       const response = await profileService.uploadSignatureImage(formData);
       showAlert('success', 'Signature Updated', 'Signature uploaded successfully.');
-      setSignatureFile(null);
+      clearSignature();
       await fetchProfile();
 
       try {
@@ -144,7 +193,6 @@ function Profile({ token, user, onLogout }) {
     } catch (err) {
       const errorMsg = err.response?.data?.error || 'Failed to upload signature image.';
       showAlert('error', 'Upload Failed', errorMsg);
-      setSignatureFile(null);
       await fetchProfile();
     } finally {
       setIsUploadingSignature(false);
@@ -173,14 +221,6 @@ function Profile({ token, user, onLogout }) {
 
   return (
     <div>
-      {alert && (
-        <Alert
-          type={alert.type}
-          title={alert.title}
-          message={alert.message}
-          onClose={() => setAlert(null)}
-        />
-      )}
 
       {showCharLimitModal && (
         <div style={{
@@ -349,96 +389,6 @@ function Profile({ token, user, onLogout }) {
                     </button>
                   </div>
                 )}
-
-                <div style={{ marginTop: '1.5rem' }}>
-                  <p style={{ color: '#a0a4a8', fontSize: '0.85rem', marginBottom: '0.5rem' }}>Signature (for payroll approvals)</p>
-                  <div
-                    style={{
-                      width: '100%',
-                      maxWidth: '280px',
-                      height: '90px',
-                      margin: '0 auto',
-                      borderRadius: '10px',
-                      border: '1px dashed rgba(255, 113, 32, 0.45)',
-                      background: '#001a2b',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {profile.signature_image ? (
-                      <img
-                        src={profile.signature_image}
-                        alt="Signature"
-                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                      />
-                    ) : (
-                      <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>No signature uploaded</span>
-                    )}
-                  </div>
-
-                  <div style={{ marginTop: '0.75rem', display: 'flex', justifyContent: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={isUploadingSignature}
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (!file) {
-                          e.target.value = '';
-                          return;
-                        }
-                        if (file.size > 5 * 1024 * 1024) {
-                          showAlert('error', 'File Too Large', 'Signature image must be less than 5MB.');
-                          e.target.value = '';
-                          return;
-                        }
-                        setSignatureFile(file);
-                        e.target.value = '';
-                      }}
-                      id="signature-upload"
-                      style={{ display: 'none' }}
-                    />
-                    <label
-                      htmlFor="signature-upload"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        padding: '0.45rem 0.9rem',
-                        background: '#00273C',
-                        color: '#FFB36B',
-                        borderRadius: '6px',
-                        border: '1px solid rgba(255, 113, 32, 0.35)',
-                        cursor: isUploadingSignature ? 'not-allowed' : 'pointer',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      Choose Signature
-                    </label>
-                    <button
-                      onClick={uploadSignature}
-                      disabled={!signatureFile || isUploadingSignature}
-                      style={{
-                        background: (!signatureFile || isUploadingSignature) ? 'rgba(255, 113, 32, 0.45)' : '#FF7120',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '0.45rem 0.9rem',
-                        cursor: (!signatureFile || isUploadingSignature) ? 'not-allowed' : 'pointer',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      {isUploadingSignature ? 'Uploading...' : 'Upload Signature'}
-                    </button>
-                  </div>
-
-                  {signatureFile && (
-                    <p style={{ marginTop: '0.5rem', color: '#FFB36B', fontSize: '0.8rem' }}>
-                      Selected signature: {signatureFile.name}
-                    </p>
-                  )}
-                </div>
               </div>
 
               <div style={{ marginBottom: '1rem' }}>
@@ -624,6 +574,133 @@ function Profile({ token, user, onLogout }) {
                     >
                       Update Password
                     </button>
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginBottom: '1.5rem', padding: '1rem', background: '#00273C', borderRadius: '8px', border: '1px solid rgba(255, 113, 32, 0.2)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: showSignatureSection ? '1rem' : '0' }}>
+                  <div>
+                    <h4 style={{ color: '#e8eaed', fontSize: '1rem', marginBottom: '0.25rem' }}>Signature</h4>
+                    <p style={{ color: '#6b7280', fontSize: '0.85rem', margin: 0 }}>Add a signature for your account</p>
+                  </div>
+                  <button
+                    onClick={() => setShowSignatureSection(!showSignatureSection)}
+                    style={{
+                      padding: '0.5rem 1rem',
+                      background: 'transparent',
+                      color: '#FF7120',
+                      border: '1px solid rgba(255, 113, 32, 0.3)',
+                      borderRadius: '6px',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    {showSignatureSection ? 'Cancel' : 'Set Signature'}
+                  </button>
+                </div>
+
+                {!showSignatureSection && profile.signature_image && (
+                  <div
+                    style={{
+                      width: '100%',
+                      maxWidth: '280px',
+                      height: '90px',
+                      margin: '1rem auto 0',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(255, 113, 32, 0.45)',
+                      background: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <img
+                      src={profile.signature_image}
+                      alt="Signature"
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  </div>
+                )}
+
+                {showSignatureSection && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <div
+                      style={{
+                        width: '100%',
+                        maxWidth: '400px',
+                        margin: '0 auto',
+                        borderRadius: '10px',
+                        border: '1px solid rgba(255, 113, 32, 0.45)',
+                        background: '#001a2b',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        overflow: 'hidden',
+                        padding: '10px'
+                      }}
+                    >
+                      <canvas
+                        ref={sigCanvasRef}
+                        width={400}
+                        height={120}
+                        style={{
+                          maxWidth: '100%',
+                          height: 'auto',
+                          background: '#FFFFFF',
+                          borderRadius: '6px',
+                          cursor: 'crosshair',
+                          touchAction: 'none'
+                        }}
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={endDrawing}
+                        onMouseLeave={endDrawing}
+                        onTouchStart={startDrawing}
+                        onTouchMove={draw}
+                        onTouchEnd={endDrawing}
+                      />
+                      
+                      <div style={{ marginTop: '0.75rem', width: '100%', display: 'flex', justifyContent: 'center', gap: '0.5rem' }}>
+                        <button
+                          type="button"
+                          onClick={clearSignature}
+                          disabled={isUploadingSignature}
+                          style={{
+                            padding: '0.4rem 1rem',
+                            background: 'transparent',
+                            color: '#FF7120',
+                            border: '1px solid #FF7120',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontSize: '0.85rem',
+                          }}
+                        >
+                          Clear
+                        </button>
+                        <button
+                          onClick={async () => {
+                            await uploadSignature();
+                            setShowSignatureSection(false);
+                          }}
+                          disabled={!hasSigned || isUploadingSignature}
+                          style={{
+                            background: (!hasSigned || isUploadingSignature) ? 'rgba(255, 113, 32, 0.45)' : '#FF7120',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '0.4rem 1rem',
+                            cursor: (!hasSigned || isUploadingSignature) ? 'not-allowed' : 'pointer',
+                            fontSize: '0.85rem',
+                            fontWeight: '600'
+                          }}
+                        >
+                          {isUploadingSignature ? 'Saving...' : 'Save Signature'}
+                        </button>
+                      </div>
+                    </div>
+                    <p style={{ marginTop: '0.5rem', color: '#6b7280', textAlign: 'center', fontSize: '0.8rem' }}>Sign above to update your profile signature</p>
                   </div>
                 )}
               </div>

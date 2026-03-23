@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import supabase from '../../../lib/supabaseClient';
-import Alert from '../../../components/Alert.jsx';
+import { toast } from 'sonner';
 import { CardSkeleton } from '../../../components/SkeletonLoader.jsx';
 import { getProfile } from '../../../services/profileService';
 import { submitOvertime } from '../../../services/overtimeService';
@@ -52,7 +52,6 @@ const getInitialFormState = () => ({
 function OvertimeForm({ token }) {
   const sigCanvasRef = useRef(null);
   const [saving, setSaving] = useState(false);
-  const [alert, setAlert] = useState(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [periods, setPeriods] = useState([
@@ -193,10 +192,8 @@ function OvertimeForm({ token }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setAlert(null);
-    const validationError = validateForm();
     if (validationError) {
-      setAlert({ type: 'error', title: 'Validation error', message: validationError });
+      toast.error('Validation Error', { description: validationError });
       return;
     }
     setSaving(true);
@@ -233,12 +230,12 @@ function OvertimeForm({ token }) {
           signatureUrl = publicData.publicUrl;
         } catch (uploadErr) {
           console.error('Signature upload failed:', uploadErr);
-          setAlert({ type: 'error', title: 'Signature Upload Failed', message: 'Failed to upload signature. Please try again.' });
+          toast.error('Signature Upload Failed', { description: 'Failed to upload signature. Please try again.' });
           setSaving(false);
           return;
         }
       } else {
-        setAlert({ type: 'error', title: 'No Signature', message: 'Please sign the form before submitting.' });
+        toast.error('No Signature', { description: 'Please sign the form before submitting.' });
         setSaving(false);
         return;
       }
@@ -249,7 +246,7 @@ function OvertimeForm({ token }) {
         periods: periods.filter(p => p.start_date || p.end_date || p.start_time || p.end_time)
       };
       await submitOvertime(payload);
-      setAlert({ type: 'success', title: 'Submitted', message: 'OT request submitted successfully.' });
+      toast.success('Submission Successful', { description: 'OT request submitted successfully.' });
       setPeriods([{
         start_date: '',
         end_date: '',
@@ -262,7 +259,7 @@ function OvertimeForm({ token }) {
       setForm(getInitialFormState());
     } catch (err) {
       const msg = err.response?.data?.error || 'Failed to submit OT request.';
-      setAlert({ type: 'error', title: 'Error', message: msg });
+      toast.error('Error', { description: msg });
     } finally {
       setSaving(false);
     }
@@ -316,14 +313,6 @@ function OvertimeForm({ token }) {
 
   return (
     <div className="dashboard" style={{ overflowX: 'hidden' }}>
-      {alert && (
-        <Alert
-          type={alert.type}
-          title={alert.title}
-          message={alert.message}
-          onClose={() => setAlert(null)}
-        />
-      )}
       <div className="overtime-card" style={{ boxSizing: 'border-box', maxWidth: '100%', width: '100%', overflow: 'hidden' }}>
         {loading ? (
           <CardSkeleton />

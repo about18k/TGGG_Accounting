@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import {
   CalendarDays,
   CheckCircle2,
@@ -179,7 +180,6 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
   const [decisionNote, setDecisionNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [submittingDecision, setSubmittingDecision] = useState(false);
-  const [message, setMessage] = useState('');
 
   const requestsByTab = useMemo(() => ({
     pending: pendingRequests,
@@ -227,7 +227,7 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
       setApprovedRequests(requests.filter((request) => request.status === 'approved'));
       setRejectedRequests(requests.filter((request) => request.status === 'rejected'));
     } else {
-      setMessage(`Failed to load material requests: ${result.error}`);
+      toast.error(`Failed to load material requests: ${result.error}`);
     }
 
     if (!silent) {
@@ -281,12 +281,12 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
     const result = await materialRequestService.approvalAction(selectedRequest.id, 'approve', decisionNote);
 
     if (result.success) {
-      setMessage('Material request approved and forwarded to CEO.');
+      toast.success('Material request approved and forwarded to CEO.');
       applyLocalDecision(selectedRequest.id, 'approve', decisionNote);
       setDecisionNote('');
       fetchRequests({ silent: true });
     } else {
-      setMessage(`Error: ${result.error}`);
+      toast.error(`Error: ${result.error}`);
     }
 
     setSubmittingDecision(false);
@@ -296,7 +296,7 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
     if (!selectedRequest) return;
 
     if (!decisionNote.trim()) {
-      setMessage('Please provide a reason before rejecting this request.');
+      toast.error('Please provide a reason before rejecting this request.');
       return;
     }
 
@@ -304,7 +304,7 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
     const result = await materialRequestService.approvalAction(selectedRequest.id, 'reject', decisionNote);
 
     if (result.success) {
-      setMessage('Material request rejected and returned for revision.');
+      toast.success('Material request rejected and returned for revision.');
       applyLocalDecision(selectedRequest.id, 'reject', decisionNote);
       setDecisionNote('');
       fetchRequests({ silent: true });
@@ -391,11 +391,6 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
               />
             </section>
 
-            {message && (
-              <section className={`${cardClass} border ${message.startsWith('Error') ? 'border-red-500/25 bg-red-500/10 text-red-200' : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-200'} p-4 text-sm`}>
-                {message}
-              </section>
-            )}
 
             <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
               <div className="lg:col-span-1">
@@ -514,6 +509,22 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
                         ))}
                       </div>
                     </div>
+
+                    {selectedRequest.request_image && (
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                        <p className="text-white/45 text-xs mb-3">Material Request Image</p>
+                        <a href={selectedRequest.request_image} target="_blank" rel="noopener noreferrer" className="block w-full max-w-sm group relative">
+                          <img 
+                            src={selectedRequest.request_image} 
+                            alt="Material Request" 
+                            className="w-full h-auto rounded-lg border border-white/10 shadow-lg transition group-hover:brightness-110"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition bg-black/20 rounded-lg">
+                             <span className="bg-[#FF7120] text-white px-3 py-1.5 rounded-lg text-xs font-medium">View Full Image</span>
+                          </div>
+                        </a>
+                      </div>
+                    )}
 
                     {selectedRequest.notes && (
                       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">

@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import {
   AlertTriangle,
   CheckCircle2,
   Clock3,
+  Image as ImageIcon,
   Package,
   Plus,
   RefreshCcw,
   Send,
   Trash2,
+  Upload,
+  X,
   XCircle,
 } from 'lucide-react';
 import materialRequestService from '../../../services/materialRequestService';
@@ -93,7 +97,8 @@ const MaterialRequest = ({ user }) => {
   const [actionRequestId, setActionRequestId] = useState(null);
   const [editingRequestId, setEditingRequestId] = useState(null);
   const [editingRejectedRequest, setEditingRejectedRequest] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   const counts = useMemo(() => {
     return requests.reduce((acc, request) => {
@@ -132,13 +137,11 @@ const MaterialRequest = ({ user }) => {
     setFormData(DEFAULT_FORM);
     setMaterials([]);
     setCurrentMaterial(DEFAULT_MATERIAL);
+    setUploadedImage(null);
+    setImagePreview(null);
     setRequests([]);
     fetchRequests();
   }, [user?.id, user?.role]);
-
-  const setFlash = (type, text) => {
-    setMessage({ type, text });
-  };
 
   const fetchRequests = async ({ silent = false } = {}) => {
     if (!silent) {
@@ -150,11 +153,8 @@ const MaterialRequest = ({ user }) => {
     if (result.success) {
       const fetched = Array.isArray(result.data) ? result.data : (result.data?.results || []);
       setRequests(fetched);
-      if (!silent) {
-        setFlash('', '');
-      }
     } else {
-      setFlash('error', result.error);
+      toast.error(result.error);
     }
 
     if (!silent) {
@@ -166,6 +166,8 @@ const MaterialRequest = ({ user }) => {
     setFormData(DEFAULT_FORM);
     setMaterials([]);
     setCurrentMaterial(DEFAULT_MATERIAL);
+    setUploadedImage(null);
+    setImagePreview(null);
     setEditingRequestId(null);
     setEditingRejectedRequest(false);
   };
@@ -184,20 +186,25 @@ const MaterialRequest = ({ user }) => {
 
     setFormData({
       projectName: request.project_name || '',
-      requestDate: request.request_date || DEFAULT_FORM.requestDate,
-      requiredDate: request.required_date || '',
+      request_date: request.request_date || DEFAULT_FORM.requestDate,
+      required_date: request.required_date || '',
       priority: request.priority || 'normal',
-      deliveryLocation: request.delivery_location || '',
+      delivery_location: request.delivery_location || '',
       notes: request.notes || '',
     });
     setMaterials(mappedItems);
+    setUploadedImage(null);
+    setImagePreview(request.request_image || null);
     setCurrentMaterial(DEFAULT_MATERIAL);
     setEditingRequestId(request.id);
     setEditingRejectedRequest(isStudioHeadRejected(request));
     setActiveTab('create');
-    setFlash('success', isStudioHeadRejected(request)
-      ? 'Editing Studio Head-rejected request. Save changes and resubmit when ready.'
-      : 'Editing draft request.');
+    
+    if (isStudioHeadRejected(request)) {
+      toast.info('Editing Studio Head-rejected request. Save changes and resubmit when ready.');
+    } else {
+      toast.info('Editing draft request.');
+    }
   };
 
   const upsertRequest = (request) => {
@@ -207,7 +214,7 @@ const MaterialRequest = ({ user }) => {
 
   const addMaterial = () => {
     if (!currentMaterial.name.trim() || !currentMaterial.quantity || !currentMaterial.unit.trim()) {
-      setFlash('error', 'Add a material name, quantity, and unit before adding to the list.');
+      toast.error('Add a material name, quantity, and unit before adding to the list.');
       return;
     }
 
@@ -223,15 +230,108 @@ const MaterialRequest = ({ user }) => {
 
     setMaterials((current) => [...current, nextMaterial]);
     setCurrentMaterial(DEFAULT_MATERIAL);
-    setFlash('', '');
   };
 
   const removeMaterial = (id) => {
     setMaterials((current) => current.filter((item) => item.id !== id));
   };
 
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Quality/Size validation as per plan
+    const minSize = 200 * 1024; // 200KB
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (file.size < minSize) {
+      toast.error('The image quality might be too low. Please upload a clearer, higher-resolution image (at least 200KB).');
+      return;
+    }
+
+    if (file.size > maxSize) {
+      toast.error('The image is too large. Please upload an image smaller than 5MB.');
+      return;
+    }
+
+    // Verify it's an image
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file (PNG, JPG).');
+      return;
+    }
+
+    setUploadedImage(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setUploadedImage(null);
+    setImagePreview(null);
+    // If editing and we remove an existing image, we might need to track that.
+    // For now, if imagePreview is just the URL from backend, clearing it means removing it.
+  };
+
   const buildPayload = () => {
-    return {
+    const payload = new FormData();
+    payload.append('project_name', formData.projectName.trim());
+    payload.append('request_date', formData.requestDate);
+    payload.append('required_date', formData.requiredDate);
+    payload.append('priority', formData.priority);
+    payload.append('delivery_location', formData.deliveryLocation.trim());
+    payload.append('notes', formData.notes.trim());
+
+    if (uploadedImage) {
+      payload.append('request_image', uploadedImage);
+    }
+
+    // Items list as JSON string for FormData
+    payload.append('items_json', JSON.stringify(materials.map((material, index) => ({
+      name: material.name,
+      category: material.category,
+      quantity: material.quantity,
+      unit: material.unit,
+      specifications: material.specifications,
+      sort_order: index,
+    }))));
+
+    // We'll need to update the backend serializer or service to handle items_json if we go this route,
+    // OR we can manually append each item property.
+    // Actually, DRF can handle nested lists in FormData if we use the right format (e.g. items[0]name).
+    // Let's use a simpler approach: if no image, send JSON. If image, send FormData.
+    return payload;
+  };
+
+  const buildRequestData = () => {
+    // If we have an image, we MUST use FormData
+    if (uploadedImage) {
+      const fd = new FormData();
+      fd.append('project_name', formData.projectName.trim());
+      fd.append('request_date', formData.requestDate);
+      fd.append('required_date', formData.requiredDate);
+      fd.append('priority', formData.priority);
+      fd.append('delivery_location', formData.deliveryLocation.trim());
+      fd.append('notes', formData.notes.trim());
+      fd.append('request_image', uploadedImage);
+      
+      // Sending items as JSON string for easy backend parsing
+      fd.append('items', JSON.stringify(materials.map((m, i) => ({
+        name: m.name,
+        category: m.category,
+        quantity: m.quantity,
+        unit: m.unit,
+        specifications: m.specifications,
+        sort_order: i,
+      }))));
+      
+      return fd;
+    }
+
+    // Default JSON payload
+    const data = {
       project_name: formData.projectName.trim(),
       request_date: formData.requestDate,
       required_date: formData.requiredDate,
@@ -247,31 +347,39 @@ const MaterialRequest = ({ user }) => {
         sort_order: index,
       })),
     };
+
+    // If we are editing and the image was removed (preview cleared), 
+    // explicitly tell the backend to clear the image field.
+    if (editingRequestId && !imagePreview) {
+      data.request_image = null;
+    }
+
+    return data;
   };
 
   const validateBeforeSave = () => {
     if (!formData.projectName.trim()) {
-      setFlash('error', 'Project name is required.');
+      toast.error('Project name is required.');
       return false;
     }
 
     if (!formData.requestDate || !formData.requiredDate) {
-      setFlash('error', 'Request and required dates are required.');
+      toast.error('Request and required dates are required.');
       return false;
     }
 
     if (formData.requiredDate < formData.requestDate) {
-      setFlash('error', 'Required date cannot be earlier than request date.');
+      toast.error('Required date cannot be earlier than request date.');
       return false;
     }
 
     if (!formData.deliveryLocation.trim()) {
-      setFlash('error', 'Delivery location is required.');
+      toast.error('Delivery location is required.');
       return false;
     }
 
-    if (!materials.length) {
-      setFlash('error', 'Add at least one material item before saving.');
+    if (!materials.length && !imagePreview) {
+      toast.error('Add at least one material item or upload a high-quality request image.');
       return false;
     }
 
@@ -283,18 +391,20 @@ const MaterialRequest = ({ user }) => {
       return;
     }
 
+    const payload = buildRequestData();
+
     if (editingRequestId) {
       setSaving(true);
-      const updateResult = await materialRequestService.updateMaterialRequest(editingRequestId, buildPayload());
+      const updateResult = await materialRequestService.updateMaterialRequest(editingRequestId, payload);
 
       if (updateResult.success) {
         upsertRequest(updateResult.data);
         resetForm();
         setActiveTab('manage');
-        setFlash('success', 'Material request changes saved.');
+        toast.success('Material request changes saved.');
         await fetchRequests({ silent: true });
       } else {
-        setFlash('error', updateResult.error);
+        toast.error(updateResult.error);
       }
 
       setSaving(false);
@@ -302,15 +412,15 @@ const MaterialRequest = ({ user }) => {
     }
 
     setSaving(true);
-    const result = await materialRequestService.createMaterialRequest(buildPayload());
+    const result = await materialRequestService.createMaterialRequest(payload);
 
     if (result.success) {
       upsertRequest(result.data);
       resetForm();
       setActiveTab('manage');
-      setFlash('success', 'Material request saved as draft. Submit it from Manage Requests when ready.');
+      toast.success('Material request saved as draft. Submit it from Manage Requests when ready.');
     } else {
-      setFlash('error', result.error);
+      toast.error(result.error);
     }
 
     setSaving(false);
@@ -323,12 +433,14 @@ const MaterialRequest = ({ user }) => {
       return;
     }
 
+    const payload = buildRequestData();
+
     if (editingRequestId) {
       setSaving(true);
 
-      const updateResult = await materialRequestService.updateMaterialRequest(editingRequestId, buildPayload());
+      const updateResult = await materialRequestService.updateMaterialRequest(editingRequestId, payload);
       if (!updateResult.success) {
-        setFlash('error', updateResult.error);
+        toast.error(updateResult.error);
         setSaving(false);
         return;
       }
@@ -338,8 +450,7 @@ const MaterialRequest = ({ user }) => {
         upsertRequest(submitResult.data);
         resetForm();
         setActiveTab('manage');
-        setFlash(
-          'success',
+        toast.success(
           editingRejectedRequest
             ? 'Material request updated and resubmitted to Studio Head.'
             : 'Material request updated and submitted to Studio Head.',
@@ -348,7 +459,7 @@ const MaterialRequest = ({ user }) => {
         upsertRequest(updateResult.data);
         setActiveTab('manage');
         resetForm();
-        setFlash('error', `Changes saved, but submit failed: ${submitResult.error}`);
+        toast.error(`Changes saved, but submit failed: ${submitResult.error}`);
       }
 
       await fetchRequests({ silent: true });
@@ -357,10 +468,10 @@ const MaterialRequest = ({ user }) => {
     }
 
     setSaving(true);
-    const createResult = await materialRequestService.createMaterialRequest(buildPayload());
+    const createResult = await materialRequestService.createMaterialRequest(payload);
 
     if (!createResult.success) {
-      setFlash('error', createResult.error);
+      toast.error(createResult.error);
       setSaving(false);
       return;
     }
@@ -372,11 +483,11 @@ const MaterialRequest = ({ user }) => {
       upsertRequest(submitResult.data);
       resetForm();
       setActiveTab('manage');
-      setFlash('success', 'Material request submitted to Studio Head for review.');
+      toast.success('Material request submitted to Studio Head for review.');
     } else {
       upsertRequest(created);
       setActiveTab('manage');
-      setFlash('error', `Draft created, but submit failed: ${submitResult.error}`);
+      toast.error(`Draft created, but submit failed: ${submitResult.error}`);
     }
 
     setSaving(false);
@@ -389,14 +500,13 @@ const MaterialRequest = ({ user }) => {
 
     if (result.success) {
       upsertRequest(result.data);
-      setFlash(
-        'success',
+      toast.success(
         isStudioHeadRejected(request)
           ? 'Material request resubmitted to Studio Head.'
           : 'Material request submitted to Studio Head.',
       );
     } else {
-      setFlash('error', result.error);
+      toast.error(result.error);
     }
 
     setActionRequestId(null);
@@ -413,9 +523,9 @@ const MaterialRequest = ({ user }) => {
 
     if (result.success) {
       setRequests((current) => current.filter((request) => request.id !== requestId));
-      setFlash('success', 'Draft deleted.');
+      toast.success('Draft deleted.');
     } else {
-      setFlash('error', result.error);
+      toast.error(result.error);
     }
 
     setActionRequestId(null);
@@ -465,15 +575,6 @@ const MaterialRequest = ({ user }) => {
             <p className="text-xl font-semibold text-red-100 mt-1">{counts.rejected}</p>
           </div>
         </div>
-
-        {message.text && (
-          <div className={`mt-4 rounded-xl border px-4 py-3 text-sm ${message.type === 'error'
-            ? 'border-red-500/25 bg-red-500/10 text-red-200'
-            : 'border-emerald-500/25 bg-emerald-500/10 text-emerald-200'
-            }`}>
-            {message.text}
-          </div>
-        )}
       </div>
 
       <div className="p-6 border-b border-white/10">
@@ -669,6 +770,61 @@ const MaterialRequest = ({ user }) => {
           </div>
 
           <div>
+            <label className="block text-white font-medium mb-2">Request Image (Optional if items are listed)</label>
+            <div className="bg-[#001f35] border border-white/10 rounded-lg p-6 flex flex-col items-center">
+              {!imagePreview ? (
+                <div className="flex flex-col items-center py-4">
+                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
+                    <Upload className="h-8 w-8 text-[#FF7120]" />
+                  </div>
+                  <p className="text-white font-medium">Upload high-quality photo of materials</p>
+                  <p className="text-white/40 text-xs mt-1 mb-4 text-center">
+                    Ensure the handwritten list or material items are clearly readable.<br />
+                    Min size: 200KB. Max size: 5MB.
+                  </p>
+                  <label className="cursor-pointer bg-[#FF7120] hover:brightness-95 text-white px-6 py-2 rounded-lg font-medium transition active:scale-95">
+                    Browse Files
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                    />
+                  </label>
+                </div>
+              ) : (
+                <div className="relative group w-full max-w-[400px]">
+                  <img
+                    src={imagePreview}
+                    alt="Material Request"
+                    className="w-full h-auto rounded-lg border border-white/10 shadow-lg"
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-3 rounded-lg">
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
+                      title="Remove image"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                    <label className="p-2 bg-[#FF7120] text-white rounded-full hover:brightness-95 transition cursor-pointer" title="Replace image">
+                      <RefreshCcw className="h-5 w-5" />
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                      />
+                    </label>
+                  </div>
+                  <p className="text-center text-white/40 text-xs mt-3">High-quality image uploaded. Verify contents are readable.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div>
             <label className="block text-white font-medium mb-2">Additional Notes</label>
             <textarea
               value={formData.notes}
@@ -765,8 +921,11 @@ const MaterialRequest = ({ user }) => {
 
                     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                       <p className="text-white/45 text-xs">Materials</p>
-                      <p className="text-white mt-1">{request.item_count || request.items?.length || 0} item(s)</p>
-                      {Array.isArray(request.items) && request.items.length > 0 && (
+                      <p className="text-white mt-1">
+                        {request.item_count || request.items?.length || 0} item(s)
+                        {request.request_image && <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded border border-blue-500/30">Has Photo</span>}
+                      </p>
+                      {Array.isArray(request.items) && request.items.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-2">
                           {request.items.slice(0, 6).map((item) => (
                             <span key={item.id} className="text-xs px-2 py-1 rounded-lg bg-white/10 text-white/80 border border-white/10">
@@ -779,6 +938,13 @@ const MaterialRequest = ({ user }) => {
                             </span>
                           )}
                         </div>
+                      ) : (
+                        request.request_image && (
+                          <div className="mt-2 text-xs text-white/50 italic flex items-center gap-1.5">
+                            <ImageIcon className="h-3 w-3" />
+                            Photo-based request (no items listed)
+                          </div>
+                        )
                       )}
                     </div>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import Alert from '../../../components/Alert.jsx';
+import { toast } from 'sonner';
 import { TableSkeleton } from '../../../components/SkeletonLoader.jsx';
 import { getMyOvertime } from '../../../services/overtimeService';
 
@@ -21,7 +21,6 @@ const statusLabel = (req) => {
 
 function OvertimeStatus({ token }) {
   const [requests, setRequests] = useState([]);
-  const [alert, setAlert] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedForView, setSelectedForView] = useState(null);
 
@@ -32,10 +31,8 @@ function OvertimeStatus({ token }) {
         const data = await getMyOvertime();
         setRequests(data);
       } catch (err) {
-        setAlert({
-          type: 'error',
-          title: 'Load failed',
-          message: err.response?.data?.error || 'Could not load OT requests.'
+        toast.error('Load Failed', {
+          description: err.response?.data?.error || 'Could not load OT requests.'
         });
       } finally {
         setLoading(false);
@@ -164,14 +161,6 @@ function OvertimeStatus({ token }) {
 
   return (
     <div className="dashboard">
-      {alert && (
-        <Alert
-          type={alert.type}
-          title={alert.title}
-          message={alert.message}
-          onClose={() => setAlert(null)}
-        />
-      )}
       <div className="welcome p-4 sm:p-6 mb-4 sm:mb-6">
         <h2 className="text-xl sm:text-2xl font-bold">OT Request Status</h2>
         <p className="text-sm sm:text-base text-gray-400">View your submitted OT requests.</p>

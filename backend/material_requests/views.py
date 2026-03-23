@@ -139,9 +139,9 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if not material_request.items.exists():
+        if not material_request.items.exists() and not material_request.request_image:
             return Response(
-                {'error': 'Add at least one material item before submitting.'},
+                {'error': 'Add at least one material item or an uploaded image before submitting.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

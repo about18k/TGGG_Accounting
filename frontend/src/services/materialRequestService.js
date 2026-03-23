@@ -11,6 +11,18 @@ const getErrorMessage = (error, fallbackMessage) => {
     return responseData.detail;
   }
 
+  // Handle DRF field-level validation errors (e.g., { "project_name": ["This field is required."] })
+  if (typeof responseData === 'object' && responseData !== null) {
+    const errorMessages = Object.entries(responseData)
+      .map(([field, messages]) => {
+        const fieldName = field.charAt(0).toUpperCase() + field.slice(1).replace(/_/g, ' ');
+        const messageStr = Array.isArray(messages) ? messages.join(' ') : String(messages);
+        return `${fieldName}: ${messageStr}`;
+      })
+      .join(' | ');
+    if (errorMessages.trim()) return errorMessages;
+  }
+
   if (typeof responseData === 'string' && responseData.trim()) {
     return responseData;
   }
