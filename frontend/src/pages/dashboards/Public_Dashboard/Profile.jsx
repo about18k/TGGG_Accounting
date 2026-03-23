@@ -121,6 +121,7 @@ function Profile({ token, user, onLogout }) {
   };
 
   const startDrawing = (e) => {
+    if (isUploadingSignature) return;
     const canvas = sigCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -137,7 +138,7 @@ function Profile({ token, user, onLogout }) {
   };
 
   const draw = (e) => {
-    if (!isDrawing) return;
+    if (!isDrawing || isUploadingSignature) return;
     const canvas = sigCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
