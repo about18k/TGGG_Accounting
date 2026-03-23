@@ -313,8 +313,8 @@ export default function AccountingEventsPanel() {
           </div>
         </div>
 
-        <div className="grid xl:grid-cols-[2fr,1fr] gap-5">
-          <div className="rounded-xl border border-white/10 bg-[#001f35] p-3 sm:p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] gap-5 items-start">
+          <div className="order-1 rounded-xl border border-white/10 bg-[#001f35] p-3 sm:p-4">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-white text-sm sm:text-base font-semibold">{formatMonthLabel(currentMonth)}</h4>
               <p className="text-[11px] sm:text-xs text-white/55">{monthBlockedCount} no-work date{monthBlockedCount === 1 ? '' : 's'} this month</p>
@@ -394,7 +394,7 @@ export default function AccountingEventsPanel() {
             </div>
           </div>
 
-          <aside className="rounded-xl border border-white/10 bg-[#001f35] p-4 flex flex-col">
+          <aside className="order-2 rounded-xl border border-white/10 bg-[#001f35] p-4 flex flex-col">
             <h4 className="text-white font-semibold text-sm">Selected Date</h4>
             <p className="text-white/60 text-xs mt-1">{formatLongDate(selectedDate)}</p>
 

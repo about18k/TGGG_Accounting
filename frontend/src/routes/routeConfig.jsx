@@ -186,6 +186,7 @@ export function renderDashboard({
     // Studio head / admin
     if (user.role === 'studio_head' || user.role === 'admin') {
         if (currentPage === 'attendance') return <StudioHeadAttendance user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'calendar') return <EmployeeCalendarPage user={user} onNavigate={handleNavigate} />;
         if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'profile') return <StudioHeadProfilePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'studio-head-bim-docs') return <StudioHeadBimDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;

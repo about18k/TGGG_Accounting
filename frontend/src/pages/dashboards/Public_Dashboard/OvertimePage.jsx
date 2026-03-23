@@ -10,6 +10,7 @@ import BimSpecialistSidebar from '../BimSpecialist/components/BimSpecialistSideb
 const OvertimePage = ({ user, token, onLogout, onNavigate }) => {
   const isStudioHeadMode = user?.role === 'studio_head' || user?.role === 'admin';
   const isBimSpecialistMode = user?.role === 'bim_specialist';
+  const showLeaveTabs = !isStudioHeadMode;
   const useSidebarLayout = isStudioHeadMode || isBimSpecialistMode;
   const [activeTab, setActiveTab] = useState('ot-form');
 
@@ -74,8 +75,8 @@ const OvertimePage = ({ user, token, onLogout, onNavigate }) => {
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
             {renderTabButton('ot-form', 'Request Overtime')}
             {renderTabButton('ot-status', 'OT Status')}
-            {renderTabButton('leave-form', 'Request Leave')}
-            {renderTabButton('leave-status', 'Leave Status')}
+            {showLeaveTabs && renderTabButton('leave-form', 'Request Leave')}
+            {showLeaveTabs && renderTabButton('leave-status', 'Leave Status')}
           </div>
 
           {/* Content */}
@@ -85,10 +86,10 @@ const OvertimePage = ({ user, token, onLogout, onNavigate }) => {
           {activeTab === 'ot-status' && (
             <OvertimeStatus token={token} />
           )}
-          {activeTab === 'leave-form' && (
+          {showLeaveTabs && activeTab === 'leave-form' && (
             <LeaveForm token={token} />
           )}
-          {activeTab === 'leave-status' && (
+          {showLeaveTabs && activeTab === 'leave-status' && (
             <LeaveStatus token={token} />
           )}
           </div>

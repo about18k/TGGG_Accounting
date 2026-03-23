@@ -2,7 +2,6 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
-from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -36,6 +35,24 @@ ATTENDANCE_VIEWER_ROLES = {
 NON_WORKING_EVENT_TYPES = {
     'holiday',
     'downtime',
+}
+
+EVENT_TYPE_ALIASES = {
+    'event': 'event',
+    'working_day': 'event',
+    'working day': 'event',
+    'special_working_day': 'event',
+    'special working day': 'event',
+    'usual_day': 'event',
+    'usual day': 'event',
+    'holiday': 'holiday',
+    'holidays': 'holiday',
+    'downtime': 'downtime',
+    'no_work_day': 'downtime',
+    'no work day': 'downtime',
+    'non_working_day': 'downtime',
+    'non working day': 'downtime',
+    'non-working day': 'downtime',
 }
 
 @api_view(['GET'])
@@ -407,18 +424,18 @@ def _append_notes(record, notes_text: str | None):
 
 
 def _event_blocks_attendance(event_type, is_holiday):
-    normalized_type = str(event_type or '').strip().lower()
+    normalized_type = EVENT_TYPE_ALIASES.get(
+        str(event_type or '').strip().lower(),
+        str(event_type or '').strip().lower(),
+    )
     return bool(is_holiday) or normalized_type in NON_WORKING_EVENT_TYPES
 
 
 def _get_non_working_event(day):
-    return (
-        CalendarEvent.objects
-        .filter(date=day)
-        .filter(Q(is_holiday=True) | Q(event_type__in=NON_WORKING_EVENT_TYPES))
-        .order_by('title')
-        .first()
-    )
+    for event in CalendarEvent.objects.filter(date=day).order_by('title'):
+        if _event_blocks_attendance(event.event_type, event.is_holiday):
+            return event
+    return None
 
 
 def _non_working_day_label(event):
@@ -663,7 +680,8 @@ def calendar_events(request):
 
     title = (request.data.get('title') or '').strip()
     event_date_raw = request.data.get('date')
-    event_type = (request.data.get('event_type') or 'event').strip().lower()
+    raw_event_type = (request.data.get('event_type') or 'event').strip().lower()
+    event_type = EVENT_TYPE_ALIASES.get(raw_event_type, raw_event_type)
     description = (request.data.get('description') or '').strip()
     is_holiday_flag = bool(request.data.get('is_holiday'))
 

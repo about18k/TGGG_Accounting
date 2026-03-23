@@ -267,3 +267,21 @@ class CalendarEventAttendanceRulesTests(TestCase):
 		clock_out_response = self.client.post('/api/attendance/clock-out/', {}, format='json')
 		self.assertEqual(clock_out_response.status_code, 400)
 		self.assertIn('cannot make your attendance', clock_out_response.data['error'].lower())
+
+	@patch('attendance.views.determine_session', return_value='morning')
+	@patch('attendance.views.is_late_for_session', return_value=False)
+	def test_legacy_non_working_event_type_blocks_clock_in(self, _mock_is_late, _mock_session):
+		today = timezone.localdate()
+		CalendarEvent.objects.create(
+			title='Legacy Non Working Marker',
+			date=today,
+			event_type='non_working_day',
+			is_holiday=False,
+			created_by=self.accounting,
+		)
+
+		self._authenticate(self.employee_two)
+		response = self.client.post('/api/attendance/clock-in/', {}, format='json')
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('cannot make your attendance', response.data['error'].lower())

@@ -9,6 +9,7 @@ import SiteEngineerSidebar from '../SiteEngineer_Dashboard/components/SiteEngine
 import SiteCoordinatorSidebar from '../SiteCoordinator_Dashboard/components/SiteCoordinatorSidebar';
 import JuniorDesignerSidebar from '../JuniorDesigner_Dashboard/components/JuniorDesignerSidebar';
 import BimSpecialistSidebar from '../BimSpecialist/components/BimSpecialistSidebar';
+import StudioHeadSidebar from '../StudioHead/components/StudioHeadSidebar';
 
 const SIDEBAR_BY_ROLE = {
   intern: InternSidebar,
@@ -16,6 +17,8 @@ const SIDEBAR_BY_ROLE = {
   site_coordinator: SiteCoordinatorSidebar,
   junior_architect: JuniorDesignerSidebar,
   bim_specialist: BimSpecialistSidebar,
+  studio_head: StudioHeadSidebar,
+  admin: StudioHeadSidebar,
 };
 
 const NO_WORK_TYPES = new Set(['holiday', 'downtime']);
@@ -80,7 +83,6 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [upcomingOnly, setUpcomingOnly] = useState(true);
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -97,8 +99,7 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
       setError('');
 
       try {
-        const params = upcomingOnly ? { upcoming: true } : undefined;
-        const data = await getEvents(params, { force: true });
+        const data = await getEvents({ upcoming: false }, { force: true });
         if (!active) return;
 
         const rows = Array.isArray(data) ? data : [];
@@ -120,7 +121,7 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
     return () => {
       active = false;
     };
-  }, [upcomingOnly]);
+  }, []);
 
   const todayIso = useMemo(() => toIsoDate(new Date()), []);
 
@@ -221,30 +222,6 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
                   </p>
                 </div>
 
-                <div className="inline-flex items-center rounded-xl border border-white/10 p-1 bg-black/20">
-                  <button
-                    type="button"
-                    onClick={() => setUpcomingOnly(true)}
-                    className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                      upcomingOnly
-                        ? 'bg-[#FF7120] text-white'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    Upcoming
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUpcomingOnly(false)}
-                    className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                      !upcomingOnly
-                        ? 'bg-[#FF7120] text-white'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    All
-                  </button>
-                </div>
               </div>
 
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -286,8 +263,8 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
               )}
 
               {!loading && !error && events.length > 0 && (
-                <div className="grid xl:grid-cols-[2fr,1fr] gap-5">
-                  <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3 sm:p-4">
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)] gap-5 items-start">
+                  <div className="order-1 rounded-xl border border-white/10 bg-[#021B2C]/70 p-3 sm:p-4">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                       <div>
                         <h3 className="text-white text-sm sm:text-base font-semibold">{formatMonthLabel(currentMonth)}</h3>
@@ -401,7 +378,7 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
                     </div>
                   </div>
 
-                  <aside className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-4 flex flex-col">
+                  <aside className="order-2 rounded-xl border border-white/10 bg-[#021B2C]/70 p-4 flex flex-col">
                     <h3 className="text-white text-sm font-semibold">Selected Date</h3>
                     <p className="text-white/60 text-xs mt-1">{formatLongDate(selectedDate)}</p>
 

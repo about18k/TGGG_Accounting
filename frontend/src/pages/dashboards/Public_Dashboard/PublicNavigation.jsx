@@ -161,12 +161,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                     { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                   ];
                 } else if (user?.role === 'intern') {
-                  items = [
-                    { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
-                    { id: 'calendar', label: 'Calendar', icon: Calendar, path: 'calendar' },
-                    { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                    { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
-                  ];
+                  items = [];
                 } else if (user?.role === 'employee') {
                   items = [
                     { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
