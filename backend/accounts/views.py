@@ -372,18 +372,26 @@ def upload_profile_signature(request):
         file_path = f"{user.id}/signature_{uuid.uuid4().hex}.{file_extension}"
 
         file_content = signature_file.read()
-        supabase.storage.from_('profile_picture').upload(
-            file=file_content,
-            path=file_path,
-            file_options={'content-type': signature_file.content_type, 'upsert': 'true'}
-        )
+        try:
+            supabase.storage.from_('user_signature').upload(
+                file=file_content,
+                path=file_path,
+                file_options={'content-type': signature_file.content_type, 'upsert': 'true'}
+            )
+        except Exception as e:
+            return Response({'error': f"Failed to upload to user_signature bucket. Please ensure RLS policies are set up. Details: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-        public_url = supabase.storage.from_('profile_picture').get_public_url(file_path)
+        public_url = supabase.storage.from_('user_signature').get_public_url(file_path)
 
-        if user.signature_image and "supabase.co/storage/v1/object/public/profile_picture/" in user.signature_image:
+        # Remove the old signature from either the old bucket or the new bucket
+        if user.signature_image:
             try:
-                old_path = user.signature_image.split("profile_picture/")[-1]
-                supabase.storage.from_('profile_picture').remove([old_path])
+                if "supabase.co/storage/v1/object/public/user_signature/" in user.signature_image:
+                    old_path = user.signature_image.split("user_signature/")[-1]
+                    supabase.storage.from_('user_signature').remove([old_path])
+                elif "supabase.co/storage/v1/object/public/profile_picture/" in user.signature_image:
+                    old_path = user.signature_image.split("profile_picture/")[-1]
+                    supabase.storage.from_('profile_picture').remove([old_path])
             except Exception as e:
                 print(f"Failed to delete old signature image: {e}")
 
@@ -396,7 +404,7 @@ def upload_profile_signature(request):
             'signature_image': public_url,
         })
     except Exception as e:
-        return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 @api_view(['GET'])
