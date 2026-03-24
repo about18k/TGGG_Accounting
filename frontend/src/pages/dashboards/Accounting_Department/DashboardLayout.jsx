@@ -126,7 +126,7 @@ export function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#00273C] relative">
-      <div className="pointer-events-none absolute inset-0">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
 
@@ -158,7 +158,7 @@ export function DashboardLayout({
                     )}
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-0 bg-[#002035] border-[#AEAAAA]/20 shadow-lg shadow-black/20 z-50" align={window.innerWidth >= 1024 ? "end" : "start"} sideOffset={8}>
+                <PopoverContent className="w-[calc(100vw-2rem)] sm:w-80 p-0 bg-[#002035] border-[#AEAAAA]/20 shadow-lg shadow-black/20 z-50" align="start" sideOffset={8}>
                   <div className="p-4">
                     <h3 className="font-semibold text-white mb-4">Notifications</h3>
 
@@ -252,7 +252,7 @@ export function DashboardLayout({
                     <User className="h-4 w-4" />
                   </button>
                 </PopoverTrigger>
-                <PopoverContent className="w-52 p-2 border-[#AEAAAA]/20 bg-[#001f35] text-white shadow-xl z-[60]" align={window.innerWidth >= 1024 ? "end" : "start"} sideOffset={8}>
+                <PopoverContent className="w-[calc(100vw-2rem)] sm:w-52 p-2 border-[#AEAAAA]/20 bg-[#001f35] text-white shadow-xl z-[60]" align="end" sideOffset={8}>
                   <div className="p-3 border-b border-white/10 mb-1">
                     <p className="font-semibold text-sm">Account</p>
                     <p className="text-xs text-white/55">Manage account actions</p>
