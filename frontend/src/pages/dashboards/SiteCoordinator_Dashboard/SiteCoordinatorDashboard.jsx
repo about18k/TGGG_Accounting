@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import PrintAttendance from '../../globalattendancereport/PrintAttendance';
 import {
   Calendar,
   ShieldCheck,
@@ -16,6 +17,7 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [workDoc, setWorkDoc] = useState('');
   const [workDocAttachments, setWorkDocAttachments] = useState([]);
+  const [showDTROverlay, setShowDTROverlay] = useState(false);
   const [attendanceReady, setAttendanceReady] = useState(false);
   const [isLocked, setIsLocked] = useState(false);
   const [lockMessage, setLockMessage] = useState(null);
@@ -54,6 +56,13 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
             <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold border ${attendanceReady ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20' : 'bg-[#FF7120]/10 text-[#FF7120] border-[#FF7120]/30'}`}>
               {attendanceReady ? 'Location Ready' : 'Location Needed'}
             </span>
+            <button
+              type="button"
+              onClick={() => setShowDTROverlay(true)}
+              className="px-3 py-2 rounded-xl border border-[#FF7120]/40 bg-[#FF7120]/10 text-[#FF7120] hover:bg-[#FF7120]/20 hover:text-white transition text-sm font-semibold"
+            >
+              Print DTR
+            </button>
           </div>
         </div>
       </div>
@@ -129,6 +138,16 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
           </main>
         </div>
       </div>
+
+      {showDTROverlay && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
+          <PrintAttendance
+            internId={user?.id}
+            internName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email || 'Employee'}
+            onClose={() => setShowDTROverlay(false)}
+          />
+        </div>
+      )}
     </div>
   );
 }

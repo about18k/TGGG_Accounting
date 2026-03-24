@@ -256,6 +256,7 @@ NOTIFICATION_TYPE_CHOICES = [
     ('contribution_updated', 'Contribution Updated'),
     ('ot_submitted', 'OT Submitted'),
     ('ot_fully_approved', 'OT Fully Approved'),
+    ('calendar_non_work_day', 'Calendar Non-Work Day'),
 ]
 
 

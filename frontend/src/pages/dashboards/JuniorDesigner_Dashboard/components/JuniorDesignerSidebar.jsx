@@ -1,10 +1,11 @@
-import { Calendar, Clock, CheckSquare, FolderKanban } from 'lucide-react';
+import { Calendar, CalendarDays, Clock, CheckSquare, FolderKanban } from 'lucide-react';
 
 const SECTION_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Calendar, section: 'attendance' },
 ];
 
 const PAGE_LINKS = [
+  { id: 'calendar', label: 'Calendar', icon: CalendarDays, page: 'calendar' },
   { id: 'documentation', label: 'Design Documentation', icon: FolderKanban, page: 'documentation' },
   { id: 'overtime', label: 'Overtime', icon: Clock, page: 'overtime' },
   { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo' },

@@ -1,7 +1,8 @@
-import { Calendar, FolderKanban, Clock, CheckSquare } from 'lucide-react';
+import { Calendar, CalendarDays, FolderKanban, Clock, CheckSquare } from 'lucide-react';
 
 const PERSONAL_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Calendar, section: 'attendance' },
+  { id: 'calendar', label: 'Calendar', icon: CalendarDays, page: 'calendar' },
   { id: 'overtime', label: 'Overtime & Leave', icon: Clock, page: 'overtime' },
   { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo' },
 ];

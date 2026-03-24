@@ -1,7 +1,8 @@
-import { Calendar, Clock, User, UserCheck, Users, FileText, GitMerge, FolderKanban, ClipboardList } from 'lucide-react';
+import { Calendar, CalendarDays, Clock, User, UserCheck, Users, GitMerge, FolderKanban, ClipboardList } from 'lucide-react';
 
 const PRIMARY_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Calendar, page: 'attendance' },
+  { id: 'calendar', label: 'Calendar', icon: CalendarDays, page: 'calendar' },
   { id: 'overtime', label: 'Overtime & Leave', icon: Clock, page: 'overtime' },
 ];
 
@@ -14,7 +15,6 @@ const DOCUMENTATION_LINKS = [
 const DASHBOARD_LINKS = [
   { id: 'approvals', label: 'User Approvals', icon: UserCheck, page: 'approvals' },
   { id: 'users', label: 'Manage Users', icon: Users, page: 'users' },
-  { id: 'reviews', label: 'Design Reviews', icon: FileText, page: 'reviews' },
   { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge, page: 'coordination' },
 ];
 

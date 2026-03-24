@@ -32,6 +32,28 @@ ATTENDANCE_VIEWER_ROLES = {
     'studio_head',
     'admin',
 }
+NON_WORKING_EVENT_TYPES = {
+    'holiday',
+    'downtime',
+}
+
+EVENT_TYPE_ALIASES = {
+    'event': 'event',
+    'working_day': 'event',
+    'working day': 'event',
+    'special_working_day': 'event',
+    'special working day': 'event',
+    'usual_day': 'event',
+    'usual day': 'event',
+    'holiday': 'holiday',
+    'holidays': 'holiday',
+    'downtime': 'downtime',
+    'no_work_day': 'downtime',
+    'no work day': 'downtime',
+    'non_working_day': 'downtime',
+    'non working day': 'downtime',
+    'non-working day': 'downtime',
+}
 
 @api_view(['GET'])
 def attendance_overview(request):
@@ -401,12 +423,76 @@ def _append_notes(record, notes_text: str | None):
     record.notes = f"{record.notes}\n{notes_text}" if record.notes else notes_text
 
 
+def _event_blocks_attendance(event_type, is_holiday):
+    normalized_type = EVENT_TYPE_ALIASES.get(
+        str(event_type or '').strip().lower(),
+        str(event_type or '').strip().lower(),
+    )
+    return bool(is_holiday) or normalized_type in NON_WORKING_EVENT_TYPES
+
+
+def _get_non_working_event(day):
+    for event in CalendarEvent.objects.filter(date=day).order_by('title'):
+        if _event_blocks_attendance(event.event_type, event.is_holiday):
+            return event
+    return None
+
+
+def _non_working_day_label(event):
+    if not event:
+        return 'Holiday/No Work Day'
+
+    event_type = str(event.event_type or '').strip().lower()
+    if event_type == 'holiday':
+        return 'Holiday'
+    if event_type == 'downtime':
+        return 'No Work Day'
+    return 'Holiday/No Work Day'
+
+
+def _notify_non_working_event(event, actor):
+    """Notify active employees when a date is set as non-working."""
+    event_label = _non_working_day_label(event)
+    event_date = event.date.strftime('%b %d, %Y')
+    message = (
+        f"{event.title} on {event_date} is marked as {event_label}. "
+        "You cannot time in or time out on that date."
+    )
+
+    recipients = (
+        CustomUser.objects
+        .filter(is_active=True)
+        .exclude(id=actor.id)
+    )
+
+    for recipient in recipients:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=actor,
+            notif_type='calendar_non_work_day',
+            title=f'{event_label} Notice',
+            message=message,
+        )
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def clock_in(request):
     """Record time in for the authenticated user. Creates one record per session."""
     now = timezone.localtime()
     today = now.date()
+
+    non_working_event = _get_non_working_event(today)
+    if non_working_event:
+        return Response(
+            {
+                'error': (
+                    f"It's {_non_working_day_label(non_working_event)} today "
+                    f"({non_working_event.title}). You cannot make your attendance."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     # Determine which session window the current time falls into
     session = determine_session(now)
@@ -497,6 +583,18 @@ def clock_out(request):
     now = timezone.localtime()
     today = now.date()
 
+    non_working_event = _get_non_working_event(today)
+    if non_working_event:
+        return Response(
+            {
+                'error': (
+                    f"It's {_non_working_day_label(non_working_event)} today "
+                    f"({non_working_event.title}). You cannot make your attendance."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     with transaction.atomic():
         # Find the open session (clocked in, not yet clocked out)
         record = (
@@ -554,7 +652,7 @@ def clock_out(request):
 def calendar_events(request):
     """
     GET: list all events (optionally filter by upcoming)
-    POST: create event (Studio Head/Admin only)
+    POST: create/update an event (Accounting only)
     """
     if request.method == 'GET':
         only_upcoming = request.query_params.get('upcoming') == 'true'
@@ -569,6 +667,7 @@ def calendar_events(request):
                 'date': event.date,
                 'event_type': event.event_type,
                 'is_holiday': event.is_holiday,
+                'blocks_attendance': _event_blocks_attendance(event.event_type, event.is_holiday),
                 'description': event.description,
                 'created_by': event.created_by_id,
             }
@@ -581,9 +680,10 @@ def calendar_events(request):
 
     title = (request.data.get('title') or '').strip()
     event_date_raw = request.data.get('date')
-    event_type = (request.data.get('event_type') or 'event').strip().lower()
+    raw_event_type = (request.data.get('event_type') or 'event').strip().lower()
+    event_type = EVENT_TYPE_ALIASES.get(raw_event_type, raw_event_type)
     description = (request.data.get('description') or '').strip()
-    is_holiday = bool(request.data.get('is_holiday') or event_type == 'holiday')
+    is_holiday_flag = bool(request.data.get('is_holiday'))
 
     if not title:
         return Response({'error': 'Title is required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -598,7 +698,15 @@ def calendar_events(request):
     if event_type not in dict(CalendarEvent.EVENT_TYPES):
         event_type = 'event'
 
-    event, _ = CalendarEvent.objects.update_or_create(
+    is_holiday = bool(is_holiday_flag or event_type in NON_WORKING_EVENT_TYPES)
+
+    existing_event = CalendarEvent.objects.filter(title=title, date=event_date).first()
+    previous_blocked = (
+        _event_blocks_attendance(existing_event.event_type, existing_event.is_holiday)
+        if existing_event else False
+    )
+
+    event, created = CalendarEvent.objects.update_or_create(
         title=title,
         date=event_date,
         defaults={
@@ -609,12 +717,20 @@ def calendar_events(request):
         }
     )
 
+    now_blocks_attendance = _event_blocks_attendance(event.event_type, event.is_holiday)
+    if now_blocks_attendance and (created or not previous_blocked):
+        try:
+            _notify_non_working_event(event, request.user)
+        except Exception as exc:
+            print(f"⚠️ Calendar non-working notification failed for event_id={event.id}: {exc}")
+
     return Response({
         'id': event.id,
         'title': event.title,
         'date': event.date,
         'event_type': event.event_type,
         'is_holiday': event.is_holiday,
+        'blocks_attendance': now_blocks_attendance,
         'description': event.description,
         'created_by': event.created_by_id,
     }, status=status.HTTP_201_CREATED)
