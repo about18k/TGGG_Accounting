@@ -1,3 +1,7 @@
+import uuid
+from django.conf import settings
+from supabase import create_client, Client
+
 from django.db.models import Q
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
@@ -9,6 +13,45 @@ from .serializers import (
     MaterialRequestSerializer,
     MaterialRequestCommentSerializer
 )
+
+
+def upload_matreq_img_to_supabase(file_obj, user_id):
+    supabase_url = getattr(settings, 'SUPABASE_URL', None)
+    supabase_key = getattr(settings, 'SUPABASE_KEY', None)
+    if not supabase_url or not supabase_key:
+        return None
+    
+    supabase: Client = create_client(supabase_url, supabase_key)
+    file_extension = file_obj.name.split('.')[-1]
+    file_path = f"{user_id}/matreq_{uuid.uuid4().hex}.{file_extension}"
+    
+    file_content = file_obj.read()
+    try:
+        supabase.storage.from_('matrequest_img').upload(
+            file=file_content,
+            path=file_path,
+            file_options={'content-type': file_obj.content_type, 'upsert': 'true'}
+        )
+    except Exception as e:
+        raise Exception(f"Failed to upload image to Supabase: {str(e)}")
+        
+    public_url = supabase.storage.from_('matrequest_img').get_public_url(file_path)
+    return public_url
+
+def remove_matreq_img_from_supabase(public_url):
+    if not public_url or "supabase.co/storage/v1/object/public/matrequest_img/" not in public_url:
+        return
+    supabase_url = getattr(settings, 'SUPABASE_URL', None)
+    supabase_key = getattr(settings, 'SUPABASE_KEY', None)
+    if not supabase_url or not supabase_key:
+        return
+    
+    supabase: Client = create_client(supabase_url, supabase_key)
+    try:
+        old_path = public_url.split("matrequest_img/")[-1]
+        supabase.storage.from_('matrequest_img').remove([old_path])
+    except Exception as e:
+        print(f"Failed to delete old material request image: {e}")
 
 
 class MaterialRequestViewSet(viewsets.ModelViewSet):
@@ -75,7 +118,22 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        serializer = self.get_serializer(data=request.data)
+        data = request.data.copy()
+        
+        request_image_file = request.FILES.get('request_image')
+        if request_image_file:
+            if 'request_image' in data:
+                # DRF throws an error if we pass a file payload to a URLField, so we remove the file object
+                if hasattr(data, 'pop'):
+                    data.pop('request_image')
+            try:
+                public_url = upload_matreq_img_to_supabase(request_image_file, request.user.id)
+                if public_url:
+                    data['request_image'] = public_url
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -100,8 +158,29 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        data = request.data.copy()
+        
+        request_image_file = request.FILES.get('request_image')
+        if request_image_file:
+            if 'request_image' in data:
+                if hasattr(data, 'pop'):
+                    data.pop('request_image')
+            try:
+                public_url = upload_matreq_img_to_supabase(request_image_file, request.user.id)
+                if public_url:
+                    if material_request.request_image:
+                        remove_matreq_img_from_supabase(material_request.request_image)
+                    data['request_image'] = public_url
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            if 'request_image' in data and data['request_image'] in [None, 'null', '']:
+                if material_request.request_image:
+                    remove_matreq_img_from_supabase(material_request.request_image)
+                data['request_image'] = None
+
         partial = kwargs.pop('partial', False)
-        serializer = self.get_serializer(material_request, data=request.data, partial=partial)
+        serializer = self.get_serializer(material_request, data=data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
         return Response(serializer.data)
@@ -120,6 +199,9 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 {'error': 'Only draft material requests can be deleted.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if material_request.request_image:
+            remove_matreq_img_from_supabase(material_request.request_image)
 
         return super().destroy(request, *args, **kwargs)
 

@@ -27,7 +27,7 @@ class MaterialRequest(models.Model):
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='normal')
     delivery_location = models.CharField(max_length=255)
     notes = models.TextField(blank=True, null=True)
-    request_image = models.ImageField(upload_to='material_requests/', null=True, blank=True)
+    request_image = models.URLField(max_length=500, null=True, blank=True)
 
     created_by = models.ForeignKey(
         User,
