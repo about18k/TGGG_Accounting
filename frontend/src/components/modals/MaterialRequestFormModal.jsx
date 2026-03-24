@@ -51,7 +51,7 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole }) => {
           
           {/* Company Logo Section */}
           <div className="flex flex-col items-center justify-center mb-0">
-            <img src="/formlogo.png" alt="Triple G Logo" className="h-64 w-auto object-contain mb-0" />
+            <img src="/formlogo.png" alt="Triple G Logo" className="h-24 w-auto object-contain mb-0 print:h-20" />
             <h2 className="text-2xl font-black text-center border-b-2 border-black pb-0.5 tracking-[0.25em] uppercase">MATERIAL REQUISITION FORM</h2>
           </div>
 
@@ -110,45 +110,52 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole }) => {
           </table>
 
           {/* Footer */}
-          <div className="mt-auto pt-4 flex justify-between items-end text-sm">
-            {/* Prepared by Section */}
-            <div className="w-1/4 flex flex-col items-center">
-              {request.created_by_signature ? (
-                <div className="h-10 flex items-end mb-[-4px]">
-                  <img src={request.created_by_signature} alt="Prepared by Signature" className="max-h-16 w-auto object-contain" />
+          <div className="mt-auto pt-4 flex justify-between items-start text-sm">
+            {/* Left Section: Prepared by */}
+            <div className="w-1/2 flex flex-col items-start gap-1">
+              <span className="font-bold">Prepared by:</span>
+              <div className="pl-12 flex flex-col items-center w-80">
+                {request.created_by_signature ? (
+                  <div className="h-10 flex items-end mb-[-4px]">
+                    <img src={request.created_by_signature} alt="Prepared by Signature" className="max-h-16 w-auto object-contain" />
+                  </div>
+                ) : <div className="h-10" />}
+                <div className="border-b border-black w-full text-center py-0.5 font-bold">
+                  {request.created_by_name || request.created_by_email || '____________________'}
                 </div>
-              ) : <div className="h-10" />}
-              <div className="border-b border-black w-full text-center py-0.5 font-bold">
-                {request.created_by_name || request.created_by_email || ''}
               </div>
-              <p className="font-bold mt-1 text-[10px] uppercase tracking-tighter italic">Prepared by:</p>
             </div>
 
-            <div className="w-2/3 flex justify-around gap-12">
-              {/* Checked by Section */}
-              <div className="flex-1 flex flex-col items-center">
-                {request.reviewed_by_studio_head_signature ? (
-                  <div className="h-10 flex items-end mb-[-4px]">
-                    <img src={request.reviewed_by_studio_head_signature} alt="Checked by Signature" className="max-h-16 w-auto object-contain" />
+            {/* Right Section: Checked and Approved by */}
+            <div className="flex flex-col items-start gap-8">
+              {/* Checked by */}
+              <div className="w-full flex flex-col items-start gap-1">
+                <span className="font-bold">Checked by:</span>
+                <div className="pl-12 flex flex-col items-center w-80">
+                  {request.reviewed_by_studio_head_signature ? (
+                    <div className="h-10 flex items-end mb-[-4px]">
+                      <img src={request.reviewed_by_studio_head_signature} alt="Checked by Signature" className="max-h-16 w-auto object-contain" />
+                    </div>
+                  ) : <div className="h-10" />}
+                  <div className="border-b border-black w-full text-center py-0.5 font-bold">
+                    {request.reviewed_by_studio_head_name || '____________________'}
                   </div>
-                ) : <div className="h-10" />}
-                <div className="border-b border-black w-full text-center py-0.5 font-bold">
-                  {request.reviewed_by_studio_head_name || '____________________'}
                 </div>
-                <p className="font-bold mt-1 text-[10px] uppercase tracking-tighter italic text-center">Checked by:</p>
               </div>
 
-              {/* Approved by Section */}
-              <div className="flex-1 flex flex-col items-center">
-                {request.reviewed_by_ceo_signature ? (
-                  <div className="h-10 flex items-end mb-[-4px]">
-                    <img src={request.reviewed_by_ceo_signature} alt="Approved by Signature" className="max-h-16 w-auto object-contain" />
+              {/* Approved by */}
+              <div className="w-full flex flex-col items-start gap-1">
+                <span className="font-bold">Approved by:</span>
+                <div className="pl-12 flex flex-col items-center w-80">
+                  {request.reviewed_by_ceo_signature ? (
+                    <div className="h-10 flex items-end mb-[-4px]">
+                      <img src={request.reviewed_by_ceo_signature} alt="Approved by Signature" className="max-h-16 w-auto object-contain" />
+                    </div>
+                  ) : <div className="h-10" />}
+                  <div className="border-b border-black w-full text-center py-0.5 font-bold">
+                    {request.reviewed_by_ceo_name || '____________________'}
                   </div>
-                ) : <div className="h-10" />}
-                <div className="border-b border-black w-full text-center py-0.5 font-bold">
-                  {request.reviewed_by_ceo_name || '____________________'}
                 </div>
-                <p className="font-bold mt-1 text-[10px] uppercase tracking-tighter italic text-center">Approved by:</p>
               </div>
             </div>
           </div>

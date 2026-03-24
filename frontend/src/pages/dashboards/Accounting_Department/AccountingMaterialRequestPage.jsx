@@ -141,104 +141,87 @@ const AccountingMaterialRequestPage = ({ user }) => {
                 ) : selectedRequest ? (
                   <div className="flex flex-col h-full">
                     {/* Header */}
-                    <div className="flex justify-between items-start gap-3 mb-6">
+                    <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <Package className="h-4 w-4 text-[#FF7120]/70" />
-                          <h3 className="text-2xl font-bold text-white truncate">{selectedRequest.project_name}</h3>
+                          <Package className="h-5 w-5 text-[#FF7120]/70 shrink-0" />
+                          <h3 className="text-2xl font-semibold text-white truncate">{selectedRequest.project_name}</h3>
                         </div>
-                        <p className="text-[10px] text-white/40 mt-1 uppercase tracking-widest font-black">Requisition ID: M.R-{selectedRequest.id}</p>
+                        <p className="text-xs text-white/50 mt-1 flex items-center gap-2">
+                          <span className="uppercase tracking-widest font-bold">M.R-{selectedRequest.id}</span>
+                          <span>·</span>
+                          <span>Requested {new Date(selectedRequest.request_date).toLocaleDateString()}</span>
+                          <span>·</span>
+                          <span>Required {selectedRequest.required_date ? new Date(selectedRequest.required_date).toLocaleDateString() : 'N/A'}</span>
+                        </p>
                       </div>
                       <button
                         onClick={() => openModal(selectedRequest)}
-                        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-xl text-xs font-black shadow-lg shadow-[#FF7120]/20 hover:scale-105 transition-transform active:scale-95"
+                        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-xl text-sm font-semibold shadow-lg shadow-[#FF7120]/20 hover:scale-105 transition-transform active:scale-95"
                       >
                         <FileText className="h-4 w-4" />
-                        VIEW FORM
+                        View Form
                       </button>
                     </div>
 
-                    {/* Split Details */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                      {/* Left Block: Info */}
-                      <div className="space-y-3 p-4 rounded-xl bg-white/[0.03] border border-white/5">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-black text-white/30 uppercase tracking-wider">Requester Personnel</span>
-                          <div className="flex items-center gap-2 text-sm text-white/90">
-                            <User className="h-4 w-4 text-[#FF7120]/50" />
-                            <span className="font-bold">{selectedRequest.created_by_name}</span>
-                            <span className="text-[10px] px-1.5 py-0.5 bg-white/5 rounded border border-white/10 text-white/40 uppercase tracking-tight">{selectedRequest.requester_role || 'Staff'}</span>
-                          </div>
-                        </div>
-                        <div className="flex flex-col gap-1 mt-2">
-                          <span className="text-[10px] font-black text-white/30 uppercase tracking-wider">Date Requested</span>
-                          <div className="flex items-center gap-2 text-sm text-white/90">
-                            <Calendar className="h-4 w-4 text-[#FF7120]/50" />
-                            <span className="font-bold">{new Date(selectedRequest.request_date).toLocaleDateString(undefined, { dateStyle: 'long' })}</span>
-                          </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mb-3">
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                        <p className="text-white/45 text-[11px] uppercase tracking-widest font-semibold mb-2">Requester</p>
+                        <div className="flex flex-wrap items-center gap-2 mt-1">
+                          <User className="h-4 w-4 text-[#FF7120]" />
+                          <span className="text-white font-medium">{selectedRequest.created_by_name}</span>
+                          <span className="text-[10px] px-2 py-0.5 bg-white/5 rounded-md border border-white/10 text-white/60">
+                            {selectedRequest.requester_role ? selectedRequest.requester_role.replace('_', ' ') : 'Staff'}
+                          </span>
                         </div>
                       </div>
-
-                      {/* Right Block: Audit */}
-                      <div className="space-y-3 p-4 rounded-xl bg-emerald-500/[0.03] border border-emerald-500/10">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-[10px] font-black text-emerald-400/40 uppercase tracking-wider">Studio Head Approval</span>
-                          <div className="text-sm font-bold text-emerald-400/90 italic">
-                            {selectedRequest.reviewed_by_studio_head_name || 'System Approved'}
-                          </div>
-                          <span className="text-[10px] text-emerald-400/30">
-                            {selectedRequest.studio_head_reviewed_at ? new Date(selectedRequest.studio_head_reviewed_at).toLocaleString() : ''}
-                          </span>
-                        </div>
-                        <div className="flex flex-col gap-1 mt-2">
-                          <span className="text-[10px] font-black text-emerald-400/40 uppercase tracking-wider">President / CEO Approval</span>
-                          <div className="text-sm font-bold text-emerald-400/90 italic">
-                            {selectedRequest.reviewed_by_ceo_name || 'Final Approval'}
-                          </div>
-                          <span className="text-[10px] text-emerald-400/30">
-                            {selectedRequest.ceo_reviewed_at ? new Date(selectedRequest.ceo_reviewed_at).toLocaleString() : ''}
-                          </span>
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                        <p className="text-white/45 text-[11px] uppercase tracking-widest font-semibold mb-2">Delivery Location</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <MapPin className="h-4 w-4 text-[#FF7120]" />
+                          <p className="text-white">{selectedRequest.delivery_location || 'Not Specified'}</p>
                         </div>
                       </div>
                     </div>
 
-                    {/* Delivery Location */}
-                    <div className="mb-6 px-4 py-3 rounded-xl bg-white/[0.02] border border-white/5 flex items-center gap-2 text-sm text-white/70 font-bold italic">
-                      <MapPin className="h-4 w-4 text-[#FF7120]/50 shrink-0" />
-                      <span className="truncate break-words w-full">Delivery Location: {selectedRequest.delivery_location || 'Not Specified'}</span>
-                    </div>
-
-                    {/* Material Preview */}
-                    <div className="mb-6 p-5 rounded-xl bg-[#FF7120]/5 border border-[#FF7120]/10 border-dashed flex-1">
-                      <div className="flex items-center justify-between mb-4 border-b border-[#FF7120]/10 pb-3">
-                         <span className="text-[10px] font-black text-[#FF7120]/60 uppercase tracking-widest">Material Items Preview</span>
-                         <span className="text-[10px] font-black bg-[#FF7120]/10 text-[#FF7120] px-3 py-1 rounded-full uppercase tracking-widest">{selectedRequest.items?.length || 0} TOTAL</span>
-                      </div>
-                      <div className="space-y-3">
-                        {selectedRequest.items?.slice(0, 5).map((item, idx) => (
-                          <div key={item.id} className="flex justify-between items-center text-sm font-bold text-white/80 bg-black/10 p-2 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <span className="text-white/20 font-black"># {idx + 1}</span>
-                              <span>{item.name}</span>
-                            </div>
-                            <span className="text-[#FF7120]">{item.quantity} {item.unit}</span>
-                          </div>
-                        ))}
-                        {selectedRequest.items?.length > 5 && (
-                          <p className="text-[10px] text-white/30 font-black mt-4 text-center tracking-[0.3em] uppercase cursor-default">
-                            + {selectedRequest.items.length - 5} MORE ITEMS IN PRINTABLE FORM
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mb-3">
+                      <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+                        <p className="text-cyan-200/70 text-[11px] uppercase tracking-widest font-semibold mb-2">Studio Head Approval</p>
+                        <div className="mt-1">
+                          <p className="text-cyan-100 font-medium">{selectedRequest.reviewed_by_studio_head_name || 'System Approved'}</p>
+                          <p className="text-[10px] text-cyan-500 mt-0.5">
+                            {selectedRequest.studio_head_reviewed_at ? new Date(selectedRequest.studio_head_reviewed_at).toLocaleString() : 'N/A'}
                           </p>
-                        )}
+                        </div>
+                      </div>
+                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
+                        <p className="text-emerald-200/70 text-[11px] uppercase tracking-widest font-semibold mb-2">CEO / President Approval</p>
+                        <div className="mt-1">
+                          <p className="text-emerald-100 font-medium">{selectedRequest.reviewed_by_ceo_name || 'Final Approval'}</p>
+                          <p className="text-[10px] text-emerald-500 mt-0.5">
+                            {selectedRequest.ceo_reviewed_at ? new Date(selectedRequest.ceo_reviewed_at).toLocaleString() : 'N/A'}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Footer */}
-                    <div className="mt-auto flex items-center justify-between pt-5 border-t border-white/5">
-                      <div className="flex items-center gap-3">
-                        <span className="text-[10px] font-black px-3 py-1.5 bg-emerald-500 text-white rounded-lg uppercase tracking-widest shadow-lg shadow-emerald-500/20">Approved</span>
-                        <span className="text-[10px] font-black px-3 py-1.5 bg-white/5 text-white/60 rounded-lg border border-white/10 uppercase tracking-widest">A4 Ready</span>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 mb-4 flex-1">
+                      <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                        <p className="text-white/45 text-[11px] uppercase tracking-widest font-semibold">Materials List</p>
+                        <span className="text-[10px] text-white/50">{selectedRequest.items?.length || 0} item(s)</span>
                       </div>
-                      <span className="text-xs text-white/40 font-black tracking-widest uppercase">{selectedRequest.items?.length || 0} ITEMS TOTAL</span>
+                      {selectedRequest.items?.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedRequest.items.map((item, idx) => (
+                            <span key={item.id || idx} className="text-sm px-3 py-1.5 rounded-lg bg-white/5 text-white/90 border border-white/10 flex items-center gap-2">
+                              <span>{item.name}</span>
+                              <span className="text-[#FF7120] font-semibold">{item.quantity} {item.unit}</span>
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-white/40 italic">Materials detailed in the attached photo.</p>
+                      )}
                     </div>
                   </div>
                 ) : null}
