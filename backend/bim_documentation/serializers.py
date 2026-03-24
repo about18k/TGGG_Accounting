@@ -21,24 +21,22 @@ class BimDocumentationFileSerializer(serializers.ModelSerializer):
         read_only_fields = ['uploaded_at']
 
     def get_file_url(self, obj):
-        request = self.context.get('request')
-
-        if obj.uploaded_file:
-            url = obj.uploaded_file.url
-            return request.build_absolute_uri(url) if request else url
-
-        if not obj.file_path:
-            return None
-
-        if obj.file_path.startswith('http://') or obj.file_path.startswith('https://'):
-            return obj.file_path
-
-        if obj.file_path.startswith('/'):
-            return request.build_absolute_uri(obj.file_path) if request else obj.file_path
-
-        # Legacy relative path fallback.
-        relative_url = f"/media/{obj.file_path.lstrip('/')}"
-        return request.build_absolute_uri(relative_url) if request else relative_url
+        """
+        Return the Supabase Storage public URL for the file.
+        If file_url is stored in DB, use it directly (it's already a public URL from Supabase).
+        """
+        if obj.file_url:
+            return obj.file_url
+        
+        # Fallback: if only file_path exists, generate URL based on file_path
+        if obj.file_path:
+            # Supabase Storage URL format: https://<project-id>.supabase.co/storage/v1/object/public/<bucket>/<path>
+            from decouple import config
+            supabase_url = config('SUPABASE_URL', default='')
+            if supabase_url:
+                return f"{supabase_url}/storage/v1/object/public/bim-docs/{obj.file_path}"
+        
+        return None
 
     def get_is_image(self, obj):
         if obj.file_type == 'image':

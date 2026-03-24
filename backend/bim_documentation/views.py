@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
+import logging
 
 from .models import BimDocumentation, BimDocumentationFile, BimDocumentationComment
 from .serializers import (
@@ -14,6 +15,9 @@ from .serializers import (
     BimDocumentationFileSerializer,
     BimDocumentationCommentSerializer,
 )
+from .supabase_storage import upload_file_to_supabase, delete_file_from_supabase
+
+logger = logging.getLogger(__name__)
 
 
 class BimDocumentationViewSet(viewsets.ModelViewSet):
@@ -119,6 +123,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         """
         Create new BIM documentation.
         BIM Specialists and Junior Architects can create documentation.
+        Files are uploaded to Supabase Storage bucket.
         """
         if request.user.role not in ['bim_specialist', 'junior_architect', 'junior_designer']:
             return Response(
@@ -132,21 +137,52 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         
         doc = serializer.instance
         
-        # Handle file uploads
+        # Handle file uploads to Supabase Storage
         files = request.FILES.getlist('files')
-        for file in files:
-            saved_file = BimDocumentationFile.objects.create(
-                documentation=doc,
-                file_name=file.name,
-                file_type=request.POST.get(f'file_type_{file.name}', 'model'),
-                uploaded_file=file,
-                file_path='',
-                file_size=file.size,
-            )
-            saved_file.file_path = saved_file.uploaded_file.name if saved_file.uploaded_file else f'bim-docs/{doc.id}/{file.name}'
-            saved_file.save(update_fields=['file_path'])
+        upload_errors = []
         
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        for file in files:
+            file_type = request.POST.get(f'file_type_{file.name}', 'model')
+            
+            # Upload to Supabase Storage
+            upload_result = upload_file_to_supabase(file, doc.id)
+            
+            if not upload_result['success']:
+                upload_errors.append({
+                    'file': file.name,
+                    'error': upload_result['error']
+                })
+                logger.error(f"Failed to upload {file.name}: {upload_result['error']}")
+                continue
+            
+            # Create BimDocumentationFile record with Supabase path and URL
+            try:
+                saved_file = BimDocumentationFile.objects.create(
+                    documentation=doc,
+                    file_name=file.name,
+                    file_type=file_type,
+                    file_path=upload_result['file_path'],
+                    file_url=upload_result['file_url'],
+                    file_size=file.size,
+                )
+                logger.info(f"File saved to database: {file.name} (ID: {saved_file.id})")
+            except Exception as e:
+                error_msg = f"Error saving file metadata: {str(e)}"
+                upload_errors.append({
+                    'file': file.name,
+                    'error': error_msg
+                })
+                logger.error(error_msg)
+        
+        # Return response with any upload errors
+        response_data = serializer.data
+        if upload_errors:
+            response_data['upload_errors'] = upload_errors
+            # If all uploads failed, return error
+            if len(upload_errors) == len(files):
+                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
     
     def update(self, request, *args, **kwargs):
         """
@@ -180,6 +216,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         """
         Delete BIM documentation (draft only).
         Only the creator can delete draft documentation.
+        Deletes associated files from Supabase Storage.
         """
         doc = self.get_object()
         
@@ -194,6 +231,13 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 {'error': 'Can only delete draft documentation'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # Delete all associated files from Supabase Storage
+        for file in doc.files.all():
+            if file.file_path:
+                delete_result = delete_file_from_supabase(file.file_path)
+                if not delete_result['success']:
+                    logger.warning(f"Failed to delete file from Supabase: {file.file_path} - {delete_result['error']}")
         
         return super().destroy(request, *args, **kwargs)
     
@@ -345,6 +389,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         """
         Remove a file from documentation.
         Only the creator of editable documentation can remove files.
+        Deletes file from Supabase Storage.
         """
         doc = self.get_object()
         file_id = request.query_params.get('file_id')
@@ -370,9 +415,17 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
             )
         
         file = get_object_or_404(BimDocumentationFile, id=file_id, documentation=doc)
+        
+        # Delete file from Supabase Storage before removing from database
+        if file.file_path:
+            delete_result = delete_file_from_supabase(file.file_path)
+            if not delete_result['success']:
+                logger.warning(f"Failed to delete file from Supabase: {file.file_path} - {delete_result['error']}")
+                # Still delete from DB even if Supabase deletion fails
+        
         file.delete()
         
-        return Response({'message': 'File removed'})
+        return Response({'message': 'File removed successfully'})
     
     @action(detail=False, methods=['get'])
     def pending_approval(self, request):

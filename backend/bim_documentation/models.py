@@ -4,14 +4,6 @@ from django.utils import timezone
 
 User = get_user_model()
 
-DOC_TYPE_CHOICES = [
-    ('model-update', 'Model Update'),
-    ('clash-detection', 'Clash Detection'),
-    ('drawing-package', 'Drawing Package'),
-    ('simulation', 'Simulation / Rendering'),
-    ('bim-standards', 'BIM Standards'),
-]
-
 APPROVAL_STATUS_CHOICES = [
     ('draft', 'Draft'),
     ('pending_review', 'Pending Review'),
@@ -27,7 +19,7 @@ class BimDocumentation(models.Model):
     """
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    doc_type = models.CharField(max_length=50, choices=DOC_TYPE_CHOICES)
+    doc_type = models.CharField(max_length=100)
     doc_date = models.DateField()
     
     # Creator (BIM Specialist)
@@ -166,10 +158,15 @@ class BimDocumentationFile(models.Model):
     
     file_name = models.CharField(max_length=255)
     file_type = models.CharField(max_length=20, choices=FILE_TYPE_CHOICES)
-    uploaded_file = models.FileField(upload_to='bim-docs/%Y/%m/%d/', blank=True, null=True)
     file_path = models.CharField(
         max_length=500,
-        help_text='Path to file in storage (Supabase, S3, etc.)'
+        help_text='Path to file in Supabase Storage bucket'
+    )
+    file_url = models.URLField(
+        max_length=1000,
+        blank=True,
+        null=True,
+        help_text='Public URL to access the file from Supabase Storage'
     )
     file_size = models.BigIntegerField(default=0)  # in bytes
     uploaded_at = models.DateTimeField(auto_now_add=True)

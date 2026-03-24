@@ -10,7 +10,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
     const [activeTab, setActiveTab] = useState('create');
     const [docTitle, setDocTitle] = useState('');
     const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
-    const [docType, setDocType] = useState('model-update');
+    const [docType, setDocType] = useState('');
     const [docDescription, setDocDescription] = useState('');
     const [modelFiles, setModelFiles] = useState([]);
     const [imageFiles, setImageFiles] = useState([]);
@@ -124,7 +124,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
     const resetDocumentationForm = () => {
         setDocTitle('');
         setDocDate(new Date().toISOString().split('T')[0]);
-        setDocType('model-update');
+        setDocType('');
         setDocDescription('');
         setModelFiles([]);
         setImageFiles([]);
@@ -135,7 +135,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
     const startEditingDocumentation = (doc) => {
         setDocTitle(doc.title || '');
         setDocDate(doc.doc_date || new Date().toISOString().split('T')[0]);
-        setDocType(doc.doc_type || 'model-update');
+        setDocType(doc.doc_type || '');
         setDocDescription(doc.description || '');
         setModelFiles([]);
         setImageFiles([]);
@@ -195,6 +195,10 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
             setDocMessage('Please select a date.');
             return;
         }
+        if (!docType.trim()) {
+            setDocMessage('Please enter a type.');
+            return;
+        }
         if (!editingDocId && !modelFiles.length && !imageFiles.length) {
             setDocMessage('Upload at least one file.');
             return;
@@ -205,13 +209,13 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
             ? await bimDocumentationService.updateDocumentation(editingDocId, {
                 title: docTitle.trim(),
                 description: docDescription.trim(),
-                doc_type: docType,
+                doc_type: docType.trim(),
                 doc_date: docDate,
             })
             : await bimDocumentationService.createDocumentation({
                 title: docTitle.trim(),
                 description: docDescription.trim(),
-                doc_type: docType,
+                doc_type: docType.trim(),
                 doc_date: docDate,
                 modelFiles,
                 imageFiles,
@@ -395,17 +399,13 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                     </div>
                                     <div>
                                         <label className="block text-white/70 text-sm font-semibold mb-2">Type *</label>
-                                        <select
+                                        <input
                                             value={docType}
                                             onChange={(e) => setDocType(e.target.value)}
+                                            type="text"
+                                            placeholder="Ex: Clash Detection"
                                             className="h-10 w-full rounded-xl border border-white/15 bg-[#00273C]/60 px-3 text-sm text-white outline-none focus:border-[#FF7120]/50"
-                                        >
-                                            <option value="model-update">Model Update</option>
-                                            <option value="clash-detection">Clash Detection</option>
-                                            <option value="drawing-package">Drawing Package</option>
-                                            <option value="simulation">Simulation / Rendering</option>
-                                            <option value="bim-standards">BIM Standards</option>
-                                        </select>
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-white/70 text-sm font-semibold mb-2">Description</label>
