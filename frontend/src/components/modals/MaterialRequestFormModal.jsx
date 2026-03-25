@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Printer } from 'lucide-react';
 
-const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole }) => {
+const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline = false }) => {
   if (!isOpen || !request) return null;
 
   const handlePrint = () => {
@@ -18,10 +18,8 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole }) => {
 
   const overallTotal = (request.items || []).reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
 
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm overflow-y-auto scroll-smooth print:p-0 print:bg-white print:backdrop-blur-none print:block print:static">
-      <div className="flex items-start justify-center p-4 min-h-full print:p-0 print:block">
-        <div className="bg-white text-black w-full max-w-[1150px] min-h-[800px] my-8 shadow-2xl rounded-xl flex flex-col print:my-0 print:shadow-none print:rounded-none print:max-w-none print:w-full print:min-h-0 print:text-black print-container">
+  const content = (
+        <div className={`bg-white text-black w-full ${inline ? 'rounded-xl overflow-hidden' : 'max-w-[1150px] min-h-[800px] my-8 shadow-2xl rounded-xl'} flex flex-col print:my-0 print:shadow-none print:rounded-none print:max-w-none print:w-full print:min-h-0 print:text-black print-container`}>
         
         {/* Header - Not printed */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 print:hidden">
@@ -39,12 +37,14 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole }) => {
                 Print Form
               </button>
             )}
-            <button
-              onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"
-            >
-              <X className="h-6 w-6" />
-            </button>
+            {!inline && (
+              <button
+                onClick={onClose}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -164,17 +164,30 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole }) => {
 
         </div>
       </div>
+  );
 
+  const printStyles = (
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
           @page {
             size: landscape;
             margin: 0 !important;
           }
-          body {
+          body, body *:not(.print-container):not(.print-container *) {
             visibility: hidden !important;
             background: white !important;
+            position: static !important;
+            overflow: visible !important;
+            transform: none !important;
+            filter: none !important;
+            backdrop-filter: none !important;
+            box-shadow: none !important;
             margin: 0 !important;
+            padding: 0 !important;
+            min-height: 0 !important;
+            max-height: none !important;
+            width: auto !important;
+            height: auto !important;
           }
           .print-container {
             visibility: visible !important;
@@ -197,7 +210,23 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole }) => {
           }
         }
       `}} />
+  );
+
+  if (inline) {
+    return (
+      <div className="w-full relative">
+        {content}
+        {printStyles}
       </div>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm overflow-y-auto scroll-smooth print:p-0 print:bg-white print:backdrop-blur-none print:block print:static">
+      <div className="flex items-start justify-center p-4 min-h-full print:p-0 print:block">
+        {content}
+      </div>
+      {printStyles}
     </div>
   );
 };

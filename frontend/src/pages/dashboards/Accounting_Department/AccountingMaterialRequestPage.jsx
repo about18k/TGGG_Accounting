@@ -108,26 +108,38 @@ const AccountingMaterialRequestPage = ({ user }) => {
                             : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/20'
                         }`}
                       >
-                        <div className="flex justify-between items-start gap-2">
-                          <h3 className="font-bold text-white truncate text-sm">{request.project_name}</h3>
-                          {request.request_image && (
-                            <span className="shrink-0 text-[9px] px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded border border-blue-500/30 flex items-center gap-1">
-                              <ImageIcon className="h-2.5 w-2.5" />
-                              PHOTO
-                            </span>
-                          )}
+                        <div className="flex justify-between items-start gap-3 mb-2">
+                          <div className="flex flex-col min-w-0 justify-center">
+                            <h3 className="font-bold text-white truncate text-sm">{request.project_name}</h3>
+                          </div>
+                          {(() => {
+                            const priority = (request.priority || 'Normal').toUpperCase();
+                            const pColors = {
+                              URGENT: 'text-red-400 bg-red-400/10 border-red-400/20',
+                              HIGH: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
+                              NORMAL: 'text-blue-400 bg-blue-400/10 border-blue-400/20'
+                            };
+                            const colorClass = pColors[priority] || pColors.NORMAL;
+                            return (
+                              <span className={`shrink-0 text-[9px] font-bold px-2 py-0.5 rounded border ${colorClass}`}>
+                                {priority}
+                              </span>
+                            );
+                          })()}
                         </div>
-                        <p className="text-[10px] text-white/40 mt-1 uppercase tracking-widest font-black">M.R-{request.id} • {(request.priority || 'Normal').toUpperCase()}</p>
                         
-                        <div className="mt-3 grid gap-1.5 text-xs text-white/60">
-                           <div className="flex items-center gap-2 min-w-0">
-                              <User className="w-3.5 h-3.5 shrink-0 text-white/40" /> 
-                              <span className="truncate">{request.created_by_name || 'System User'}</span>
-                           </div>
-                           <div className="flex items-center gap-2 min-w-0">
-                              <Calendar className="w-3.5 h-3.5 shrink-0 text-white/40" /> 
-                              <span className="truncate">{new Date(request.request_date).toLocaleDateString()}</span>
-                           </div>
+                        <div className="flex items-center justify-between text-xs pt-2.5 border-t border-white/5 gap-2">
+                          <div className="flex items-center gap-1.5 text-white/60 min-w-0">
+                            <User className="w-3.5 h-3.5 shrink-0 opacity-70" /> 
+                            <span className="truncate">{request.created_by_name || 'System User'}</span>
+                            <span className="shrink-0 text-[8px] uppercase tracking-wider px-1.5 py-0.5 bg-white/5 rounded text-white/50 border border-white/10">
+                              {request.requester_role ? request.requester_role.replace('_', ' ') : 'Staff'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-white/50 shrink-0">
+                            <Calendar className="w-3.5 h-3.5 shrink-0 opacity-70" /> 
+                            <span>{new Date(request.request_date).toLocaleDateString()}</span>
+                          </div>
                         </div>
                       </button>
                     ))
@@ -161,13 +173,15 @@ const AccountingMaterialRequestPage = ({ user }) => {
                           <span>Required {selectedRequest.required_date ? new Date(selectedRequest.required_date).toLocaleDateString() : 'N/A'}</span>
                         </p>
                       </div>
-                      <button
-                        onClick={() => openModal(selectedRequest)}
-                        className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-xl text-sm font-semibold shadow-lg shadow-[#FF7120]/20 hover:scale-105 transition-transform active:scale-95"
-                      >
-                        <FileText className="h-4 w-4" />
-                        View Form
-                      </button>
+                      {(!selectedRequest || selectedRequest.request_image || !(selectedRequest.items?.length > 0)) && (
+                        <button
+                          onClick={() => openModal(selectedRequest)}
+                          className="shrink-0 inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-xl text-sm font-semibold shadow-lg shadow-[#FF7120]/20 hover:scale-105 transition-transform active:scale-95"
+                        >
+                          <FileText className="h-4 w-4" />
+                          View Form
+                        </button>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mb-3">
@@ -190,45 +204,37 @@ const AccountingMaterialRequestPage = ({ user }) => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm mb-3">
-                      <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-4">
-                        <p className="text-cyan-200/70 text-[11px] uppercase tracking-widest font-semibold mb-2">Studio Head Approval</p>
-                        <div className="mt-1">
-                          <p className="text-cyan-100 font-medium">{selectedRequest.reviewed_by_studio_head_name || 'System Approved'}</p>
-                          <p className="text-[10px] text-cyan-500 mt-0.5">
-                            {selectedRequest.studio_head_reviewed_at ? new Date(selectedRequest.studio_head_reviewed_at).toLocaleString() : 'N/A'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
-                        <p className="text-emerald-200/70 text-[11px] uppercase tracking-widest font-semibold mb-2">CEO / President Approval</p>
-                        <div className="mt-1">
-                          <p className="text-emerald-100 font-medium">{selectedRequest.reviewed_by_ceo_name || 'Final Approval'}</p>
-                          <p className="text-[10px] text-emerald-500 mt-0.5">
-                            {selectedRequest.ceo_reviewed_at ? new Date(selectedRequest.ceo_reviewed_at).toLocaleString() : 'N/A'}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 mb-4">
-                      <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
-                        <p className="text-white/45 text-[11px] uppercase tracking-widest font-semibold">Materials List</p>
-                        <span className="text-[10px] text-white/50">{selectedRequest.items?.length || 0} item(s)</span>
+
+                    {(!selectedRequest.request_image && selectedRequest.items?.length > 0) ? (
+                      <div className="mt-2 mb-6 border border-[#FF7120]/30 rounded-xl overflow-hidden shadow-lg bg-white overflow-x-auto print-container-wrapper">
+                        <MaterialRequestFormModal 
+                          isOpen={true} 
+                          request={selectedRequest} 
+                          userRole="accounting" 
+                          inline={true} 
+                        />
                       </div>
-                      {selectedRequest.items?.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {selectedRequest.items.map((item, idx) => (
-                            <span key={item.id || idx} className="text-sm px-3 py-1.5 rounded-lg bg-white/5 text-white/90 border border-white/10 flex items-center gap-2">
-                              <span>{item.name}</span>
-                              <span className="text-[#FF7120] font-semibold">{item.quantity} {item.unit}</span>
-                            </span>
-                          ))}
+                    ) : (
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 mb-4">
+                        <div className="flex items-center justify-between mb-3 border-b border-white/5 pb-2">
+                          <p className="text-white/45 text-[11px] uppercase tracking-widest font-semibold">Materials List</p>
+                          <span className="text-[10px] text-white/50">{selectedRequest.items?.length || 0} item(s)</span>
                         </div>
-                      ) : (
-                        <p className="text-xs text-white/40 italic">Materials detailed in the attached photo.</p>
-                      )}
-                    </div>
+                        {selectedRequest.items?.length > 0 ? (
+                          <div className="flex flex-wrap gap-2">
+                            {selectedRequest.items.map((item, idx) => (
+                              <span key={item.id || idx} className="text-sm px-3 py-1.5 rounded-lg bg-white/5 text-white/90 border border-white/10 flex items-center gap-2">
+                                <span>{item.name}</span>
+                                <span className="text-[#FF7120] font-semibold">{item.quantity} {item.unit}</span>
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-white/40 italic">Materials detailed in the attached photo.</p>
+                        )}
+                      </div>
+                    )}
 
                     {selectedRequest.request_image && (
                       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 mb-4">
@@ -237,7 +243,7 @@ const AccountingMaterialRequestPage = ({ user }) => {
                           href={selectedRequest.request_image} 
                           target="_blank" 
                           rel="noopener noreferrer" 
-                          className="block w-full max-w-sm group relative"
+                          className="block w-full max-w-sm group relative mx-auto"
                         >
                           <img 
                             src={selectedRequest.request_image} 
@@ -251,12 +257,7 @@ const AccountingMaterialRequestPage = ({ user }) => {
                       </div>
                     )}
 
-                    {selectedRequest.notes && (
-                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4 mb-4">
-                        <p className="text-white/45 text-[11px] uppercase tracking-widest font-semibold mb-2">Additional Notes</p>
-                        <p className="text-white/75 text-sm">{selectedRequest.notes}</p>
-                      </div>
-                    )}
+
                   </div>
                 ) : null}
               </div>
