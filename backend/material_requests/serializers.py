@@ -12,6 +12,9 @@ class MaterialRequestItemSerializer(serializers.ModelSerializer):
             'category',
             'quantity',
             'unit',
+            'price',
+            'discount',
+            'total',
             'specifications',
             'sort_order',
         ]

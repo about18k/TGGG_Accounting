@@ -16,6 +16,8 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole }) => {
     displayItems.push({ id: `empty-${displayItems.length}`, name: '', quantity: '', unit: '', price: '', discount: '', total: '' });
   }
 
+  const overallTotal = (request.items || []).reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
+
   return (
     <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm overflow-y-auto scroll-smooth print:p-0 print:bg-white print:backdrop-blur-none print:block print:static">
       <div className="flex items-start justify-center p-4 min-h-full print:p-0 print:block">
@@ -97,14 +99,14 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole }) => {
                   <td className="border-r-2 border-black text-center text-xs">{item.name ? index + 1 : ''}</td>
                   <td className="border-r-2 border-black px-3 font-bold uppercase text-[11px]">{item.name}</td>
                   <td className="border-r-2 border-black text-center text-xs font-bold">{item.name ? `${item.quantity} ${item.unit}` : ''}</td>
-                  <td className="border-r-2 border-black text-center text-xs"></td>
-                  <td className="border-r-2 border-black text-center text-xs"></td>
-                  <td className="text-center text-xs"></td>
+                  <td className="border-r-2 border-black text-center text-xs">{item.name ? item.price : ''}</td>
+                  <td className="border-r-2 border-black text-center text-xs">{item.name ? item.discount : ''}</td>
+                  <td className="text-center text-xs">{item.name ? item.total : ''}</td>
                 </tr>
               ))}
               <tr className="h-10 font-bold border-t-2 border-black">
                 <td colSpan={5} className="border-r-2 border-black px-4 text-right align-middle text-xs font-bold">TOTAL :</td>
-                <td className="text-center"></td>
+                <td className="text-center text-xs">{overallTotal > 0 ? overallTotal.toFixed(2) : ''}</td>
               </tr>
             </tbody>
           </table>
