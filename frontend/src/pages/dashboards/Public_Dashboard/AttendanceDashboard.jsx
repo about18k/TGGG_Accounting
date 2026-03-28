@@ -17,6 +17,7 @@ import AttendanceHistoryTable from '../../../components/attendance/AttendanceHis
 import useMyAttendance from "../../../hooks/useMyAttendance";
 import { getEvents } from "../../../services/attendanceService";
 import { TableSkeleton, CardSkeleton } from "../../../components/SkeletonLoader";
+import { calcSessionMinutes } from '../../../utils/attendanceFormatters';
 
 const AttendanceDashboard = ({
   user,
@@ -45,6 +46,11 @@ const AttendanceDashboard = ({
   const [lockMessage, setLockMessage] = useState(null);
   const [isHoliday, setIsHoliday] = useState(false);
   const [events, setEvents] = useState([]);
+  const [filterMonth, setFilterMonth] = useState(() => String(new Date().getMonth() + 1));
+  const [filterYear, setFilterYear] = useState(() => String(new Date().getFullYear()));
+  const [rangeStartDate, setRangeStartDate] = useState('');
+  const [rangeEndDate, setRangeEndDate] = useState('');
+  const [isAttendanceTotalsOpen, setIsAttendanceTotalsOpen] = useState(false);
   const {
     records: attendanceData,
     loading: attendanceLoading,
@@ -53,6 +59,85 @@ const AttendanceDashboard = ({
     latest,
   } = useMyAttendance();
   const todayIso = new Date().toISOString().split("T")[0];
+
+  const monthOptions = useMemo(
+    () => [
+      { value: '1', label: 'January' },
+      { value: '2', label: 'February' },
+      { value: '3', label: 'March' },
+      { value: '4', label: 'April' },
+      { value: '5', label: 'May' },
+      { value: '6', label: 'June' },
+      { value: '7', label: 'July' },
+      { value: '8', label: 'August' },
+      { value: '9', label: 'September' },
+      { value: '10', label: 'October' },
+      { value: '11', label: 'November' },
+      { value: '12', label: 'December' },
+    ],
+    []
+  );
+
+  const yearOptions = useMemo(() => {
+    const years = new Set();
+    (attendanceData || []).forEach((row) => {
+      if (!row?.date) return;
+      const year = Number(String(row.date).split('-')[0]);
+      if (!Number.isNaN(year)) years.add(year);
+    });
+    years.add(new Date().getFullYear());
+    return Array.from(years).sort((a, b) => b - a);
+  }, [attendanceData]);
+
+  const filteredSummaryRecords = useMemo(() => {
+    const rows = Array.isArray(attendanceData) ? attendanceData : [];
+    return rows.filter((row) => {
+      if (!row?.date) return false;
+      const [yearStr, monthStr] = String(row.date).split('-');
+      const rowYear = Number(yearStr);
+      const rowMonth = Number(monthStr);
+
+      if (filterYear !== 'all' && rowYear !== Number(filterYear)) return false;
+      if (filterMonth !== 'all' && rowMonth !== Number(filterMonth)) return false;
+      if (rangeStartDate && row.date < rangeStartDate) return false;
+      if (rangeEndDate && row.date > rangeEndDate) return false;
+
+      return true;
+    });
+  }, [attendanceData, filterYear, filterMonth, rangeStartDate, rangeEndDate]);
+
+  const attendanceTotals = useMemo(() => {
+    const records = filteredSummaryRecords || [];
+    const workedDates = new Set();
+    let totalMinutes = 0;
+    let totalLate = 0;
+    let overtimeMinutes = 0;
+
+    records.forEach((row) => {
+      const isWorkedSession = row?.status === 'present' || row?.status === 'late';
+      if (isWorkedSession && row?.date) {
+        workedDates.add(row.date);
+      }
+
+      const sessionMinutes = calcSessionMinutes(row);
+      totalMinutes += sessionMinutes;
+
+      if (row?.is_late || row?.status === 'late') {
+        totalLate += 1;
+      }
+
+      if (row?.session_type === 'overtime') {
+        overtimeMinutes += sessionMinutes;
+      }
+    });
+
+    return {
+      totalHours: (totalMinutes / 60),
+      totalDaysWorked: workedDates.size,
+      totalLate,
+      totalOvertimeHours: (overtimeMinutes / 60),
+    };
+  }, [filteredSummaryRecords]);
 
   useEffect(() => {
     const fetchEventsData = async () => {
@@ -180,6 +265,84 @@ const AttendanceDashboard = ({
                 >
                   Print DTR
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <div className={cardClass}>
+            <div className="p-4 sm:p-6 space-y-4">
+              <div className="flex flex-col gap-1">
+                <h3 className={sectionTitle}>Attendance Totals</h3>
+                <p className="text-white/60 text-sm">Filter by month, year, or date range to recalculate your totals.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                <label className="flex flex-col gap-1 text-xs text-white/70">
+                  Month
+                  <select
+                    value={filterMonth}
+                    onChange={(e) => setFilterMonth(e.target.value)}
+                    className="rounded-lg border border-white/15 bg-[#001f35] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60"
+                  >
+                    <option value="all">All Months</option>
+                    {monthOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex flex-col gap-1 text-xs text-white/70">
+                  Year
+                  <select
+                    value={filterYear}
+                    onChange={(e) => setFilterYear(e.target.value)}
+                    className="rounded-lg border border-white/15 bg-[#001f35] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60"
+                  >
+                    <option value="all">All Years</option>
+                    {yearOptions.map((year) => (
+                      <option key={year} value={String(year)}>{year}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex flex-col gap-1 text-xs text-white/70">
+                  Start Date
+                  <input
+                    type="date"
+                    value={rangeStartDate}
+                    onChange={(e) => setRangeStartDate(e.target.value)}
+                    className="rounded-lg border border-white/15 bg-[#001f35] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 [color-scheme:dark]"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-1 text-xs text-white/70">
+                  End Date
+                  <input
+                    type="date"
+                    value={rangeEndDate}
+                    onChange={(e) => setRangeEndDate(e.target.value)}
+                    className="rounded-lg border border-white/15 bg-[#001f35] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 [color-scheme:dark]"
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3">
+                  <p className="text-xs text-white/60">Total Hours</p>
+                  <p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalHours.toFixed(2)}h</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3">
+                  <p className="text-xs text-white/60">Total Days Worked</p>
+                  <p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalDaysWorked}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3">
+                  <p className="text-xs text-white/60">Total Late</p>
+                  <p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalLate}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3">
+                  <p className="text-xs text-white/60">Total Overtime Worked</p>
+                  <p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalOvertimeHours.toFixed(2)}h</p>
+                </div>
               </div>
             </div>
           </div>

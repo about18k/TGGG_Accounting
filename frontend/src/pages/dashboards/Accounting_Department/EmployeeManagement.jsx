@@ -391,13 +391,18 @@ export function EmployeeManagement() {
       if (!byEmployee.has(key)) {
         byEmployee.set(key, {
           totalHours: 0,
+          totalOvertimeHours: 0,
           totalLateHours: 0,
           dayMap: new Map(),
         });
       }
 
       const current = byEmployee.get(key);
-      current.totalHours += getWorkedHours(record);
+      const workedHours = getWorkedHours(record);
+      current.totalHours += workedHours;
+      if (record?.session_type === 'overtime') {
+        current.totalOvertimeHours += workedHours;
+      }
 
       const lateHours = Number(record?.late_deduction_hours || 0);
       if (Number.isFinite(lateHours) && lateHours > 0) {
@@ -442,6 +447,7 @@ export function EmployeeManagement() {
       summary.set(employeeId, {
         totalDays,
         totalHours: Number(data.totalHours.toFixed(2)),
+        totalOvertime: Number(data.totalOvertimeHours.toFixed(2)),
         onTime,
         late,
         totalLate: Number(data.totalLateHours.toFixed(2)),
@@ -635,6 +641,7 @@ export function EmployeeManagement() {
           const attendanceMetrics = employeeAttendanceStats.get(String(employee.id)) || {
             totalDays: 0,
             totalHours: 0,
+            totalOvertime: 0,
             onTime: 0,
             late: 0,
             totalLate: 0,
@@ -688,6 +695,11 @@ export function EmployeeManagement() {
               <div className="bg-background rounded-lg p-3">
                 <p className="text-xs text-muted-foreground mb-1">Total Late</p>
                 <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : `${attendanceMetrics.totalLate.toFixed(2)}h`}</p>
+              </div>
+
+              <div className="bg-background rounded-lg p-3 mt-3">
+                <p className="text-xs text-muted-foreground mb-1">Total Overtime</p>
+                <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : `${attendanceMetrics.totalOvertime.toFixed(2)}h`}</p>
               </div>
             </CardContent>
           </Card>

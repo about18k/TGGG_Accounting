@@ -53,6 +53,9 @@ import CeoMaterialRequestPage from '../pages/dashboards/ceo/CeoMaterialRequestPa
 import CeoOvertimePage from '../pages/dashboards/ceo/CeoOvertimePage';
 import CeoTodoPage from '../pages/dashboards/ceo/CeoTodoPage';
 import CeoProfilePage from '../pages/dashboards/ceo/CeoProfilePage';
+import CeoEmployeeDirectoryPage from '../pages/dashboards/ceo/CeoEmployeeDirectoryPage';
+import CeoPayrollProcessedPage from '../pages/dashboards/ceo/CeoPayrollProcessedPage';
+import CeoCalendarPage from '../pages/dashboards/ceo/CeoCalendarPage';
 
 const AccountingDashboardLayout = lazy(() =>
     import('../pages/dashboards/Accounting_Department/DashboardLayout').then((mod) => ({ default: mod.DashboardLayout }))
@@ -288,6 +291,9 @@ export function renderDashboard({
     // CEO / President
     if (user.role === 'president' || user.role === 'ceo') {
         if (currentPage === 'ceo-dashboard') return <CeoDashboardPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'ceo-calendar') return <CeoCalendarPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'ceo-employees') return <CeoEmployeeDirectoryPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'ceo-payroll') return <CeoPayrollProcessedPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'overtime') return <CeoOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'todo') return <CeoTodoPage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} onNotificationUpdate={fetchNotifications} />;
         if (currentPage === 'profile') return <CeoProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;

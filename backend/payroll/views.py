@@ -23,10 +23,18 @@ PAYROLL_MANAGER_ROLES = {
     'studio_head',
     'admin',
 }
+PAYROLL_VIEW_ROLES = {
+    'ceo',
+    'president',
+}
 
 
 def _can_manage_payroll(user):
     return bool(user.is_staff or user.is_superuser or user.role in PAYROLL_MANAGER_ROLES)
+
+
+def _can_view_payroll(user):
+    return bool(user.is_staff or user.is_superuser or user.role in PAYROLL_MANAGER_ROLES.union(PAYROLL_VIEW_ROLES))
 
 
 def _display_name(user):
@@ -248,7 +256,7 @@ def payroll_overview(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def payroll_employees(request):
-    if not _can_manage_payroll(request.user):
+    if not _can_view_payroll(request.user):
         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
     users = (
@@ -648,11 +656,12 @@ def process_payroll(request):
 
     if email_result and email_result.get('sent'):
         period_label = f"{period_start.strftime('%b %d, %Y')} to {period_end.strftime('%b %d, %Y')}"
+        is_executive = (employee.role in ['ceo', 'president'])
         _notify_employee(
             recipient=employee,
             actor=request.user,
-            notif_type='payroll_processed',
-            title='Payroll Processed and Emailed',
+            notif_type='ceo_payroll_processed' if is_executive else 'payroll_processed',
+            title='Executive Payroll Processed and Emailed' if is_executive else 'Payroll Processed and Emailed',
             message=(
                 f'Your payroll for {period_label} has been processed and your payslip was emailed to {employee.email}.'
             ),
@@ -768,7 +777,7 @@ def deduction_type_detail(request, deduction_id):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def recent_payroll_records(request):
-    if not _can_manage_payroll(request.user):
+    if not _can_view_payroll(request.user):
         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
     created_on_raw = request.query_params.get('created_on')
@@ -832,7 +841,7 @@ def payroll_payslip_image(request, payslip_id):
     if not payslip:
         return Response({'error': 'Payroll record not found.'}, status=status.HTTP_404_NOT_FOUND)
 
-    can_view = _can_manage_payroll(request.user) or request.user.id == payslip.employee_id
+    can_view = _can_view_payroll(request.user) or request.user.id == payslip.employee_id
     if not can_view:
         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
