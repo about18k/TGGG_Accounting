@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from todos.models import TodoNotification
-from .models import Attendance, CalendarEvent, OvertimeRequest
+from .models import Attendance, CalendarEvent, OvertimeRequest, TimeLog
 
 
 class OvertimeApprovalWorkflowTests(TestCase):
@@ -285,3 +285,115 @@ class CalendarEventAttendanceRulesTests(TestCase):
 
 		self.assertEqual(response.status_code, 400)
 		self.assertIn('cannot make your attendance', response.data['error'].lower())
+
+
+class SaturdayAttendanceAutoOvertimeTests(TestCase):
+	def setUp(self):
+		self.client = APIClient()
+		user_model = get_user_model()
+
+		self.employee = user_model.objects.create_user(
+			username='saturday-employee-01',
+			email='saturday-employee-01@example.com',
+			password='test-password',
+			role='employee',
+			first_name='Saturday',
+			last_name='Employee',
+		)
+
+	def _authenticate(self):
+		self.client.force_authenticate(user=self.employee)
+
+	@patch('attendance.views.timezone.localtime')
+	@patch('attendance.views.determine_session', return_value='morning')
+	@patch('attendance.views.is_late_for_session', return_value=False)
+	def test_saturday_clock_in_auto_sets_session_to_overtime(self, _mock_is_late, _mock_session, mock_localtime):
+		# March 29, 2025 is a Saturday.
+		mock_localtime.return_value = timezone.make_aware(datetime(2025, 3, 29, 9, 0, 0))
+		self._authenticate()
+
+		response = self.client.post('/api/attendance/clock-in/', {}, format='json')
+
+		self.assertEqual(response.status_code, 201)
+		self.assertEqual(response.data['attendance']['session_type'], 'overtime')
+
+		record = Attendance.objects.get(id=response.data['attendance']['id'])
+		self.assertEqual(record.session_type, 'overtime')
+
+	@patch('attendance.views.timezone.localtime')
+	@patch('attendance.views.determine_session', return_value='morning')
+	@patch('attendance.views.is_late_for_session', return_value=False)
+	def test_saturday_clock_in_does_not_require_overtime_request(self, _mock_is_late, _mock_session, mock_localtime):
+		# March 29, 2025 is a Saturday.
+		mock_localtime.return_value = timezone.make_aware(datetime(2025, 3, 29, 10, 0, 0))
+		self._authenticate()
+
+		response = self.client.post('/api/attendance/clock-in/', {}, format='json')
+
+		self.assertEqual(response.status_code, 201)
+		self.assertTrue(response.data['success'])
+
+
+class AutoPmTimeoutTests(TestCase):
+	def setUp(self):
+		self.client = APIClient()
+		user_model = get_user_model()
+
+		self.employee = user_model.objects.create_user(
+			username='auto-timeout-employee',
+			email='auto-timeout-employee@example.com',
+			password='test-password',
+			role='employee',
+			first_name='Auto',
+			last_name='Timeout',
+		)
+
+	def _authenticate(self):
+		self.client.force_authenticate(user=self.employee)
+
+	@patch('attendance.views.timezone.localtime')
+	def test_after_530_pm_open_pm_session_is_auto_timed_out(self, mock_localtime):
+		mock_localtime.return_value = timezone.make_aware(datetime(2025, 3, 27, 17, 45, 0))
+		today = mock_localtime.return_value.date()
+
+		record = Attendance.objects.create(
+			employee=self.employee,
+			date=today,
+			session_type='afternoon',
+			time_in=time(13, 0),
+			status='present',
+		)
+
+		self._authenticate()
+		response = self.client.get('/api/attendance/my/')
+
+		self.assertEqual(response.status_code, 200)
+
+		record.refresh_from_db()
+		self.assertEqual(record.time_out, time(17, 30))
+		self.assertIn('System auto timeout', record.notes or '')
+
+		time_out_log = TimeLog.objects.filter(attendance=record, log_type='time_out').first()
+		self.assertIsNotNone(time_out_log)
+
+	@patch('attendance.views.timezone.localtime')
+	def test_before_530_pm_open_pm_session_is_not_auto_timed_out(self, mock_localtime):
+		mock_localtime.return_value = timezone.make_aware(datetime(2025, 3, 27, 17, 0, 0))
+		today = mock_localtime.return_value.date()
+
+		record = Attendance.objects.create(
+			employee=self.employee,
+			date=today,
+			session_type='afternoon',
+			time_in=time(13, 0),
+			status='present',
+		)
+
+		self._authenticate()
+		response = self.client.get('/api/attendance/my/today/')
+
+		self.assertEqual(response.status_code, 200)
+
+		record.refresh_from_db()
+		self.assertIsNone(record.time_out)
+		self.assertEqual(response.data['record']['id'], record.id)

@@ -1,10 +1,20 @@
 from django.test import TestCase
+from django.db import OperationalError
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework import status
+from unittest.mock import patch
 
 from accounts.models import CustomUser
 from todos.models import TaskGroup, TaskGroupMember, Todo
-from todos.views import groups_list_create, todo_detail, todos_list_create, group_remove_member
+from todos.views import (
+    groups_list_create,
+    todo_detail,
+    todos_list_create,
+    group_remove_member,
+    notifications_list,
+    notification_mark_read,
+    notifications_mark_all_read,
+)
 from todos.serializers import TaskGroupSerializer
 
 
@@ -298,3 +308,47 @@ class RemoveMemberTest(TodoTestMixin, TestCase):
             TaskGroupMember.objects.filter(group=self.group).count(),
             initial_count - 1,
         )
+
+
+class NotificationEndpointResilienceTest(TodoTestMixin, TestCase):
+    """Ensure notification endpoints degrade gracefully on DB connectivity errors."""
+
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.user = self.create_user('notif@test.com')
+
+    @patch('todos.views.TodoNotification.objects.filter')
+    def test_notifications_list_returns_503_on_operational_error(self, mock_filter):
+        mock_filter.side_effect = OperationalError('connection timed out')
+
+        request = self.factory.get('/api/notifications')
+        force_authenticate(request, user=self.user)
+
+        response = notifications_list(request)
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn('temporarily unavailable', response.data['error'].lower())
+
+    @patch('todos.views.get_object_or_404')
+    def test_notification_mark_read_returns_503_on_operational_error(self, mock_get_object):
+        mock_get_object.side_effect = OperationalError('connection timed out')
+
+        request = self.factory.post('/api/notifications/1/read/')
+        force_authenticate(request, user=self.user)
+
+        response = notification_mark_read(request, notif_id='1')
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn('temporarily unavailable', response.data['error'].lower())
+
+    @patch('todos.views.TodoNotification.objects.filter')
+    def test_notifications_mark_all_read_returns_503_on_operational_error(self, mock_filter):
+        mock_filter.side_effect = OperationalError('connection timed out')
+
+        request = self.factory.post('/api/notifications/read-all/')
+        force_authenticate(request, user=self.user)
+
+        response = notifications_mark_all_read(request)
+
+        self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+        self.assertIn('temporarily unavailable', response.data['error'].lower())

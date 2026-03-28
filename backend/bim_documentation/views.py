@@ -5,7 +5,10 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.shortcuts import get_object_or_404
 from django.db.models import Q
 import logging
+import os
 
+from accounts.models import CustomUser
+from todos.services import NotificationService
 from .models import BimDocumentation, BimDocumentationFile, BimDocumentationComment
 from .serializers import (
     BimDocumentationSerializer,
@@ -16,8 +19,122 @@ from .serializers import (
     BimDocumentationCommentSerializer,
 )
 from .supabase_storage import upload_file_to_supabase, delete_file_from_supabase
+from .tasks import upload_file_async
 
 logger = logging.getLogger(__name__)
+
+IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'}
+DOCUMENT_EXTENSIONS = {'.pdf', '.doc', '.docx'}
+
+
+def _is_image_upload(file_obj):
+    content_type = str(getattr(file_obj, 'content_type', '') or '').lower()
+    if content_type.startswith('image/'):
+        return True
+    _, ext = os.path.splitext(str(getattr(file_obj, 'name', '') or '').lower())
+    return ext in IMAGE_EXTENSIONS
+
+
+def _is_document_upload(file_obj):
+    """Check if file is a document file (PDF or Word)."""
+    content_type = str(getattr(file_obj, 'content_type', '') or '').lower()
+    if content_type == 'application/pdf':
+        return True
+    if content_type.startswith('application/msword'):
+        return True
+    if content_type.startswith('application/vnd.openxmlformats'):
+        return True
+    _, ext = os.path.splitext(str(getattr(file_obj, 'name', '') or '').lower())
+    return ext in DOCUMENT_EXTENSIONS
+
+
+def _is_image_or_document_upload(file_obj):
+    """Check if file is an image or document file (image, PDF, or Word)."""
+    return _is_image_upload(file_obj) or _is_document_upload(file_obj)
+
+
+def _doc_has_image_attachment(doc):
+    files_qs = doc.files.all()
+    for file_obj in files_qs:
+        if str(file_obj.file_type or '').lower() == 'image':
+            return True
+        _, ext = os.path.splitext(str(file_obj.file_name or '').lower())
+        if ext in IMAGE_EXTENSIONS:
+            return True
+    return False
+
+
+def _doc_has_file_attachment(doc):
+    """Check if documentation has any file attachment (image, PDF, or Word)."""
+    files_qs = doc.files.all()
+    if not files_qs.exists():
+        return False
+    for file_obj in files_qs:
+        if _is_image_or_document_upload(file_obj):
+            return True
+        # Also check by file_name extension
+        _, ext = os.path.splitext(str(file_obj.file_name or '').lower())
+        if ext in IMAGE_EXTENSIONS or ext in DOCUMENT_EXTENSIONS:
+            return True
+    return False
+
+
+def _notify_ceo_documentation_forwarded(doc, actor):
+    """Notify all active CEO/President users when Studio Head forwards a doc."""
+    creator_role = str(getattr(doc.created_by, 'role', '') or '').strip().lower()
+    if creator_role in ['junior_architect', 'junior_designer']:
+        doc_origin = "Junior Architect documentation"
+    elif creator_role == 'bim_specialist':
+        doc_origin = "BIM Specialist documentation"
+    else:
+        doc_origin = "documentation"
+
+    recipients = (
+        CustomUser.objects
+        .filter(is_active=True, role__in=['ceo', 'president'])
+        .exclude(id=actor.id)
+    )
+
+    for recipient in recipients:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=actor,
+            notif_type='bim_forwarded_to_ceo',
+            title='Documentation Needs CEO Approval',
+            message=(
+                f'Studio Head forwarded {doc_origin}: "{doc.title}". '
+                'Please review and approve or reject.'
+            ),
+        )
+
+
+def _notify_studio_head_documentation_submitted(doc, actor):
+    """Notify active Studio Heads when documentation is submitted for review."""
+    creator_role = str(getattr(doc.created_by, 'role', '') or '').strip().lower()
+    if creator_role in ['junior_architect', 'junior_designer']:
+        doc_origin = 'Junior Architect documentation'
+    elif creator_role == 'bim_specialist':
+        doc_origin = 'BIM Specialist documentation'
+    else:
+        doc_origin = 'documentation'
+
+    recipients = (
+        CustomUser.objects
+        .filter(is_active=True, role='studio_head')
+        .exclude(id=actor.id)
+    )
+
+    for recipient in recipients:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=actor,
+            notif_type='bim_submitted_to_sh',
+            title='Documentation Needs Studio Head Approval',
+            message=(
+                f'{doc_origin} was submitted: "{doc.title}". '
+                'Please review and approve or reject.'
+            ),
+        )
 
 
 class BimDocumentationViewSet(viewsets.ModelViewSet):
@@ -121,42 +238,39 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """
-        Create new BIM documentation.
+        Create new BIM documentation (synchronous file upload).
         BIM Specialists and Junior Architects can create documentation.
-        Files are uploaded to Supabase Storage bucket.
+        Files are uploaded to Supabase Storage bucket synchronously for reliability.
         """
         if request.user.role not in ['bim_specialist', 'junior_architect', 'junior_designer']:
             return Response(
                 {'error': 'Only BIM Specialists and Junior Architects can create documentation'},
                 status=status.HTTP_403_FORBIDDEN
             )
-        
+
+        files = request.FILES.getlist('files')
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        
+
         doc = serializer.instance
-        
-        # Handle file uploads to Supabase Storage
-        files = request.FILES.getlist('files')
         upload_errors = []
-        
+        uploaded_files = []
+
+        from .supabase_storage import upload_file_to_supabase
+
         for file in files:
             file_type = request.POST.get(f'file_type_{file.name}', 'model')
-            
-            # Upload to Supabase Storage
-            upload_result = upload_file_to_supabase(file, doc.id)
-            
-            if not upload_result['success']:
-                upload_errors.append({
-                    'file': file.name,
-                    'error': upload_result['error']
-                })
-                logger.error(f"Failed to upload {file.name}: {upload_result['error']}")
-                continue
-            
-            # Create BimDocumentationFile record with Supabase path and URL
             try:
+                upload_result = upload_file_to_supabase(file, doc.id)
+                if not upload_result['success']:
+                    upload_errors.append({
+                        'file': file.name,
+                        'error': upload_result['error'] or 'Unknown error during upload.'
+                    })
+                    continue
+
                 saved_file = BimDocumentationFile.objects.create(
                     documentation=doc,
                     file_name=file.name,
@@ -165,23 +279,33 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                     file_url=upload_result['file_url'],
                     file_size=file.size,
                 )
-                logger.info(f"File saved to database: {file.name} (ID: {saved_file.id})")
+                uploaded_files.append(saved_file.id)
             except Exception as e:
-                error_msg = f"Error saving file metadata: {str(e)}"
                 upload_errors.append({
                     'file': file.name,
-                    'error': error_msg
+                    'error': str(e)
                 })
-                logger.error(error_msg)
-        
-        # Return response with any upload errors
-        response_data = serializer.data
+
         if upload_errors:
-            response_data['upload_errors'] = upload_errors
-            # If all uploads failed, return error
-            if len(upload_errors) == len(files):
-                return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
-        
+            # Optionally: Rollback doc if all files failed
+            if not uploaded_files:
+                doc.delete()
+                return Response({
+                    'error': 'All file uploads failed. Documentation not saved.',
+                    'details': upload_errors
+                }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            # Otherwise, partial success
+            return Response({
+                'warning': 'Some files failed to upload.',
+                'uploaded_file_ids': uploaded_files,
+                'upload_errors': upload_errors,
+                'doc': serializer.data
+            }, status=status.HTTP_207_MULTI_STATUS)
+
+        # All files uploaded successfully
+        response_data = serializer.data
+        response_data['uploaded_file_ids'] = uploaded_files
+        response_data['message'] = f'Documentation created. {len(uploaded_files)} file(s) uploaded.'
         return Response(response_data, status=status.HTTP_201_CREATED)
     
     def update(self, request, *args, **kwargs):
@@ -204,7 +328,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 {'error': 'Can only edit draft or Studio Head-rejected documentation'},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         partial = kwargs.pop('partial', False)
         serializer = self.get_serializer(doc, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
@@ -276,6 +400,11 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
 
         doc.status = 'pending_review'
         doc.save(update_fields=update_fields)
+
+        try:
+            _notify_studio_head_documentation_submitted(doc, request.user)
+        except Exception as exc:
+            logger.warning('Failed to notify Studio Head for BIM doc %s submission: %s', doc.id, exc)
         
         serializer = self.get_serializer(doc)
         return Response(serializer.data)
@@ -320,6 +449,10 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                         content="✅ Approved by Studio Head — forwarded to CEO.",
                         is_system_comment=True,
                     )
+                try:
+                    _notify_ceo_documentation_forwarded(doc, user)
+                except Exception as exc:
+                    logger.warning('Failed to notify CEO for BIM doc %s forward: %s', doc.id, exc)
                 return Response(
                     {'message': 'Documentation approved and forwarded to CEO'},
                     status=status.HTTP_200_OK

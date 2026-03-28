@@ -2,24 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Clock9 } from 'lucide-react';
 
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
+import CeoSidebar from './CeoSidebar';
 import { getEvents } from '../../../services/attendanceService';
-
-import InternSidebar from '../Intern_Dashboard/components/InternSidebar';
-import SiteEngineerSidebar from '../SiteEngineer_Dashboard/components/SiteEngineerSidebar';
-import SiteCoordinatorSidebar from '../SiteCoordinator_Dashboard/components/SiteCoordinatorSidebar';
-import JuniorDesignerSidebar from '../JuniorDesigner_Dashboard/components/JuniorDesignerSidebar';
-import BimSpecialistSidebar from '../BimSpecialist/components/BimSpecialistSidebar';
-import StudioHeadSidebar from '../StudioHead/components/StudioHeadSidebar';
-
-const SIDEBAR_BY_ROLE = {
-  intern: InternSidebar,
-  site_engineer: SiteEngineerSidebar,
-  site_coordinator: SiteCoordinatorSidebar,
-  junior_architect: JuniorDesignerSidebar,
-  bim_specialist: BimSpecialistSidebar,
-  studio_head: StudioHeadSidebar,
-  admin: StudioHeadSidebar,
-};
 
 const NO_WORK_TYPES = new Set(['holiday', 'downtime']);
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -79,7 +63,7 @@ const blocksAttendance = (eventItem) => {
   return Boolean(eventItem.is_holiday) || NO_WORK_TYPES.has(String(eventItem.event_type || '').toLowerCase());
 };
 
-export default function EmployeeCalendarPage({ user, onNavigate }) {
+export default function CeoCalendarPage({ user, onNavigate, onLogout }) {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -88,8 +72,6 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
   const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
-
-  const SidebarComponent = SIDEBAR_BY_ROLE[user?.role] || null;
 
   useEffect(() => {
     let active = true;
@@ -107,7 +89,7 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
         setEvents(rows);
       } catch (_err) {
         if (!active) return;
-        setError('Unable to load your calendar events right now.');
+        setError('Unable to load calendar events right now.');
         setEvents([]);
       } finally {
         if (active) {
@@ -128,11 +110,6 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
   const blockedCount = useMemo(
     () => events.filter((eventItem) => blocksAttendance(eventItem)).length,
     [events]
-  );
-
-  const todayRule = useMemo(
-    () => events.find((eventItem) => eventItem?.date === todayIso && blocksAttendance(eventItem)),
-    [events, todayIso]
   );
 
   const eventsByDate = useMemo(() => {
@@ -194,19 +171,13 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
         <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
 
-      <PublicNavigation onNavigate={onNavigate} currentPage="calendar" user={user} />
+      <PublicNavigation onNavigate={onNavigate} currentPage="ceo-calendar" user={user} onLogout={onLogout} />
 
       <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
         <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-6">
-          {SidebarComponent && (
-            <aside className="w-64 shrink-0 hidden lg:block">
-              <SidebarComponent
-                currentPage="calendar"
-                onNavigate={onNavigate}
-                activeSection="attendance"
-              />
-            </aside>
-          )}
+          <aside className="w-64 shrink-0 hidden lg:block">
+            <CeoSidebar currentPage="ceo-calendar" onNavigate={onNavigate} />
+          </aside>
 
           <main className="flex-1 min-w-0 space-y-6">
             <section className="rounded-2xl border border-white/10 bg-[#001f35]/70 p-5 sm:p-6 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
@@ -217,10 +188,9 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
                     Calendar Events
                   </h1>
                   <p className="text-white/65 text-sm mt-1">
-                    Check marked and unmarked dates. Marked Holiday/No Work Day dates disable time in and time out.
+                    Executive view of marked and unmarked dates. Marked Holiday/No Work Day dates block attendance.
                   </p>
                 </div>
-
               </div>
 
               <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -237,13 +207,6 @@ export default function EmployeeCalendarPage({ user, onNavigate }) {
                   <p className="text-emerald-300 text-2xl font-semibold mt-1">{Math.max(events.length - blockedCount, 0)}</p>
                 </div>
               </div>
-
-              {todayRule && (
-                <div className="mt-4 rounded-xl border border-[#FF7120]/25 bg-[#FF7120]/10 px-4 py-3 text-[#FFB284] text-sm flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                  Today is marked as {formatTypeLabel(todayRule.event_type)} ({todayRule.title}). You cannot make your attendance today.
-                </div>
-              )}
             </section>
 
             <section className="rounded-2xl border border-white/10 bg-[#001f35]/70 p-5 sm:p-6 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]">

@@ -1,6 +1,11 @@
 import api from './api';
 
 const bimDocumentationService = {
+  _extractError: (error, fallbackMessage) => {
+    const payload = error?.response?.data;
+    return payload?.error || payload?.detail || error?.message || fallbackMessage;
+  },
+
   /**
    * Create new BIM documentation
    * @param {object} data - Documentation data (title, description, doc_type, doc_date, files)
@@ -40,7 +45,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to create documentation',
+        error: bimDocumentationService._extractError(error, 'Failed to create documentation'),
       };
     }
   },
@@ -57,7 +62,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to fetch documentations',
+        error: bimDocumentationService._extractError(error, 'Failed to fetch documentations'),
       };
     }
   },
@@ -74,7 +79,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to fetch documentation',
+        error: bimDocumentationService._extractError(error, 'Failed to fetch documentation'),
       };
     }
   },
@@ -92,7 +97,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to update documentation',
+        error: bimDocumentationService._extractError(error, 'Failed to update documentation'),
       };
     }
   },
@@ -109,7 +114,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to delete documentation',
+        error: bimDocumentationService._extractError(error, 'Failed to delete documentation'),
       };
     }
   },
@@ -126,7 +131,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to submit documentation',
+        error: bimDocumentationService._extractError(error, 'Failed to submit documentation'),
       };
     }
   },
@@ -148,7 +153,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to process approval',
+        error: bimDocumentationService._extractError(error, 'Failed to process approval'),
       };
     }
   },
@@ -164,7 +169,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to fetch pending approvals',
+        error: bimDocumentationService._extractError(error, 'Failed to fetch pending approvals'),
       };
     }
   },
@@ -180,7 +185,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to fetch your documents',
+        error: bimDocumentationService._extractError(error, 'Failed to fetch your documents'),
       };
     }
   },
@@ -198,7 +203,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to remove file',
+        error: bimDocumentationService._extractError(error, 'Failed to remove file'),
       };
     }
   },
@@ -215,7 +220,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to load comments',
+        error: bimDocumentationService._extractError(error, 'Failed to load comments'),
       };
     }
   },
@@ -236,7 +241,7 @@ const bimDocumentationService = {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || error.message || 'Failed to post comment',
+        error: bimDocumentationService._extractError(error, 'Failed to post comment'),
       };
     }
   },
