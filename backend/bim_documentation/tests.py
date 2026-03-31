@@ -1,8 +1,11 @@
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from datetime import date
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from accounts.models import Department
+from todos.models import TodoNotification
 from .models import BimDocumentation, BimDocumentationComment
 
 
@@ -57,6 +60,12 @@ class BimDocumentationResubmissionTests(APITestCase):
     def _create_and_submit_documentation(self, creator, title):
         self.client.force_authenticate(creator)
 
+        image_file = SimpleUploadedFile(
+            'reference.png',
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR',
+            content_type='image/png',
+        )
+
         create_response = self.client.post(
             '/api/bim-docs/',
             {
@@ -64,8 +73,10 @@ class BimDocumentationResubmissionTests(APITestCase):
                 'description': 'Initial draft.',
                 'doc_type': 'model-update',
                 'doc_date': '2026-03-17',
+                'files': [image_file],
+                f'file_type_{image_file.name}': 'image',
             },
-            format='json',
+            format='multipart',
         )
         self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
 
@@ -269,3 +280,97 @@ class BimDocumentationResubmissionTests(APITestCase):
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
         response_ids = [item['id'] for item in list_response.data]
         self.assertIn(doc_id, response_ids)
+
+    def test_studio_head_forward_to_ceo_creates_notification(self):
+        doc_id = self._create_and_submit_documentation(
+            creator=self.bim_specialist,
+            title='BIM Doc for CEO Notification',
+        )
+
+        self.client.force_authenticate(self.studio_head)
+        studio_head_approve = self.client.post(
+            f'/api/bim-docs/{doc_id}/approval_action/',
+            {'action': 'approve', 'comments': 'Forwarding for executive decision.'},
+            format='json',
+        )
+        self.assertEqual(studio_head_approve.status_code, status.HTTP_200_OK)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.ceo, type='bim_forwarded_to_ceo')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('forwarded', notification.message.lower())
+
+    def test_bim_specialist_submission_notifies_studio_head(self):
+        self._create_and_submit_documentation(
+            creator=self.bim_specialist,
+            title='BIM Specialist Submission Notification',
+        )
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.studio_head, type='bim_submitted_to_sh')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('bim specialist', notification.message.lower())
+
+    def test_junior_architect_submission_notifies_studio_head(self):
+        self._create_and_submit_documentation(
+            creator=self.junior_architect,
+            title='Junior Architect Submission Notification',
+        )
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.studio_head, type='bim_submitted_to_sh')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('junior architect', notification.message.lower())
+
+    def test_create_documentation_requires_at_least_one_uploaded_image(self):
+        self.client.force_authenticate(self.bim_specialist)
+
+        non_image_file = SimpleUploadedFile(
+            'notes.pdf',
+            b'%PDF-1.4 sample',
+            content_type='application/pdf',
+        )
+
+        response = self.client.post(
+            '/api/bim-docs/',
+            {
+                'title': 'Invalid Without Image',
+                'description': 'Should fail because no image is attached.',
+                'doc_type': 'model-update',
+                'doc_date': '2026-03-17',
+                'files': [non_image_file],
+                f'file_type_{non_image_file.name}': 'model',
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('at least one uploaded image', response.data['error'].lower())
+
+    def test_submit_requires_at_least_one_uploaded_image(self):
+        self.client.force_authenticate(self.bim_specialist)
+        doc = BimDocumentation.objects.create(
+            title='Draft Without Image',
+            description='No image files attached.',
+            doc_type='model-update',
+            doc_date=date(2026, 3, 17),
+            created_by=self.bim_specialist,
+            status='draft',
+        )
+
+        response = self.client.post(f'/api/bim-docs/{doc.id}/submit/', {}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('at least one image', response.data['error'].lower())

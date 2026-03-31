@@ -31,6 +31,15 @@ class PayrollNotificationTests(TestCase):
 			last_name='Employee',
 			is_active=True,
 		)
+		self.ceo_employee = user_model.objects.create_user(
+			username='ceopayroll01',
+			email='ceo-payroll@example.com',
+			password='test-password',
+			role='ceo',
+			first_name='Chief',
+			last_name='Executive',
+			is_active=True,
+		)
 
 	def _authenticate(self, user):
 		self.client.force_authenticate(user=user)
@@ -135,3 +144,58 @@ class PayrollNotificationTests(TestCase):
 		)
 		self.assertIsNotNone(notification)
 		self.assertIn('processed', notification.message.lower())
+
+	@patch('payroll.image_generator.generate_payslip_image', return_value=b'test-image')
+	@patch('payroll.email_utils.save_payslip_image_and_send_email')
+	def test_process_payroll_email_sent_notifies_ceo_with_executive_type(self, mock_save_and_send_email, _mock_generate_image):
+		mock_save_and_send_email.return_value = {
+			'image_saved': True,
+			'image_endpoint': '/api/payroll/recent/2/payslip-image/',
+			'storage': 'database',
+			'email': {
+				'sent': True,
+				'message': 'Email sent successfully',
+				'recipient': self.ceo_employee.email,
+			},
+		}
+
+		self._authenticate(self.accounting_user)
+
+		response = self.client.post(
+			'/api/payroll/process/',
+			{
+				'employee_id': self.ceo_employee.id,
+				'period_start': '2026-01-01',
+				'period_end': '2026-01-31',
+				'payslip_form': {
+					'monthly': '80000.00',
+					'basic_salary': '80000.00',
+					'regular_overtime': '0.00',
+					'late_undertime': '0.00',
+					'rest_day_ot': '0.00',
+					'gross_amount': '80000.00',
+					'net_taxable_salary': '80000.00',
+					'payroll_tax': '0.00',
+					'total_deductions': '500.00',
+					'payroll_allowance': '0.00',
+					'company_loan_cash_advance': '0.00',
+					'salary_net_pay': '79500.00',
+					'prepared_by': 'Payroll Manager',
+					'government_contributions': [
+						{'name': 'SSS', 'amount': '500.00'}
+					],
+				},
+			},
+			format='json',
+		)
+
+		self.assertEqual(response.status_code, 201)
+
+		notification = (
+			TodoNotification.objects
+			.filter(recipient=self.ceo_employee, type='ceo_payroll_processed')
+			.order_by('-created_at')
+			.first()
+		)
+		self.assertIsNotNone(notification)
+		self.assertIn('emailed', notification.message.lower())

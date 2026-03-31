@@ -145,6 +145,7 @@ ROLE_NORMALIZATION_ALIASES = {
 }
 APPROVER_ROLES = {'studio_head', 'admin'}
 ACCOUNTING_ACCESS_ROLES = APPROVER_ROLES.union({'accounting'})
+EXECUTIVE_VIEW_ROLES = {'ceo', 'president'}
 
 
 def normalize_role_input(raw_role):
@@ -434,6 +435,11 @@ def _is_accounting_or_admin(user):
     return user.is_staff or user.is_superuser or normalized_role in ACCOUNTING_ACCESS_ROLES
 
 
+def _can_view_user_directory(user):
+    normalized_role = normalize_role_input(getattr(user, 'role', None))
+    return user.is_staff or user.is_superuser or normalized_role in APPROVER_ROLES.union(EXECUTIVE_VIEW_ROLES)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def pending_users(request):
@@ -519,7 +525,7 @@ def accounts_overview(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def list_users(request):
-    if not _is_studio_head_or_admin(request.user):
+    if not _can_view_user_directory(request.user):
         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
     users = CustomUser.objects.select_related('department').all().order_by('last_name', 'first_name', 'email')
     return Response(CustomUserSerializer(users, many=True).data)

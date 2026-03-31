@@ -7,6 +7,8 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from accounts.models import CustomUser
+from todos.services import NotificationService
 from .models import MaterialRequest, MaterialRequestComment, Project
 from .serializers import (
     MaterialRequestApprovalSerializer,
@@ -14,6 +16,52 @@ from .serializers import (
     MaterialRequestCommentSerializer,
     ProjectSerializer,
 )
+from bim_documentation.tasks import upload_material_request_file_async
+
+
+def _notify_ceo_material_request_forwarded(material_request, actor):
+    """Notify all active CEO/President users when Studio Head forwards a request."""
+    recipients = (
+        CustomUser.objects
+        .filter(is_active=True, role__in=['ceo', 'president'])
+        .exclude(id=actor.id)
+    )
+
+    for recipient in recipients:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=actor,
+            notif_type='matreq_forwarded_to_ceo',
+            title='Material Request Needs CEO Approval',
+            message=(
+                f'Studio Head forwarded material request "{material_request.project_name}" '
+                'for your approval.'
+            ),
+        )
+
+
+def _notify_studio_head_material_request_submitted(material_request, actor):
+    """Notify active Studio Heads when a material request is submitted for review."""
+    requester_role = str(getattr(material_request, 'requester_role', '') or '').replace('_', ' ').title()
+    requester_label = requester_role or 'Requester'
+
+    recipients = (
+        CustomUser.objects
+        .filter(is_active=True, role='studio_head')
+        .exclude(id=actor.id)
+    )
+
+    for recipient in recipients:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=actor,
+            notif_type='matreq_submitted_to_sh',
+            title='Material Request Needs Studio Head Approval',
+            message=(
+                f'{requester_label} submitted "{material_request.project_name}" '
+                'for Studio Head review.'
+            ),
+        )
 
 
 def upload_matreq_img_to_supabase(file_obj, user_id):
@@ -120,6 +168,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             )
 
         data = request.data.copy()
+        upload_task_id = None
         
         request_image_file = request.FILES.get('request_image')
         if request_image_file:
@@ -127,17 +176,30 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 # DRF throws an error if we pass a file payload to a URLField, so we remove the file object
                 if hasattr(data, 'pop'):
                     data.pop('request_image')
-            try:
-                public_url = upload_matreq_img_to_supabase(request_image_file, request.user.id)
-                if public_url:
-                    data['request_image'] = public_url
-            except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            # Set placeholder - will be updated by async task
+            data['request_image'] = ''
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        
+        # Queue async file upload after DB save
+        if request_image_file:
+            file_path = f"{request.user.id}/matreq_{uuid.uuid4().hex}.{request_image_file.name.split('.')[-1]}"
+            task = upload_material_request_file_async.delay(
+                file_path=file_path,
+                file_content_path=request_image_file,
+                request_id=serializer.instance.id,
+                user_id=request.user.id
+            )
+            upload_task_id = task.id
+        
+        response_data = serializer.data
+        if upload_task_id:
+            response_data['upload_task_id'] = upload_task_id
+            response_data['message'] = 'Material request created. Image uploading in background...'
+        
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         material_request = self.get_object()
@@ -245,6 +307,11 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         material_request.status = 'pending_review'
         material_request.save(update_fields=update_fields)
 
+        try:
+            _notify_studio_head_material_request_submitted(material_request, request.user)
+        except Exception as exc:
+            print(f"⚠️ Material request Studio Head notification failed for request_id={material_request.id}: {exc}")
+
         serializer = MaterialRequestSerializer(material_request, context={'request': request})
         return Response(serializer.data)
 
@@ -273,6 +340,10 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
 
             if action_type == 'approve':
                 material_request.approve_studio_head(user, comments)
+                try:
+                    _notify_ceo_material_request_forwarded(material_request, user)
+                except Exception as exc:
+                    print(f"⚠️ Material request CEO notification failed for request_id={material_request.id}: {exc}")
                 return Response(
                     {'message': 'Material request approved and forwarded to CEO.'},
                     status=status.HTTP_200_OK,

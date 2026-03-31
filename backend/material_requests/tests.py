@@ -3,6 +3,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from accounts.models import Department
+from todos.models import TodoNotification
 from .models import MaterialRequest
 
 
@@ -247,3 +248,47 @@ class MaterialRequestWorkflowTests(APITestCase):
 
         detail_response = self.client.get(f'/api/material-requests/{request_id}/')
         self.assertEqual(detail_response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_studio_head_forward_to_ceo_creates_notification(self):
+        request_id = self._create_and_submit_request(creator=self.site_engineer)
+
+        self.client.force_authenticate(self.studio_head)
+        studio_head_response = self.client.post(
+            f'/api/material-requests/{request_id}/approval_action/',
+            {'action': 'approve', 'comments': 'Forwarding to CEO now.'},
+            format='json',
+        )
+        self.assertEqual(studio_head_response.status_code, status.HTTP_200_OK)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.ceo, type='matreq_forwarded_to_ceo')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('material request', notification.title.lower())
+
+    def test_site_engineer_submission_notifies_studio_head(self):
+        self._create_and_submit_request(creator=self.site_engineer)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.studio_head, type='matreq_submitted_to_sh')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('site engineer', notification.message.lower())
+
+    def test_site_coordinator_submission_notifies_studio_head(self):
+        self._create_and_submit_request(creator=self.site_coordinator)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.studio_head, type='matreq_submitted_to_sh')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('site coordinator', notification.message.lower())

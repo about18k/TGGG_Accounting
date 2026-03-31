@@ -4,15 +4,12 @@ import BimSpecialistSidebar from './components/BimSpecialistSidebar';
 import bimDocumentationService from '../../../services/bimDocumentationService';
 import CommentThread from '../../../components/CommentThread';
 
-const MODEL_ACCEPT = '.rvt,.ifc,.obj,.fbx,.skp,.dwg,.dxf,.stl';
-
 const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
     const [activeTab, setActiveTab] = useState('create');
     const [docTitle, setDocTitle] = useState('');
     const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
     const [docType, setDocType] = useState('');
     const [docDescription, setDocDescription] = useState('');
-    const [modelFiles, setModelFiles] = useState([]);
     const [imageFiles, setImageFiles] = useState([]);
     const [savedDocs, setSavedDocs] = useState([]);
     const [juniorApprovedDocs, setJuniorApprovedDocs] = useState([]);
@@ -126,7 +123,6 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
         setDocDate(new Date().toISOString().split('T')[0]);
         setDocType('');
         setDocDescription('');
-        setModelFiles([]);
         setImageFiles([]);
         setEditingDocId(null);
         setEditingRejectedDoc(false);
@@ -137,7 +133,6 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
         setDocDate(doc.doc_date || new Date().toISOString().split('T')[0]);
         setDocType(doc.doc_type || '');
         setDocDescription(doc.description || '');
-        setModelFiles([]);
         setImageFiles([]);
         setEditingDocId(doc.id);
         setEditingRejectedDoc(isStudioHeadRejected(doc));
@@ -186,7 +181,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
 
     const saveDocumentation = async (e) => {
         e.preventDefault();
-        
+
         if (!docTitle.trim()) {
             setDocMessage('Please enter a title.');
             return;
@@ -198,9 +193,6 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
         if (!docType.trim()) {
             setDocMessage('Please enter a type.');
             return;
-        }
-        if (!editingDocId && !modelFiles.length && !imageFiles.length) {
-            setDocMessage('Upload at least one file.');
             return;
         }
 
@@ -217,7 +209,6 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                 description: docDescription.trim(),
                 doc_type: docType.trim(),
                 doc_date: docDate,
-                modelFiles,
                 imageFiles,
             });
 
@@ -361,7 +352,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                     <p className="text-white/60 text-sm mt-1">
                                         {editingRejectedDoc
                                             ? 'This submission was rejected by Studio Head. Update details, then resubmit from Manage Documentation.'
-                                            : 'Upload model files/images and document BIM updates. Save as draft or submit for review.'}
+                                            : 'Document BIM updates and save as draft or submit for review.'}
                                     </p>
                                 </div>
                                 <form onSubmit={saveDocumentation} className="p-6 space-y-5">
@@ -371,7 +362,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                                 {editingRejectedDoc ? 'Revising Studio Head-rejected documentation' : 'Editing draft documentation'}
                                             </p>
                                             <p className="text-xs text-cyan-200/80 mt-1">
-                                                Existing files remain attached. Save your changes, then use Manage Documentation to submit.
+                                                Save your changes, then use Manage Documentation to submit.
                                             </p>
                                         </div>
                                     )}
@@ -417,21 +408,20 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                             className="w-full rounded-xl border border-white/15 bg-[#00273C]/60 px-3 py-2 text-sm text-white placeholder:text-white/45 outline-none resize-none focus:border-[#FF7120]/50"
                                         />
                                     </div>
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <div className="rounded-xl border border-white/10 bg-[#00273C]/40 p-4">
-                                            <label className="block text-white/70 text-sm font-semibold mb-3">Images / References</label>
-                                            <div className="relative">
-                                                <input
-                                                    type="file"
-                                                    multiple
-                                                    accept="image/*"
-                                                    onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
-                                                    className="block w-full text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-[#FF7120]/20 file:px-3 file:py-2 file:text-[#FF7120] file:cursor-pointer hover:file:bg-[#FF7120]/30"
-                                                />
-                                                {imageFiles.length > 0 && (
-                                                    <p className="text-xs text-emerald-400 mt-2">{imageFiles.length} file(s) selected</p>
-                                                )}
-                                            </div>
+                                    <div className="rounded-xl border border-white/10 bg-[#00273C]/40 p-4">
+                                        <label className="block text-white/70 text-sm font-semibold mb-3">Images / References / Docs</label>
+                                        <div className="relative">
+                                            <input
+                                                type="file"
+                                                multiple
+                                                accept=".pdf,.doc,.docx,image/*"
+                                                onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
+                                                className="block w-full text-sm text-white/70 file:mr-3 file:rounded-lg file:border-0 file:bg-[#FF7120]/20 file:px-3 file:py-2 file:text-[#FF7120] file:cursor-pointer hover:file:bg-[#FF7120]/30"
+                                            />
+                                            {imageFiles.length > 0 && (
+                                                <p className="text-xs text-emerald-400 mt-2">{imageFiles.length} file(s) selected</p>
+                                            )}
+                                            <p className="text-xs text-white/50 mt-2">Accept: Images, PDF, Word files</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 pt-2">

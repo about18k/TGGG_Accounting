@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { ClipboardList, Clock, FolderKanban, LayoutDashboard, User, X } from 'lucide-react';
+import { CalendarDays, ClipboardList, Clock, DollarSign, FolderKanban, User, Users, X } from 'lucide-react';
 
 const PERSONAL_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Clock },
+  { id: 'ceo-calendar', label: 'Calendar', icon: CalendarDays },
 ];
 
 const DOCUMENTATION_LINKS = [
@@ -11,7 +12,9 @@ const DOCUMENTATION_LINKS = [
 ];
 
 const REQUESTS_LINKS = [
-  { id: 'ceo-material-requests', label: 'Material Request', icon: ClipboardList, color: 'text-orange-400' },
+  { id: 'ceo-material-requests', label: 'Material Request', icon: ClipboardList },
+  { id: 'ceo-employees', label: 'Employees', icon: Users },
+  { id: 'ceo-payroll', label: 'Payroll Records', icon: DollarSign },
 ];
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg';

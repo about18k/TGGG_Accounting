@@ -257,6 +257,11 @@ NOTIFICATION_TYPE_CHOICES = [
     ('ot_submitted', 'OT Submitted'),
     ('ot_fully_approved', 'OT Fully Approved'),
     ('calendar_non_work_day', 'Calendar Non-Work Day'),
+    ('bim_submitted_to_sh', 'BIM Submitted To Studio Head'),
+    ('matreq_submitted_to_sh', 'Material Request Submitted To Studio Head'),
+    ('bim_forwarded_to_ceo', 'BIM Forwarded To CEO'),
+    ('matreq_forwarded_to_ceo', 'Material Request Forwarded To CEO'),
+    ('ceo_payroll_processed', 'CEO Payroll Processed'),
 ]
 
 

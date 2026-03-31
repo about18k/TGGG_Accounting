@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, time
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
@@ -54,6 +54,9 @@ EVENT_TYPE_ALIASES = {
     'non working day': 'downtime',
     'non-working day': 'downtime',
 }
+
+AUTO_PM_TIMEOUT_TIME = time(17, 30)
+AUTO_PM_TIMEOUT_NOTE = 'System auto timeout: PM OUT recorded at 5:30 PM because no manual clock out was submitted.'
 
 @api_view(['GET'])
 def attendance_overview(request):
@@ -168,6 +171,10 @@ def _has_approved_overtime_for_day(user, day):
     return False
 
 
+def _is_saturday(day):
+    return day.weekday() == 5
+
+
 def _serialize_leave(leave):
     return {
         'id': leave.id,
@@ -194,7 +201,8 @@ def _serialize_leave(leave):
 
 def _serialize_attendance(record):
     employee = record.employee
-    latest_log = record.logs.order_by('-timestamp').first()
+    # Use prefetched logs instead of querying DB (avoid N+1)
+    latest_log = max(record.logs.all(), key=lambda log: log.timestamp, default=None) if record.logs.exists() else None
     
     # Get attachment URL and filename from the first file in work_doc_file_paths
     attachment_url = None
@@ -362,6 +370,8 @@ def my_leave_requests(request):
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def my_attendance_records(request):
+    _auto_timeout_open_afternoon_sessions(user=request.user)
+
     records = (
         Attendance.objects
         .filter(employee=request.user)
@@ -378,6 +388,8 @@ def all_attendance_records(request):
     if not _can_view_all_attendance(request.user):
         return Response({'error': 'Not authorized to view all attendance records.'}, status=status.HTTP_403_FORBIDDEN)
 
+    _auto_timeout_open_afternoon_sessions()
+
     records = (
         Attendance.objects
         .select_related('employee', 'employee__department')
@@ -391,6 +403,8 @@ def all_attendance_records(request):
 @permission_classes([IsAuthenticated])
 def my_attendance_today(request):
     """Return today's open session for the logged-in user, if any."""
+    _auto_timeout_open_afternoon_sessions(user=request.user)
+
     today = timezone.localdate()
     # Find an open session (clocked in but not clocked out)
     open_record = (
@@ -421,6 +435,43 @@ def _append_notes(record, notes_text: str | None):
     if not notes_text:
         return
     record.notes = f"{record.notes}\n{notes_text}" if record.notes else notes_text
+
+
+def _auto_timeout_open_afternoon_sessions(user=None, now=None):
+    """Auto-close open afternoon sessions at/after 5:30 PM local time."""
+    local_now = timezone.localtime(now) if now else timezone.localtime()
+    if local_now.time() < AUTO_PM_TIMEOUT_TIME:
+        return 0
+
+    today = local_now.date()
+
+    with transaction.atomic():
+        open_sessions = Attendance.objects.select_for_update().filter(
+            date=today,
+            session_type='afternoon',
+            time_in__isnull=False,
+            time_out__isnull=True,
+        )
+
+        if user is not None:
+            open_sessions = open_sessions.filter(employee=user)
+
+        records = list(open_sessions)
+        for record in records:
+            record.time_out = AUTO_PM_TIMEOUT_TIME
+            if record.status in [None, '', 'absent']:
+                record.status = 'present'
+            _append_notes(record, AUTO_PM_TIMEOUT_NOTE)
+            record.save(update_fields=['time_out', 'status', 'notes', 'updated_at'])
+
+            TimeLog.objects.create(
+                employee=record.employee,
+                attendance=record,
+                log_type='time_out',
+                location='system:auto-pm-timeout',
+            )
+
+    return len(records)
 
 
 def _event_blocks_attendance(event_type, is_holiday):
@@ -482,6 +533,8 @@ def clock_in(request):
     now = timezone.localtime()
     today = now.date()
 
+    _auto_timeout_open_afternoon_sessions(user=request.user, now=now)
+
     non_working_event = _get_non_working_event(today)
     if non_working_event:
         return Response(
@@ -502,7 +555,12 @@ def clock_in(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if session == 'overtime' and not _has_approved_overtime_for_day(request.user, today):
+    # Saturday attendance is always categorized as overtime.
+    auto_overtime_saturday = _is_saturday(today)
+    if auto_overtime_saturday:
+        session = 'overtime'
+
+    if session == 'overtime' and not auto_overtime_saturday and not _has_approved_overtime_for_day(request.user, today):
         return Response(
             {
                 'error': (
@@ -582,6 +640,8 @@ def clock_out(request):
     """Record time out for the user's currently open session."""
     now = timezone.localtime()
     today = now.date()
+
+    _auto_timeout_open_afternoon_sessions(user=request.user, now=now)
 
     non_working_event = _get_non_working_event(today)
     if non_working_event:

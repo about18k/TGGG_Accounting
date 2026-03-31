@@ -11,7 +11,7 @@ const PAGE_LINKS = [
   { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo' },
 ];
 
-const PRIORITY_PAGE_LINKS = PAGE_LINKS.filter((item) => item.page === 'overtime' || item.page === 'todo');
+const PRIORITY_PAGE_LINKS = PAGE_LINKS.filter((item) => item.page === 'calendar' || item.page === 'overtime' || item.page === 'todo');
 const SECONDARY_PAGE_LINKS = PAGE_LINKS.filter((item) => item.page === 'documentation');
 
 export default function JuniorDesignerSidebar({

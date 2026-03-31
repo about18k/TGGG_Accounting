@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 from pathlib import Path
+from celery.schedules import crontab
 from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'
@@ -115,6 +116,7 @@ if USE_SUPABASE:
             'CONN_MAX_AGE': config('SUPABASE_CONN_MAX_AGE', default=default_conn_max_age, cast=int),
             'OPTIONS': {
                 'sslmode': config('SUPABASE_DB_SSLMODE', default='require'),
+                'connect_timeout': config('SUPABASE_DB_CONNECT_TIMEOUT', default=8, cast=int),
             },
         }
     }
@@ -175,6 +177,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 50,
 }
 
 # JWT Configuration
@@ -255,4 +259,21 @@ BASE_URL = config('BASE_URL', default='http://localhost:8000')
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Celery Configuration
+CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Manila'
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes hard time limit
+
+CELERY_BEAT_SCHEDULE = {
+    'attendance-auto-timeout-open-pm-sessions': {
+        'task': 'attendance.tasks.auto_timeout_open_afternoon_sessions_task',
+        'schedule': crontab(hour=17, minute=30),
+    },
+}
 

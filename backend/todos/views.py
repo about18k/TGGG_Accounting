@@ -2,10 +2,13 @@
 DRF ViewSets for todos app.
 Thin views layer - routing only, business logic in services.py
 """
+import logging
+
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db import OperationalError
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -23,6 +26,9 @@ from .services import (
     TodoService, GroupService, DepartmentTaskService,
     UserProfileService, NotificationService
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 # ─────────────────────────────────── Profile Endpoints ───────────────────────
@@ -346,26 +352,47 @@ def department_task_abandon(request, task_id):
 @permission_classes([IsAuthenticated])
 def notifications_list(request):
     """List current user's notifications."""
-    notifications = TodoNotification.objects.filter(
-        recipient=request.user
-    ).select_related('actor')[:50]
-    serializer = TodoNotificationSerializer(notifications, many=True)
-    return Response(serializer.data)
+    try:
+        notifications = TodoNotification.objects.filter(
+            recipient=request.user
+        ).select_related('actor')[:50]
+        serializer = TodoNotificationSerializer(notifications, many=True)
+        return Response(serializer.data)
+    except OperationalError as exc:
+        logger.warning('Notification list unavailable due to DB connectivity: %s', exc)
+        return Response(
+            {'error': 'Notification service temporarily unavailable. Please try again.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def notification_mark_read(request, notif_id):
     """Mark single notification as read."""
-    notif = get_object_or_404(TodoNotification, id=notif_id, recipient=request.user)
-    notif.is_read = True
-    notif.save()
-    return Response({'status': 'ok'})
+    try:
+        notif = get_object_or_404(TodoNotification, id=notif_id, recipient=request.user)
+        notif.is_read = True
+        notif.save()
+        return Response({'status': 'ok'})
+    except OperationalError as exc:
+        logger.warning('Notification mark-read unavailable due to DB connectivity: %s', exc)
+        return Response(
+            {'error': 'Notification service temporarily unavailable. Please try again.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def notifications_mark_all_read(request):
     """Mark all notifications as read."""
-    TodoNotification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
-    return Response({'status': 'ok'})
+    try:
+        TodoNotification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+        return Response({'status': 'ok'})
+    except OperationalError as exc:
+        logger.warning('Notification mark-all-read unavailable due to DB connectivity: %s', exc)
+        return Response(
+            {'error': 'Notification service temporarily unavailable. Please try again.'},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
