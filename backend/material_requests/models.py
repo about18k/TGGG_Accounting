@@ -19,6 +19,11 @@ APPROVAL_STATUS_CHOICES = [
     ('rejected', 'Rejected'),
 ]
 
+ACCOUNTING_STATUS_CHOICES = [
+    ('pending_funds', 'Pending Funds'),
+    ('funds_released', 'Funds Released'),
+]
+
 
 class Project(models.Model):
     name = models.CharField(max_length=255)
@@ -101,6 +106,16 @@ class MaterialRequest(models.Model):
     )
     ceo_reviewed_at = models.DateTimeField(null=True, blank=True)
     ceo_comments = models.TextField(blank=True, null=True)
+
+    accounting_notes = models.TextField(blank=True, null=True)
+    accounting_status = models.CharField(
+        max_length=30,
+        choices=ACCOUNTING_STATUS_CHOICES,
+        default='pending_funds',
+    )
+    budget_allocated = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    fund_release_date = models.DateTimeField(null=True, blank=True)
+    accounting_receipt = models.URLField(max_length=500, null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
