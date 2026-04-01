@@ -12,7 +12,7 @@ import WorkDocCard from '../../../components/attendance/WorkDocCard';
 import AttendanceHistoryTable from '../../../components/attendance/AttendanceHistoryTable';
 import useMyAttendance from '../../../hooks/useMyAttendance';
 import { CardSkeleton } from '../../../components/SkeletonLoader';
-import { calcSessionMinutes } from '../../../utils/attendanceFormatters';
+import { calcMinutes, calcSessionMinutes } from '../../../utils/attendanceFormatters';
 
 const SECTION_KEYS = new Set(['attendance']);
 
@@ -52,6 +52,17 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
   }, [location.search]);
 
   const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
+
+  const formatHoursAndMinutes = (decimalHours) => {
+    const numericHours = Number(decimalHours) || 0;
+    const totalMinutes = Math.max(0, Math.round(numericHours * 60));
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+
+    if (hours > 0 && minutes > 0) return `${hours}h and ${minutes} mins`;
+    if (hours > 0) return `${hours}h`;
+    return `${minutes} mins`;
+  };
 
   const monthOptions = useMemo(
     () => [
@@ -107,20 +118,25 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
     let overtimeMinutes = 0;
 
     records.forEach((row) => {
+      const sessionType = String(row?.session_type || '').toLowerCase();
       const isWorkedSession = row?.status === 'present' || row?.status === 'late';
       if (isWorkedSession && row?.date) {
         workedDates.add(row.date);
       }
 
-      const sessionMinutes = calcSessionMinutes(row);
+      const sessionMinutes = calcSessionMinutes({
+        ...row,
+        session_type: sessionType,
+      });
       totalMinutes += sessionMinutes;
 
       if (row?.is_late || row?.status === 'late') {
         totalLate += 1;
       }
 
-      if (row?.session_type === 'overtime') {
-        overtimeMinutes += sessionMinutes;
+      if (sessionType === 'overtime') {
+        const overtimeWorkedMinutes = calcMinutes(row?.time_in, row?.time_out);
+        overtimeMinutes += overtimeWorkedMinutes;
       }
     });
 
@@ -204,10 +220,10 @@ export default function BimSpecialistDashboard({ user, onNavigate }) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-              <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Total Hours</p><p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalHours.toFixed(2)}h</p></div>
+              <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Total Hours</p><p className="mt-1 text-2xl font-semibold text-white">{formatHoursAndMinutes(attendanceTotals.totalHours)}</p></div>
               <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Total Days Worked</p><p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalDaysWorked}</p></div>
               <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Total Late</p><p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalLate}</p></div>
-              <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Total Overtime Worked</p><p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalOvertimeHours.toFixed(2)}h</p></div>
+              <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Total Overtime Worked</p><p className="mt-1 text-2xl font-semibold text-white">{formatHoursAndMinutes(attendanceTotals.totalOvertimeHours)}</p></div>
             </div>
           </div>
         )}
