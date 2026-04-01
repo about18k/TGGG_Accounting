@@ -5,7 +5,9 @@ import {
   CheckCircle2,
   Clock3,
   FileText,
+  FolderOpen,
   Image as ImageIcon,
+  MapPin,
   Package,
   Plus,
   RefreshCcw,
@@ -106,6 +108,20 @@ const MaterialRequest = ({ user }) => {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
 
+  // ── Project state ────────────────────────────────────────
+  const [projects, setProjects] = useState([]);
+  const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [approvedRequests, setApprovedRequests] = useState([]);
+  const [loadingApproved, setLoadingApproved] = useState(false);
+  const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
+  const [projectForm, setProjectForm] = useState({
+    name: '',
+    date_started: new Date().toISOString().split('T')[0],
+    location: '',
+  });
+  const [savingProject, setSavingProject] = useState(false);
+  const [selectedProjectForRequest, setSelectedProjectForRequest] = useState(null);
+
   const counts = useMemo(() => {
     return requests.reduce((acc, request) => {
       const stage = getRequestStage(request);
@@ -167,6 +183,66 @@ const MaterialRequest = ({ user }) => {
       setLoading(false);
     }
   };
+
+  // ── Project helpers ──────────────────────────────────────
+  const fetchProjects = async () => {
+    const result = await materialRequestService.getProjects();
+    if (result.success) {
+      const fetched = Array.isArray(result.data) ? result.data : (result.data?.results || []);
+      setProjects(fetched);
+    } else {
+      toast.error(result.error);
+    }
+  };
+
+  const fetchApprovedRequests = async (projectId) => {
+    setLoadingApproved(true);
+    const result = await materialRequestService.getProjectApprovedRequests(projectId);
+    if (result.success) {
+      setApprovedRequests(Array.isArray(result.data) ? result.data : []);
+    } else {
+      toast.error(result.error);
+      setApprovedRequests([]);
+    }
+    setLoadingApproved(false);
+  };
+
+  const handleCreateProject = async () => {
+    if (!projectForm.name.trim()) {
+      toast.error('Project name is required.');
+      return;
+    }
+    if (!projectForm.date_started) {
+      toast.error('Date started is required.');
+      return;
+    }
+    if (!projectForm.location.trim()) {
+      toast.error('Location is required.');
+      return;
+    }
+    setSavingProject(true);
+    const result = await materialRequestService.createProject(projectForm);
+    if (result.success) {
+      toast.success(`Project "${result.data.name}" created.`);
+      setProjects((prev) => [result.data, ...prev]);
+      setProjectForm({ name: '', date_started: new Date().toISOString().split('T')[0], location: '' });
+      setShowCreateProjectModal(false);
+      // Also set as selected project for new mat req
+      setSelectedProjectForRequest(result.data);
+    } else {
+      toast.error(result.error);
+    }
+    setSavingProject(false);
+  };
+
+  const selectProject = (project) => {
+    setSelectedProjectId(project.id);
+    fetchApprovedRequests(project.id);
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, [user?.id]);
 
   const resetForm = () => {
     setFormData(DEFAULT_FORM);
@@ -292,7 +368,8 @@ const MaterialRequest = ({ user }) => {
 
   const buildPayload = () => {
     const payload = new FormData();
-    payload.append('project_name', formData.projectName.trim());
+    payload.append('project_name', selectedProjectForRequest.name);
+    payload.append('project', selectedProjectForRequest.id);
     payload.append('request_date', formData.requestDate);
     payload.append('required_date', formData.requiredDate);
     payload.append('priority', formData.priority);
@@ -327,7 +404,8 @@ const MaterialRequest = ({ user }) => {
     // If we have an image, we MUST use FormData
     if (uploadedImage) {
       const fd = new FormData();
-      fd.append('project_name', formData.projectName.trim());
+      fd.append('project_name', selectedProjectForRequest.name);
+      fd.append('project', selectedProjectForRequest.id);
       fd.append('request_date', formData.requestDate);
       fd.append('required_date', formData.requiredDate);
       fd.append('priority', formData.priority);
@@ -353,7 +431,8 @@ const MaterialRequest = ({ user }) => {
 
     // Default JSON payload
     const data = {
-      project_name: formData.projectName.trim(),
+      project_name: selectedProjectForRequest.name,
+      project: selectedProjectForRequest.id,
       request_date: formData.requestDate,
       required_date: formData.requiredDate,
       priority: formData.priority,
@@ -372,6 +451,10 @@ const MaterialRequest = ({ user }) => {
       })),
     };
 
+    if (selectedProjectForRequest) {
+      data.project = selectedProjectForRequest.id;
+    }
+
     // If we are editing and the image was removed (preview cleared), 
     // explicitly tell the backend to clear the image field.
     if (editingRequestId && !imagePreview) {
@@ -382,8 +465,8 @@ const MaterialRequest = ({ user }) => {
   };
 
   const validateBeforeSave = () => {
-    if (!formData.projectName.trim()) {
-      toast.error('Project name is required.');
+    if (!selectedProjectForRequest) {
+      toast.error('Please select a project.');
       return false;
     }
 
@@ -617,6 +700,16 @@ const MaterialRequest = ({ user }) => {
           >
             Manage Requests
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('projects')}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${activeTab === 'projects' ? 'bg-[#FF7120] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+          >
+            <span className="inline-flex items-center gap-1.5">
+              <FolderOpen className="h-4 w-4" />
+              Projects
+            </span>
+          </button>
         </div>
       </div>
 
@@ -635,15 +728,21 @@ const MaterialRequest = ({ user }) => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-white font-medium mb-2">Project Name</label>
-              <input
-                type="text"
+              <label className="block text-white font-medium mb-2">Project</label>
+              <select
                 required
-                value={formData.projectName}
-                onChange={(event) => setFormData((current) => ({ ...current, projectName: event.target.value }))}
-                className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/50"
-                placeholder="Enter project name"
-              />
+                value={selectedProjectForRequest?.id || ''}
+                onChange={(event) => {
+                  const proj = projects.find((p) => p.id === Number(event.target.value));
+                  setSelectedProjectForRequest(proj || null);
+                }}
+                className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-[#FF7120]/50"
+              >
+                <option value="" className="bg-[#002a45] text-white/40">Select a project...</option>
+                {projects.map((proj) => (
+                  <option key={proj.id} value={proj.id} className="bg-[#002a45] text-white">{proj.name}</option>
+                ))}
+              </select>
             </div>
 
             <div>
@@ -997,12 +1096,6 @@ const MaterialRequest = ({ user }) => {
                       </div>
                     )}
 
-                    {request.ceo_comments && (
-                      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-emerald-200/70">CEO Note</p>
-                        <p className="text-sm text-emerald-100 mt-1">{request.ceo_comments}</p>
-                      </div>
-                    )}
 
                     <div className="flex flex-wrap items-center gap-3 pt-1">
                       {canEdit && (
@@ -1101,6 +1194,222 @@ const MaterialRequest = ({ user }) => {
         request={selectedRequestForModal}
         userRole={user?.role}
       />
+
+      {/* ── Projects Tab ────────────────────────────────────── */}
+      {activeTab === 'projects' && (
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-lg font-semibold text-white">Your Projects</h2>
+              <p className="text-sm text-white/50 mt-1">Select a project to view its approved material requests.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCreateProjectModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-xl text-sm font-medium hover:brightness-95 transition"
+            >
+              <Plus className="h-4 w-4" />
+              New Project
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left – project list */}
+            <div className="lg:col-span-1 space-y-3 max-h-[75vh] overflow-y-auto pr-1">
+              {projects.length === 0 && (
+                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-8 text-center">
+                  <FolderOpen className="h-8 w-8 text-white/25 mx-auto mb-3" />
+                  <p className="text-white/60 text-sm">No projects yet. Create one to get started.</p>
+                </div>
+              )}
+              {projects.map((proj) => (
+                <button
+                  key={proj.id}
+                  type="button"
+                  onClick={() => selectProject(proj)}
+                  className={`w-full rounded-2xl border p-4 text-left transition ${
+                    selectedProjectId === proj.id
+                      ? 'border-[#FF7120]/50 bg-[#FF7120]/10 shadow-[0_0_24px_rgba(255,113,32,0.12)]'
+                      : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]'
+                  }`}
+                >
+                  <p className="text-sm font-semibold text-white truncate">{proj.name}</p>
+                  <div className="mt-2 grid gap-1.5 text-xs text-white/55">
+                    <div className="inline-flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span className="truncate">{proj.location}</span>
+                    </div>
+                    <div className="inline-flex items-center gap-2">
+                      <Clock3 className="h-3.5 w-3.5 shrink-0" />
+                      <span>Started {new Date(proj.date_started).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                    </div>
+                  </div>
+                  <div className="mt-3 flex items-center gap-3">
+                    <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70 border border-white/10">
+                      {proj.material_request_count || 0} request(s)
+                    </span>
+                    <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-200 border border-emerald-500/20">
+                      {proj.approved_request_count || 0} approved
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Right – approved requests for selected project */}
+            <div className="lg:col-span-2">
+              <div className={`${cardClass} h-full p-6`}>
+                {!selectedProjectId && (
+                  <div className="h-full min-h-[300px] grid place-items-center text-center">
+                    <div>
+                      <Package className="mx-auto h-9 w-9 text-white/25" />
+                      <p className="mt-3 text-white/70">Select a project to view approved material requests.</p>
+                    </div>
+                  </div>
+                )}
+
+                {selectedProjectId && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Approved Requests</p>
+                        <h3 className="mt-1 text-xl font-semibold text-white">
+                          {projects.find((p) => p.id === selectedProjectId)?.name || 'Project'}
+                        </h3>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-200">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        {approvedRequests.length} approved
+                      </span>
+                    </div>
+
+                    {loadingApproved && (
+                      <p className="text-center text-white/60 py-8">Loading approved requests...</p>
+                    )}
+
+                    {!loadingApproved && approvedRequests.length === 0 && (
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] p-8 text-center">
+                        <CheckCircle2 className="h-8 w-8 text-white/25 mx-auto mb-3" />
+                        <p className="text-white/60 text-sm">No approved material requests for this project yet.</p>
+                      </div>
+                    )}
+
+                    {!loadingApproved && approvedRequests.length > 0 && (
+                      <div className="space-y-3">
+                        {approvedRequests.map((req) => (
+                          <div
+                            key={req.id}
+                            className="rounded-2xl border border-white/10 bg-[#00273C]/45 p-4 space-y-3 cursor-pointer hover:border-white/20 transition"
+                            onClick={() => {
+                              setSelectedRequestForModal(req);
+                              setIsFormModalOpen(true);
+                            }}
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <h4 className="text-base font-semibold text-white">{req.project_name}</h4>
+                                <p className="text-xs text-white/50 mt-1">
+                                  Approved {req.ceo_reviewed_at ? new Date(req.ceo_reviewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
+                                </p>
+                              </div>
+                              <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-200 border-emerald-500/20">
+                                Approved
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
+                                <p className="text-white/45 text-xs">Priority</p>
+                                <p className="text-white mt-0.5 capitalize">{req.priority}</p>
+                              </div>
+                              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
+                                <p className="text-white/45 text-xs">Items</p>
+                                <p className="text-white mt-0.5">{req.item_count || req.items?.length || 0} item(s)</p>
+                              </div>
+                              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
+                                <p className="text-white/45 text-xs">Requested By</p>
+                                <p className="text-white mt-0.5 truncate">{req.created_by_name || req.created_by_email || '-'}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Create Project Modal ─────────────────────────────── */}
+      {showCreateProjectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className={`${cardClass} w-full max-w-lg mx-4 p-6 space-y-5`}>
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-white">Create New Project</h2>
+              <button
+                type="button"
+                onClick={() => setShowCreateProjectModal(false)}
+                className="text-white/60 hover:text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-white font-medium mb-2">Project Name</label>
+                <input
+                  type="text"
+                  value={projectForm.name}
+                  onChange={(e) => setProjectForm((prev) => ({ ...prev, name: e.target.value }))}
+                  className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/50"
+                  placeholder="e.g. Warehouse Expansion Phase 2"
+                />
+              </div>
+              <div>
+                <label className="block text-white font-medium mb-2">Date Started</label>
+                <input
+                  type="date"
+                  value={projectForm.date_started}
+                  onChange={(e) => setProjectForm((prev) => ({ ...prev, date_started: e.target.value }))}
+                  className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-[#FF7120]/50"
+                />
+              </div>
+              <div>
+                <label className="block text-white font-medium mb-2">Location</label>
+                <input
+                  type="text"
+                  value={projectForm.location}
+                  onChange={(e) => setProjectForm((prev) => ({ ...prev, location: e.target.value }))}
+                  className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-3 text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/50"
+                  placeholder="e.g. North Yard, Building A"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowCreateProjectModal(false)}
+                className="px-5 py-2.5 border border-white/20 text-white rounded-xl font-medium hover:bg-white/10 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreateProject}
+                disabled={savingProject}
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF7120] text-white rounded-xl font-medium hover:brightness-95 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Plus className="h-4 w-4" />
+                {savingProject ? 'Creating...' : 'Create Project'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -132,6 +132,69 @@ const materialRequestService = {
       };
     }
   },
+
+
+
+  // ── Projects ──────────────────────────────────────────────
+  getProjects: async () => {
+    try {
+      const response = await api.get('/material-requests/projects/');
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to fetch projects'),
+      };
+    }
+  },
+
+  createProject: async (payload) => {
+    try {
+      const response = await api.post('/material-requests/projects/', payload);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to create project'),
+      };
+    }
+  },
+
+  updateProject: async (id, payload) => {
+    try {
+      const response = await api.patch(`/material-requests/projects/${id}/`, payload);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to update project'),
+      };
+    }
+  },
+
+  deleteProject: async (id) => {
+    try {
+      await api.delete(`/material-requests/projects/${id}/`);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to delete project'),
+      };
+    }
+  },
+
+  getProjectApprovedRequests: async (projectId) => {
+    try {
+      const response = await api.get(`/material-requests/projects/${projectId}/approved-requests/`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to fetch approved requests for project'),
+      };
+    }
+  },
 };
 
 export default materialRequestService;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import materialRequestService from '../services/materialRequestService';
 
 const ROLE_STYLE = {
@@ -170,18 +171,32 @@ const MaterialRequestCommentThread = ({ requestId }) => {
         setPosting(false);
     };
 
+    const [isOpen, setIsOpen] = useState(false);
+
     return (
         <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                💬 Discussion Thread
+            <button
+                type="button"
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-2 text-sm font-semibold text-white/70 hover:text-white transition-colors group"
+            >
+                <MessageSquare className="h-4 w-4 text-[#FF7120]" />
+                <span>Discussion Thread</span>
                 {comments.length > 0 && (
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/60">
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/60">
                         {comments.length}
                     </span>
                 )}
-            </h3>
+                {isOpen ? (
+                    <ChevronUp className="h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity ml-1" />
+                ) : (
+                    <ChevronDown className="h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity ml-1" />
+                )}
+            </button>
 
-            <div className="flex gap-2">
+            {isOpen && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 pt-2 border-t border-white/5">
+                    <div className="flex gap-2">
                 <input
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
@@ -218,6 +233,8 @@ const MaterialRequestCommentThread = ({ requestId }) => {
                     />
                 ))}
             </div>
+                </div>
+            )}
         </div>
     );
 };

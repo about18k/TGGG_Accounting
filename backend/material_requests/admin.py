@@ -1,6 +1,13 @@
 from django.contrib import admin
 
-from .models import MaterialRequest, MaterialRequestItem
+from .models import MaterialRequest, MaterialRequestItem, Project
+
+
+@admin.register(Project)
+class ProjectAdmin(admin.ModelAdmin):
+    list_display = ('name', 'created_by', 'date_started', 'location', 'created_at')
+    list_filter = ('date_started', 'created_at')
+    search_fields = ('name', 'location', 'created_by__email')
 
 
 class MaterialRequestItemInline(admin.TabularInline):

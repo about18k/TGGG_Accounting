@@ -20,7 +20,37 @@ APPROVAL_STATUS_CHOICES = [
 ]
 
 
+class Project(models.Model):
+    name = models.CharField(max_length=255)
+    date_started = models.DateField()
+    location = models.CharField(max_length=255)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='created_projects',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['created_by']),
+            models.Index(fields=['-created_at']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class MaterialRequest(models.Model):
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='material_requests',
+    )
     project_name = models.CharField(max_length=255)
     request_date = models.DateField()
     required_date = models.DateField()
@@ -117,6 +147,8 @@ class MaterialRequest(models.Model):
             content=f"CEO Decision: Approved. Note: {comments}" if comments else "CEO Decision: Approved.",
             is_system_comment=True
         )
+
+
 
     def reject(self, user, reason, is_studio_head=False):
         if is_studio_head:

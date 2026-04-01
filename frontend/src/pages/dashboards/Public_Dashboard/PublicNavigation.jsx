@@ -487,7 +487,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                           {
                             title: 'Management',
                             items: [
-                              { id: 'ceo-material-requests', label: 'Material Requests', icon: ClipboardList, path: 'ceo-material-requests' },
+                              { id: 'ceo-material-requests', label: 'Material Request', icon: ClipboardList, path: 'ceo-material-requests' },
                             ]
                           }
                         ];

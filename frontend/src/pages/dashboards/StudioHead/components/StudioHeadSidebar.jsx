@@ -9,7 +9,7 @@ const PRIMARY_LINKS = [
 const DOCUMENTATION_LINKS = [
   { id: 'bim-docs', label: 'BIM Documentation', icon: FolderKanban, page: 'studio-head-bim-docs' },
   { id: 'junior-architect-docs', label: 'Junior Architect Docs', icon: User, page: 'studio-head-junior-docs' },
-  { id: 'material-requests', label: 'Material Requests', icon: ClipboardList, page: 'studio-head-material-requests' },
+  { id: 'material-requests', label: 'Material request & expenses', icon: ClipboardList, page: 'studio-head-material-requests' },
 ];
 
 const DASHBOARD_LINKS = [
@@ -39,8 +39,8 @@ export default function StudioHeadSidebar({
           : "text-white/70 hover:text-white hover:bg-white/5"
           }`}
       >
-        <Icon className="h-5 w-5" />
-        <span className="font-medium">{item.label}</span>
+        <Icon className="h-5 w-5 shrink-0" />
+        <span className="font-medium text-left leading-snug">{item.label}</span>
       </button>
     );
   };

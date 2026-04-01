@@ -9,11 +9,12 @@ from rest_framework.response import Response
 
 from accounts.models import CustomUser
 from todos.services import NotificationService
-from .models import MaterialRequest, MaterialRequestComment
+from .models import MaterialRequest, MaterialRequestComment, Project
 from .serializers import (
     MaterialRequestApprovalSerializer,
     MaterialRequestSerializer,
-    MaterialRequestCommentSerializer
+    MaterialRequestCommentSerializer,
+    ProjectSerializer,
 )
 from bim_documentation.tasks import upload_material_request_file_async
 
@@ -391,6 +392,8 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             status=status.HTTP_403_FORBIDDEN,
         )
 
+
+
     @action(detail=True, methods=['get', 'post'], url_path='comments')
     def comments(self, request, pk=None):
         """
@@ -442,3 +445,63 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         )
         serializer = MaterialRequestCommentSerializer(comment)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ProjectViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = ProjectSerializer
+    creator_roles = ['site_engineer', 'site_coordinator']
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role in self.creator_roles:
+            # See their own projects
+            return Project.objects.filter(created_by=user).select_related('created_by')
+        elif user.role in ['studio_head', 'ceo', 'president', 'accounting', 'admin']:
+            # See all projects that have at least one submitted mat req
+            return Project.objects.filter(
+                material_requests__status__in=['pending_review', 'approved', 'rejected']
+            ).distinct().select_related('created_by')
+        return Project.objects.none()
+
+    def create(self, request, *args, **kwargs):
+        if request.user.role not in self.creator_roles:
+            return Response(
+                {'error': 'Only Site Engineers and Site Coordinators can create projects.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        project = self.get_object()
+        if project.created_by != request.user:
+            return Response(
+                {'error': 'You can only edit your own projects.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        project = self.get_object()
+        if project.created_by != request.user:
+            return Response(
+                {'error': 'You can only delete your own projects.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=['get'], url_path='approved-requests')
+    def approved_requests(self, request, pk=None):
+        """Return approved material requests for this project."""
+        project = self.get_object()
+        approved = MaterialRequest.objects.filter(
+            project=project,
+            status='approved',
+        ).select_related(
+            'created_by',
+            'reviewed_by_studio_head',
+            'reviewed_by_ceo',
+        ).prefetch_related('items')
+        serializer = MaterialRequestSerializer(approved, many=True, context={'request': request})
+        return Response(serializer.data)

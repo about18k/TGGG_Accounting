@@ -1,7 +1,44 @@
 from rest_framework import serializers
 
-from .models import MaterialRequest, MaterialRequestItem, MaterialRequestComment
+from .models import MaterialRequest, MaterialRequestItem, MaterialRequestComment, Project
 
+
+class ProjectSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
+    material_request_count = serializers.SerializerMethodField()
+    approved_request_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Project
+        fields = [
+            'id',
+            'name',
+            'date_started',
+            'location',
+            'created_by',
+            'created_by_name',
+            'created_at',
+            'updated_at',
+            'material_request_count',
+            'approved_request_count',
+        ]
+        read_only_fields = ['id', 'created_by', 'created_by_name', 'created_at', 'updated_at']
+
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            name = obj.created_by.get_full_name()
+            return name if name.strip() else obj.created_by.email
+        return None
+
+    def get_material_request_count(self, obj):
+        return obj.material_requests.count()
+
+    def get_approved_request_count(self, obj):
+        return obj.material_requests.filter(status='approved').count()
+
+    def create(self, validated_data):
+        validated_data['created_by'] = self.context['request'].user
+        return super().create(validated_data)
 
 class MaterialRequestItemSerializer(serializers.ModelSerializer):
     class Meta:
@@ -31,12 +68,15 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
     reviewed_by_studio_head_signature = serializers.SerializerMethodField()
     reviewed_by_ceo_signature = serializers.SerializerMethodField()
     item_count = serializers.SerializerMethodField()
+    project_name_display = serializers.CharField(source='project.name', read_only=True, default=None)
 
     class Meta:
         model = MaterialRequest
         fields = [
             'id',
+            'project',
             'project_name',
+            'project_name_display',
             'request_date',
             'required_date',
             'priority',
@@ -156,6 +196,10 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
         request_user = self.context['request'].user
         validated_data['created_by'] = request_user
         validated_data['requester_role'] = request_user.role
+        # Auto-populate project_name from project if linked
+        project = validated_data.get('project')
+        if project and not validated_data.get('project_name'):
+            validated_data['project_name'] = project.name
         material_request = MaterialRequest.objects.create(**validated_data)
         self._replace_items(material_request, items_data)
         return material_request

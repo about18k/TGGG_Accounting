@@ -10,7 +10,7 @@ const PERSONAL_LINKS = [
 const DEPARTMENT_LINKS = [
   { id: 'employees', label: 'Employees', icon: Users },
   { id: 'payroll', label: 'Payroll', icon: DollarSign },
-  { id: 'material_requests', label: 'Material Requests', icon: Package, page: 'material-requests' },
+  { id: 'material_requests', label: 'Material request & expenses', icon: Package, page: 'material-requests' },
 ];
 
 const MANAGEMENT_LINKS = [
@@ -58,8 +58,8 @@ export default function AccountingSidebar({
             : 'text-white/70 hover:bg-white/5 hover:text-white'
         }`}
       >
-        <Icon className="h-5 w-5" />
-        <span className="font-medium text-left flex-1">{item.label}</span>
+        <Icon className="h-5 w-5 shrink-0" />
+        <span className="font-medium text-left flex-1 leading-snug">{item.label}</span>
       </button>
     );
   };

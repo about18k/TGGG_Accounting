@@ -12,7 +12,7 @@ const DOCUMENTATION_LINKS = [
 ];
 
 const REQUESTS_LINKS = [
-  { id: 'ceo-material-requests', label: 'Material Requests', icon: ClipboardList },
+  { id: 'ceo-material-requests', label: 'Material request & expenses', icon: ClipboardList },
   { id: 'ceo-employees', label: 'Employees', icon: Users },
   { id: 'ceo-payroll', label: 'Payroll Records', icon: DollarSign },
 ];
@@ -73,20 +73,15 @@ export default function CeoSidebar({
           isActive ? 'bg-[#FF7120] text-white' : 'text-white/70 hover:text-white hover:bg-white/5'
         }`}
       >
-        <Icon className="h-5 w-5" />
-        <span className="font-medium">{item.label}</span>
+        <Icon className="h-5 w-5 shrink-0" />
+        <span className="font-medium text-left leading-snug">{item.label}</span>
       </button>
     );
   };
 
   const renderSidebarContent = (isMobile = false) => (
     <>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.14em] text-white/40">Executive</p>
-          <p className="text-white font-semibold text-sm">Command Center</p>
-        </div>
-
+      <div className="mb-2 flex items-center justify-end gap-3">
         {isMobile && (
           <button
             type="button"
