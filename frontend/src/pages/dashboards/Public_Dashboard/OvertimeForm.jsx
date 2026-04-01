@@ -124,10 +124,10 @@ function OvertimeForm({ token }) {
     const now = new Date();
     const nowMinutes = now.getHours() * 60 + now.getMinutes();
     const cutoffMinutes = 15 * 60;
-    const hasSameDayPeriod = periods.some(period =>
-      period.start_date === todayIso && period.end_date === todayIso
+    const hasTodayPeriod = periods.some(period =>
+      period.start_date === todayIso || period.end_date === todayIso
     );
-    if (hasSameDayPeriod && nowMinutes >= cutoffMinutes) {
+    if (hasTodayPeriod && nowMinutes >= cutoffMinutes) {
       return 'Same-day OT requests must be submitted before 3:00 PM.';
     }
     const hasAnyPeriod = periods.some(period => period.start_date || period.end_date || period.start_time || period.end_time);
@@ -310,6 +310,8 @@ function OvertimeForm({ token }) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     updateFormField('employee_signature', '');
   };
+
+  const validationError = validateForm();
 
   return (
     <div className="dashboard" style={{ overflowX: 'hidden' }}>
@@ -599,20 +601,23 @@ function OvertimeForm({ token }) {
               </div>
 
               <div className="overtime-submit">
+                {validationError ? (
+                  <p className="text-sm text-amber-300 mb-2">{validationError}</p>
+                ) : null}
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || Boolean(validationError)}
                   style={{
                     transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e) => {
-                    if (!saving) {
+                    if (!saving && !validationError) {
                       e.currentTarget.style.transform = 'translateY(-1px)';
                       e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!saving) {
+                    if (!saving && !validationError) {
                       e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.boxShadow = 'none';
                     }

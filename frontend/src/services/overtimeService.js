@@ -49,3 +49,10 @@ export async function approveOvertime(id, payload) {
     invalidateRequestCache(OVERTIME_CACHE_PREFIX.all);
     return data;
 }
+
+export async function removeOvertime(id) {
+    const { data } = await api.delete(`/overtime/${id}`);
+    invalidateRequestCache(OVERTIME_CACHE_PREFIX.my);
+    invalidateRequestCache(OVERTIME_CACHE_PREFIX.all);
+    return data;
+}

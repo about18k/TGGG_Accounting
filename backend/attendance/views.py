@@ -1,4 +1,4 @@
-from datetime import date, time
+from datetime import date, time, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
@@ -121,6 +121,91 @@ def _has_text(value):
 
 def _is_overtime_fully_approved(overtime_request):
     return _has_text(overtime_request.management_signature)
+
+
+def _overtime_request_last_valid_day(overtime_request):
+    periods = overtime_request.periods if isinstance(overtime_request.periods, list) else []
+
+    valid_end_days = []
+    for period in periods:
+        if not isinstance(period, dict):
+            continue
+        end_raw = period.get('end_date')
+        if not end_raw:
+            continue
+        try:
+            valid_end_days.append(date.fromisoformat(str(end_raw)))
+        except ValueError:
+            continue
+
+    if valid_end_days:
+        return max(valid_end_days)
+
+    return overtime_request.date_completed
+
+
+def _is_overtime_request_expired(overtime_request, today=None):
+    comparison_day = today or timezone.localdate()
+    last_valid_day = _overtime_request_last_valid_day(overtime_request)
+    return comparison_day > last_valid_day
+
+
+def _overtime_request_target_days(overtime_request):
+    periods = overtime_request.periods if isinstance(overtime_request.periods, list) else []
+    target_days = set()
+
+    for period in periods:
+        if not isinstance(period, dict):
+            continue
+
+        start_raw = period.get('start_date')
+        end_raw = period.get('end_date')
+        if not start_raw or not end_raw:
+            continue
+
+        try:
+            start_day = date.fromisoformat(str(start_raw))
+            end_day = date.fromisoformat(str(end_raw))
+        except ValueError:
+            continue
+
+        if end_day < start_day:
+            continue
+
+        current = start_day
+        while current <= end_day:
+            target_days.add(current)
+            current = current + timedelta(days=1)
+
+    if not target_days:
+        target_days.add(overtime_request.date_completed)
+
+    return target_days
+
+
+def _overtime_request_completion_info(overtime_request):
+    if not _is_overtime_fully_approved(overtime_request):
+        return {
+            'is_completed': False,
+            'completed_overtime_days': 0,
+        }
+
+    target_days = _overtime_request_target_days(overtime_request)
+
+    completed_days = set(
+        Attendance.objects.filter(
+            employee=overtime_request.employee,
+            session_type='overtime',
+            date__in=target_days,
+            time_in__isnull=False,
+            time_out__isnull=False,
+        ).values_list('date', flat=True)
+    )
+
+    return {
+        'is_completed': len(completed_days) > 0,
+        'completed_overtime_days': len(completed_days),
+    }
 
 
 def _approval_signature_for(user):
@@ -294,6 +379,9 @@ def _serialize_overtime_request(request_obj):
     supervisor_confirmed = _has_text(request_obj.supervisor_signature)
     management_confirmed = _has_text(request_obj.management_signature)
     fully_approved = _is_overtime_fully_approved(request_obj)
+    valid_until = _overtime_request_last_valid_day(request_obj)
+    is_expired = _is_overtime_request_expired(request_obj)
+    completion_info = _overtime_request_completion_info(request_obj)
 
     return {
         'id': request_obj.id,
@@ -311,6 +399,10 @@ def _serialize_overtime_request(request_obj):
         'supervisor_confirmed': supervisor_confirmed,
         'management_confirmed': management_confirmed,
         'is_fully_approved': fully_approved,
+        'is_expired': is_expired,
+        'valid_until': valid_until,
+        'is_completed': completion_info['is_completed'],
+        'completed_overtime_days': completion_info['completed_overtime_days'],
         'approval_date': request_obj.approval_date,
         'periods': request_obj.periods or [],
         'created_at': request_obj.created_at,
@@ -870,6 +962,12 @@ def approve_overtime_request(request, request_id):
     if not overtime_request:
         return Response({'error': 'Overtime request not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+    if _is_overtime_request_expired(overtime_request) and not _is_overtime_fully_approved(overtime_request):
+        return Response(
+            {'error': 'This OT request has expired and can no longer be confirmed.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     request_data = request.data or {}
     was_fully_approved = _is_overtime_fully_approved(overtime_request)
     wants_supervisor = 'supervisor_signature' in request_data
@@ -927,6 +1025,26 @@ def approve_overtime_request(request, request_id):
             print(f"⚠️ Overtime approval notification failed for request_id={overtime_request.id}: {e}")
 
     return Response(_serialize_overtime_request(overtime_request))
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_overtime_request(request, request_id):
+    if not _can_review_overtime(request.user):
+        return Response({'error': 'Not authorized to remove overtime requests.'}, status=status.HTTP_403_FORBIDDEN)
+
+    overtime_request = OvertimeRequest.objects.filter(id=request_id).first()
+    if not overtime_request:
+        return Response({'error': 'Overtime request not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if _has_text(overtime_request.management_signature):
+        return Response(
+            {'error': 'Confirmed overtime requests cannot be removed.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    overtime_request.delete()
+    return Response({'message': 'Overtime request removed.'}, status=status.HTTP_200_OK)
 
 
 # ============================================================================

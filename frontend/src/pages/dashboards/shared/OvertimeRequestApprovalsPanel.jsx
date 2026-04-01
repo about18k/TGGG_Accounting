@@ -1,24 +1,57 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, Search, UserRound } from 'lucide-react';
-import { approveOvertime, getAllOvertime } from '../../../services/overtimeService';
+import { approveOvertime, getAllOvertime, removeOvertime } from '../../../services/overtimeService';
 
 const REVIEWER_CONFIG = {
   accounting: {
     field: 'management_signature',
     label: 'Accounting',
-    actionLabel: 'Confirm as Accounting',
+    actionLabel: 'Confirm',
   },
 };
 
 const hasSignature = (value) => Boolean(String(value || '').trim());
 
+const parseIsoDate = (value) => {
+  if (!value) return null;
+  const dt = new Date(`${value}T00:00:00`);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+};
+
+const isRequestExpired = (requestItem) => {
+  if (!requestItem || hasSignature(requestItem.management_signature)) return false;
+
+  if (requestItem.is_expired === true) return true;
+
+  const validUntil = parseIsoDate(requestItem.valid_until);
+  if (!validUntil) return false;
+
+  const today = new Date();
+  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return todayOnly > validUntil;
+};
+
 const toDisplayStatus = (requestItem) => {
   const managementApproved = hasSignature(requestItem.management_signature);
+
+  if (managementApproved && requestItem.is_completed) {
+    return {
+      label: 'Completed',
+      tone: 'bg-sky-500/15 text-sky-300 border-sky-400/30',
+    };
+  }
 
   if (managementApproved) {
     return {
       label: 'Approved',
       tone: 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30',
+    };
+  }
+
+  if (isRequestExpired(requestItem)) {
+    return {
+      label: 'Expired',
+      tone: 'bg-rose-500/15 text-rose-300 border-rose-400/30',
     };
   }
 
@@ -37,6 +70,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
   const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState(null);
   const [savingId, setSavingId] = useState(null);
+  const [removeTarget, setRemoveTarget] = useState(null);
 
   const loadRequests = async () => {
     setLoading(true);
@@ -69,9 +103,10 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
 
   const stats = useMemo(() => {
     const total = filteredRequests.length;
-    const approved = filteredRequests.filter((requestItem) => toDisplayStatus(requestItem).label === 'Approved').length;
+    const approved = filteredRequests.filter((requestItem) => hasSignature(requestItem[reviewer.field])).length;
+    const completed = filteredRequests.filter((requestItem) => Boolean(requestItem.is_completed)).length;
     const pendingMine = filteredRequests.filter((requestItem) => !hasSignature(requestItem[reviewer.field])).length;
-    return { total, approved, pendingMine };
+    return { total, approved, completed, pendingMine };
   }, [filteredRequests, reviewer.field]);
 
   const selectedRequest = useMemo(
@@ -80,7 +115,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
   );
 
   const onConfirm = async (requestItem) => {
-    if (!requestItem || hasSignature(requestItem[reviewer.field])) {
+    if (!requestItem || hasSignature(requestItem[reviewer.field]) || isRequestExpired(requestItem)) {
       return;
     }
 
@@ -95,6 +130,32 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
       setSelectedId((previous) => (previous === requestItem.id ? requestItem.id : previous));
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to confirm OT request.');
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  const onRemove = async (requestItem) => {
+    if (!requestItem || hasSignature(requestItem[reviewer.field])) {
+      return;
+    }
+
+    setRemoveTarget(requestItem);
+  };
+
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+
+    setSavingId(removeTarget.id);
+    setError('');
+
+    try {
+      await removeOvertime(removeTarget.id);
+      setRequests((previous) => previous.filter((item) => item.id !== removeTarget.id));
+      setSelectedId((previous) => (previous === removeTarget.id ? null : previous));
+      setRemoveTarget(null);
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to remove OT request.');
     } finally {
       setSavingId(null);
     }
@@ -124,8 +185,9 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
           <p className="text-2xl font-semibold text-white mt-1">{stats.total}</p>
         </div>
         <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4">
-          <p className="text-xs uppercase tracking-wide text-emerald-200/70">Fully Approved</p>
+          <p className="text-xs uppercase tracking-wide text-emerald-200/70">Approved by Accounting</p>
           <p className="text-2xl font-semibold text-emerald-200 mt-1">{stats.approved}</p>
+          <p className="text-xs text-emerald-200/70 mt-1">Completed: {stats.completed}</p>
         </div>
         <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-4">
           <p className="text-xs uppercase tracking-wide text-amber-200/70">Needs {reviewer.label} Confirmation</p>
@@ -174,6 +236,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
               filteredRequests.map((requestItem) => {
                 const status = toDisplayStatus(requestItem);
                 const alreadyConfirmed = hasSignature(requestItem[reviewer.field]);
+                const isExpired = isRequestExpired(requestItem);
                 return (
                   <tr
                     key={requestItem.id}
@@ -204,19 +267,35 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <button
-                        type="button"
-                        disabled={alreadyConfirmed || savingId === requestItem.id}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onConfirm(requestItem);
-                        }}
-                        className={`h-9 px-3 rounded-lg text-xs font-semibold transition ${alreadyConfirmed
-                          ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                          : 'bg-[#FF7120] text-white hover:bg-[#ff8a3a]'} ${savingId === requestItem.id ? 'opacity-70 cursor-wait' : ''}`}
-                      >
-                        {savingId === requestItem.id ? 'Saving...' : alreadyConfirmed ? 'Confirmed' : reviewer.actionLabel}
-                      </button>
+                      <div className="inline-flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={alreadyConfirmed || savingId === requestItem.id}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onRemove(requestItem);
+                          }}
+                          className={`h-9 px-3 rounded-lg text-xs font-semibold transition ${alreadyConfirmed
+                            ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                            : 'border border-red-400/40 text-red-200 hover:bg-red-500/15'} ${savingId === requestItem.id ? 'opacity-70 cursor-wait' : ''}`}
+                        >
+                          {savingId === requestItem.id ? 'Saving...' : 'Remove'}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={alreadyConfirmed || isExpired || savingId === requestItem.id}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onConfirm(requestItem);
+                          }}
+                          className={`h-9 px-3 rounded-lg text-xs font-semibold transition ${(alreadyConfirmed || isExpired)
+                            ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                            : 'bg-[#FF7120] text-white hover:bg-[#ff8a3a]'} ${savingId === requestItem.id ? 'opacity-70 cursor-wait' : ''}`}
+                          title={isExpired ? 'Expired OT requests cannot be confirmed.' : undefined}
+                        >
+                          {savingId === requestItem.id ? 'Saving...' : alreadyConfirmed ? 'Confirmed' : reviewer.actionLabel}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -251,6 +330,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
               <p className="text-xs text-white/45 uppercase tracking-wide">Approvals</p>
               <div className="mt-2 space-y-2 text-sm">
                 <p className="text-white/85"><span className="text-white/55">Accounting:</span> {hasSignature(selectedRequest.management_signature) ? 'Confirmed' : 'Pending'}</p>
+                <p className="text-white/85"><span className="text-white/55">OT Attendance:</span> {selectedRequest.is_completed ? 'Completed' : 'Not completed yet'}</p>
                 <p className="text-white/85"><span className="text-white/55">Approval Date:</span> {selectedRequest.approval_date || '-'}</p>
               </div>
             </div>
@@ -286,6 +366,39 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                 <UserRound className="h-4 w-4" /> No overtime period rows submitted.
               </div>
             )}
+          </div>
+        </div>
+      ) : null}
+
+      {removeTarget ? (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => (savingId ? null : setRemoveTarget(null))}
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-white/15 bg-[#001f35] p-5 shadow-2xl">
+            <h3 className="text-lg font-semibold text-white">Remove OT Request?</h3>
+            <p className="mt-2 text-sm text-white/70">
+              This will permanently remove the OT request for {removeTarget.full_name || removeTarget.employee_name || 'this employee'}.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setRemoveTarget(null)}
+                disabled={savingId === removeTarget.id}
+                className="h-9 px-3 rounded-lg border border-white/20 text-white/80 hover:bg-white/5 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRemove}
+                disabled={savingId === removeTarget.id}
+                className="h-9 px-3 rounded-lg border border-red-400/40 text-red-200 hover:bg-red-500/15 disabled:opacity-60"
+              >
+                {savingId === removeTarget.id ? 'Removing...' : 'Remove'}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}

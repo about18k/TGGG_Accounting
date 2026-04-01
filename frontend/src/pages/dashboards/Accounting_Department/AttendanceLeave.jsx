@@ -12,7 +12,6 @@ import {
   AvatarImage,
   Badge,
   Button,
-  Calendar,
   Card,
   CardContent,
   CardHeader,
@@ -24,35 +23,16 @@ import {
   DialogTrigger,
   Input,
   Label,
-  Progress,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
 } from '../../../components/ui/accounting-ui';
 import {
   Clock,
-  CalendarDays,
   Download,
-  Filter,
-  MapPin,
-  Users,
-  TrendingUp,
-  TrendingDown,
-  Home,
 } from 'lucide-react';
-
-const mockLeaveBalance = {
-  vacation: { used: 8, total: 25 },
-  sick: { used: 3, total: 10 },
-  personal: { used: 2, total: 5 },
-  maternity: { used: 0, total: 90 },
-};
 
 const timeToMinutes = (timeValue) => {
   if (!timeValue || typeof timeValue !== 'string' || !timeValue.includes(':')) return null;
@@ -71,8 +51,6 @@ const getWorkedHours = (record) => {
 };
 
 export function AttendanceLeave() {
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedTab, setSelectedTab] = useState('attendance');
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
   const [attendanceError, setAttendanceError] = useState('');
@@ -179,24 +157,6 @@ export function AttendanceLeave() {
       </div>
     );
   };
-
-  const attendanceStats = useMemo(() => {
-    const totalRecords = attendanceRecords.length;
-    const presentCount = attendanceRecords.filter(
-      (record) => ['present', 'late'].includes(record?.status)
-    ).length;
-    
-    const totalMinutes = attendanceRecords.reduce((sum, record) => {
-      return sum + (parseFloat(record.total_minutes_worked) || 0);
-    }, 0);
-    const totalHours = totalMinutes / 60;
-
-    return {
-      attendanceRate: totalRecords ? Number(((presentCount / totalRecords) * 100).toFixed(1)) : 0,
-      totalHoursWorked: Number(totalHours.toFixed(1)),
-      averageHoursPerDay: attendanceRecords.length ? Number((totalHours / attendanceRecords.length).toFixed(1)) : 0,
-    };
-  }, [attendanceRecords]);
 
   const employeeOptions = useMemo(() => {
     const names = attendanceRecords
@@ -323,46 +283,6 @@ export function AttendanceLeave() {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="border-0 shadow-lg bg-linear-to-br from-card to-card/50 backdrop-blur-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Attendance Rate</p>
-                <p className="text-2xl font-medium">{attendanceStats.attendanceRate}%</p>
-              </div>
-              <TrendingUp className="w-8 h-8 text-primary" />
-            </div>
-            <Progress value={attendanceStats.attendanceRate} className="mt-3" />
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Hours Worked</p>
-                <p className="text-2xl font-medium">{attendanceStats.totalHoursWorked}h</p>
-              </div>
-              <Clock className="w-8 h-8 text-primary" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">This month</p>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Avg Hours/Day</p>
-                <p className="text-2xl font-medium">{attendanceStats.averageHoursPerDay}h</p>
-              </div>
-              <CalendarDays className="w-8 h-8 text-primary" />
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">Last 30 days</p>
-          </CardContent>
-        </Card>
-      </div>
-
       <div className="space-y-6">
         {/* Recent Attendance */}
         <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
@@ -391,9 +311,12 @@ export function AttendanceLeave() {
                       ? '-'
                       : dateObj.toLocaleDateString('en-US', { month: 'short' });
 
-                    const totalMins = [group.morning, group.afternoon, group.overtime]
+                    const totalMinsFromApi = [group.morning, group.afternoon, group.overtime]
                       .reduce((acc, r) => acc + (r ? parseFloat(r.total_minutes_worked || 0) : 0), 0);
-                    const workedHours = (totalMins / 60).toFixed(2);
+                    const totalHoursFromTimes = [group.morning, group.afternoon, group.overtime]
+                      .reduce((acc, r) => acc + (r ? getWorkedHours(r) : 0), 0);
+                    const totalHoursLabel = calculateTotalHours(group.morning, group.afternoon, group.overtime);
+                    const fallbackHoursLabel = `${(totalMinsFromApi > 0 ? totalMinsFromApi / 60 : totalHoursFromTimes).toFixed(2)}h`;
 
                     return (
                       <div key={group.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border border-border/50 transition-colors gap-4">
@@ -434,7 +357,7 @@ export function AttendanceLeave() {
                         </div>
                         <div className="flex items-center gap-4 shrink-0 justify-end mt-2 md:mt-0">
                           <div className="text-right">
-                            <p className="text-sm font-medium">{workedHours}h</p>
+                            <p className="text-sm font-medium">{totalHoursLabel !== '-' ? totalHoursLabel : fallbackHoursLabel}</p>
                             <p className="text-xs text-muted-foreground">Total Hours</p>
                           </div>
                           {getStatusBadge(
