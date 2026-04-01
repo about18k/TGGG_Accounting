@@ -207,6 +207,17 @@ const MaterialRequest = ({ user }) => {
     setLoadingApproved(false);
   };
 
+  const handleProjectSelectionForRequest = (project) => {
+    setSelectedProjectForRequest(project || null);
+
+    if (project?.location) {
+      setFormData((current) => ({
+        ...current,
+        deliveryLocation: project.location,
+      }));
+    }
+  };
+
   const handleCreateProject = async () => {
     if (!projectForm.name.trim()) {
       toast.error('Project name is required.');
@@ -227,8 +238,8 @@ const MaterialRequest = ({ user }) => {
       setProjects((prev) => [result.data, ...prev]);
       setProjectForm({ name: '', date_started: new Date().toISOString().split('T')[0], location: '' });
       setShowCreateProjectModal(false);
-      // Also set as selected project for new mat req
-      setSelectedProjectForRequest(result.data);
+      // Also set as selected project for new mat req and prefill delivery location
+      handleProjectSelectionForRequest(result.data);
     } else {
       toast.error(result.error);
     }
@@ -734,7 +745,7 @@ const MaterialRequest = ({ user }) => {
                 value={selectedProjectForRequest?.id || ''}
                 onChange={(event) => {
                   const proj = projects.find((p) => p.id === Number(event.target.value));
-                  setSelectedProjectForRequest(proj || null);
+                  handleProjectSelectionForRequest(proj || null);
                 }}
                 className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-[#FF7120]/50"
               >
