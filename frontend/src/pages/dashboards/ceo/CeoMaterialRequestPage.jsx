@@ -424,7 +424,7 @@ const CeoMaterialRequestPage = ({ user, onNavigate, onLogout }) => {
                       : 'border border-white/15 text-white/60 hover:bg-white/10 hover:text-white'
                   }`}
                 >
-                  Project Materials & Expenses
+                  Project Expenses
                 </button>
               </div>
             </section>

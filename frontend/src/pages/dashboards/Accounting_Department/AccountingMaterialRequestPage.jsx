@@ -159,8 +159,8 @@ const AccountingMaterialRequestPage = ({ user }) => {
         <div className="p-6 sm:p-8 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#FF7120]/80">Accounting Department</p>
-            <h1 className="mt-3 text-3xl sm:text-4xl font-semibold text-white">Material Request</h1>
-            <p className="mt-3 text-sm text-white/60 max-w-2xl">Review and manage requisition forms and project-based material expenses.</p>
+            <h1 className="mt-3 text-3xl sm:text-4xl font-semibold text-white">Material Request and Expenses</h1>
+            <p className="mt-3 text-sm text-white/60 max-w-2xl">Manage material requests and view project expense summaries.</p>
           </div>
           <div className="flex items-center gap-4">
             <button
