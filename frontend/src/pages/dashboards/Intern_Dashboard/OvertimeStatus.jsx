@@ -19,7 +19,7 @@ const statusLabel = (req) => {
   return 'Pending Accounting Approval';
 };
 
-function OvertimeStatus({ token }) {
+function OvertimeStatus({ token, activeTab, setActiveTab, renderTabButton }) {
   const [requests, setRequests] = useState([]);
   const [alert, setAlert] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -163,7 +163,7 @@ function OvertimeStatus({ token }) {
   };
 
   return (
-    <div className="dashboard">
+    <>
       {alert && (
         <Alert
           type={alert.type}
@@ -172,9 +172,17 @@ function OvertimeStatus({ token }) {
           onClose={() => setAlert(null)}
         />
       )}
-      <div className="welcome">
-        <h2>OT Request Status</h2>
-        <p>View your submitted OT requests.</p>
+      <div className="welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div>
+          <h2>OT Request Status</h2>
+          <p>View your submitted OT requests.</p>
+        </div>
+        {renderTabButton && (
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', flexShrink: 0 }}>
+            {renderTabButton('form', 'Request OT')}
+            {renderTabButton('status', 'My Requests')}
+          </div>
+        )}
       </div>
       <div className="attendance-table">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -191,6 +199,7 @@ function OvertimeStatus({ token }) {
                   <th>Department</th>
                   <th>Total Hours</th>
                   <th>Explanation</th>
+                  <th>Signature</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
@@ -198,7 +207,7 @@ function OvertimeStatus({ token }) {
               <tbody>
                 {requests.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
+                    <td colSpan="7" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
                       No OT requests yet.
                     </td>
                   </tr>
@@ -210,6 +219,17 @@ function OvertimeStatus({ token }) {
                       <td>{req.anticipated_hours || '-'}</td>
                       <td style={{ maxWidth: '320px', whiteSpace: 'normal' }}>
                         {req.explanation || '-'}
+                      </td>
+                      <td>
+                        {req.employee_signature ? (
+                          <img
+                            src={req.employee_signature}
+                            alt="Signature"
+                            style={{ maxWidth: '100px', maxHeight: '40px', objectFit: 'contain', background: 'white', borderRadius: '4px', padding: '2px' }}
+                          />
+                        ) : (
+                          <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>—</span>
+                        )}
                       </td>
                       <td>
                         {statusLabel(req)}
@@ -418,7 +438,7 @@ function OvertimeStatus({ token }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

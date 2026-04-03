@@ -23,6 +23,7 @@ const CeoOvertimePage = ({ user, token, onLogout, onNavigate }) => {
 
   const renderTabButton = (tabId, label) => (
     <button
+      key={tabId}
       onClick={() => setActiveTab(tabId)}
       style={tabStyle(activeTab === tabId)}
       onMouseEnter={(e) => {
@@ -59,17 +60,42 @@ const CeoOvertimePage = ({ user, token, onLogout, onNavigate }) => {
           </aside>
 
           <div className="flex-1 min-w-0 space-y-4 sm:space-y-8">
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              {renderTabButton('ot-form', 'Request OT')}
-              {renderTabButton('ot-status', 'OT Status')}
-              {renderTabButton('leave-form', 'Request Leave')}
-              {renderTabButton('leave-status', 'Leave Status')}
-            </div>
-
-            {activeTab === 'ot-form' && <OvertimeForm token={token} />}
-            {activeTab === 'ot-status' && <OvertimeStatus token={token} />}
-            {activeTab === 'leave-form' && <LeaveForm token={token} />}
-            {activeTab === 'leave-status' && <LeaveStatus token={token} />}
+            {activeTab === 'ot-form' && (
+              <OvertimeForm
+                token={token}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                renderTabButton={renderTabButton}
+                showLeaveTabs={true}
+              />
+            )}
+            {activeTab === 'ot-status' && (
+              <OvertimeStatus
+                token={token}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                renderTabButton={renderTabButton}
+                showLeaveTabs={true}
+              />
+            )}
+            {activeTab === 'leave-form' && (
+              <LeaveForm
+                token={token}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                renderTabButton={renderTabButton}
+                showLeaveTabs={true}
+              />
+            )}
+            {activeTab === 'leave-status' && (
+              <LeaveStatus
+                token={token}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                renderTabButton={renderTabButton}
+                showLeaveTabs={true}
+              />
+            )}
           </div>
         </div>
       </div>
