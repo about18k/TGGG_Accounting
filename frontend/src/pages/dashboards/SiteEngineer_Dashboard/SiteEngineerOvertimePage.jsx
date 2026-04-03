@@ -21,7 +21,6 @@ const SiteEngineerOvertimePage = ({ user, token, onNavigate }) => {
 
   const renderTabButton = (tabId, label) => (
     <button
-      key={tabId}
       onClick={() => setActiveTab(tabId)}
       style={tabStyle(activeTab === tabId)}
       onMouseEnter={(e) => {
@@ -62,24 +61,15 @@ const SiteEngineerOvertimePage = ({ user, token, onNavigate }) => {
           </aside>
 
           <main className="flex-1 min-w-0">
-            {activeTab === 'ot-form' && (
-              <OvertimeForm
-                token={token}
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                renderTabButton={renderTabButton}
-                showLeaveTabs={false}
-              />
-            )}
-            {activeTab === 'ot-status' && (
-              <OvertimeStatus
-                token={token}
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-                renderTabButton={renderTabButton}
-                showLeaveTabs={false}
-              />
-            )}
+            <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-4 sm:p-6">
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                {renderTabButton('ot-form', 'Request OT')}
+                {renderTabButton('ot-status', 'OT Status')}
+              </div>
+
+              {activeTab === 'ot-form' && <OvertimeForm token={token} />}
+              {activeTab === 'ot-status' && <OvertimeStatus token={token} />}
+            </div>
           </main>
         </div>
       </div>

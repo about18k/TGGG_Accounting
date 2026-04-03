@@ -24,7 +24,7 @@ const inputStyle = {
   fontSize: '0.9rem',
 };
 
-export default function LeaveForm({ token, activeTab, setActiveTab, renderTabButton, showLeaveTabs }) {
+export default function LeaveForm({ token }) {
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState(null);
   const [form, setForm] = useState({
@@ -91,7 +91,7 @@ export default function LeaveForm({ token, activeTab, setActiveTab, renderTabBut
   };
 
   return (
-    <>
+    <div className="dashboard">
       {alert && (
         <Alert
           type={alert.type}
@@ -102,19 +102,9 @@ export default function LeaveForm({ token, activeTab, setActiveTab, renderTabBut
       )}
 
       <div className="overtime-card" style={{ boxSizing: 'border-box', maxWidth: '100%', width: '100%', overflow: 'hidden' }}>
-        <div className="overtime-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div>
-            <h2>Leave Request Form</h2>
-            <p>Submit leave details for review and approval.</p>
-          </div>
-          {renderTabButton && (
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', flexShrink: 0 }}>
-              {renderTabButton('ot-form', 'Request OT')}
-              {renderTabButton('ot-status', 'OT Status')}
-              {showLeaveTabs && renderTabButton('leave-form', 'Request Leave')}
-              {showLeaveTabs && renderTabButton('leave-status', 'Leave Status')}
-            </div>
-          )}
+        <div className="overtime-heading">
+          <h2>Leave Request Form</h2>
+          <p>Submit leave details for review and approval.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="overtime-form">
@@ -176,6 +166,6 @@ export default function LeaveForm({ token, activeTab, setActiveTab, renderTabBut
           </div>
         </form>
       </div>
-    </>
+    </div>
   );
 }

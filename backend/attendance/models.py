@@ -169,7 +169,7 @@ class OvertimeRequest(models.Model):
     department = models.CharField(max_length=255, blank=True)
     anticipated_hours = models.DecimalField(max_digits=8, decimal_places=2, default=0)
     explanation = models.TextField()
-    employee_signature = models.TextField(blank=True, null=True)
+    employee_signature = models.URLField(max_length=1000, blank=True, null=True)
     supervisor_signature = models.TextField(blank=True, null=True)
     management_signature = models.TextField(blank=True, null=True)
     approval_date = models.DateField(blank=True, null=True)

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import supabase from '../../../lib/supabaseClient';
 import Alert from '../../../components/Alert.jsx';
 import { CardSkeleton } from '../../../components/SkeletonLoader.jsx';
 import { getProfile } from '../../../services/profileService';
@@ -48,9 +49,11 @@ const getInitialFormState = () => ({
   approval_date: ''
 });
 
-function OvertimeForm({ token, activeTab, setActiveTab, renderTabButton }) {
+function OvertimeForm({ token }) {
+  const sigCanvasRef = useRef(null);
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState(null);
+  const [isDrawing, setIsDrawing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [periods, setPeriods] = useState([
     {
@@ -73,37 +76,16 @@ function OvertimeForm({ token, activeTab, setActiveTab, renderTabButton }) {
     });
   }, [periods]);
 
-  // Convert raw role key to a human-readable label for the Job Position field
-  const getRoleLabel = (roleKey) => {
-    const roleMap = {
-      studio_head: 'Studio Head',
-      admin: 'Admin',
-      accounting: 'Accounting',
-      bim_specialist: 'BIM Specialist',
-      intern: 'Intern',
-      junior_architect: 'Junior Architect',
-      president: 'President',
-      site_engineer: 'Site Engineer',
-      site_coordinator: 'Site Coordinator',
-      ceo: 'CEO',
-    };
-    return roleMap[roleKey] || roleKey || '';
-  };
-
   useEffect(() => {
     const loadProfile = async () => {
       setLoading(true);
       try {
         const data = await getProfile();
-        const fullName = (data.first_name && data.last_name)
-          ? `${data.first_name} ${data.last_name}`.trim()
-          : (data.full_name || '');
         setForm(prev => ({
           ...prev,
-          employee_name: fullName || prev.employee_name,
-          job_position: getRoleLabel(data.role) || prev.job_position,
-          department: data.department || prev.department,
-          employee_signature: data.signature_image || prev.employee_signature,
+          employee_name: data.full_name || prev.employee_name,
+          job_position: data.role === 'site_coordinator' ? 'Head Coordinator' : 'Intern',
+          employee_signature: data.full_name || prev.employee_signature
         }));
       } catch (err) {
         console.error('Failed to load profile', err);
@@ -196,7 +178,7 @@ function OvertimeForm({ token, activeTab, setActiveTab, renderTabButton }) {
       return 'Please provide an explanation for the overtime.';
     }
     if (!form.employee_signature) {
-      return 'No signature found. Please upload a signature in your Profile settings first.';
+      return 'Please sign the form before submitting.';
     }
     return '';
   };
@@ -219,14 +201,51 @@ function OvertimeForm({ token, activeTab, setActiveTab, renderTabButton }) {
     }
     setSaving(true);
     try {
-      if (!form.employee_signature) {
-        setAlert({ type: 'error', title: 'No Signature', message: 'No signature found. Please upload a signature in your Profile settings first.' });
+      let signatureUrl = '';
+
+      // Upload signature to public Supabase bucket and get a public URL
+      if (form.employee_signature && form.employee_signature.startsWith('data:')) {
+        try {
+          const canvas = sigCanvasRef.current;
+          const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+          const timestamp = Date.now();
+          const fileName = `signature_${timestamp}_${form.employee_name.replace(/\s+/g, '_')}.png`;
+
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('signature')
+            .upload(fileName, blob, {
+              cacheControl: '3600',
+              upsert: false
+            });
+
+          if (uploadError) {
+            throw new Error(`Signature upload failed: ${uploadError.message}`);
+          }
+
+          const { data: publicData, error: publicError } = supabase.storage
+            .from('signature')
+            .getPublicUrl(uploadData.path);
+
+          if (publicError || !publicData?.publicUrl) {
+            throw new Error(publicError?.message || 'Could not get public URL for signature.');
+          }
+
+          signatureUrl = publicData.publicUrl;
+        } catch (uploadErr) {
+          console.error('Signature upload failed:', uploadErr);
+          setAlert({ type: 'error', title: 'Signature Upload Failed', message: 'Failed to upload signature. Please try again.' });
+          setSaving(false);
+          return;
+        }
+      } else {
+        setAlert({ type: 'error', title: 'No Signature', message: 'Please sign the form before submitting.' });
         setSaving(false);
         return;
       }
 
       const payload = {
         ...form,
+        employee_signature: signatureUrl,
         periods: periods.filter(p => p.start_date || p.end_date || p.start_time || p.end_time)
       };
       await submitOvertime(payload);
@@ -237,7 +256,10 @@ function OvertimeForm({ token, activeTab, setActiveTab, renderTabButton }) {
         start_time: '',
         end_time: ''
       }]);
-      setForm(prev => ({ ...getInitialFormState(), employee_signature: prev.employee_signature }));
+      if (sigCanvasRef.current) {
+        clearSignature();
+      }
+      setForm(getInitialFormState());
     } catch (err) {
       const msg = err.response?.data?.error || 'Failed to submit OT request.';
       setAlert({ type: 'error', title: 'Error', message: msg });
@@ -246,10 +268,54 @@ function OvertimeForm({ token, activeTab, setActiveTab, renderTabButton }) {
     }
   };
 
+  const getPos = (event) => {
+    const canvas = sigCanvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+  };
 
+  const startDrawing = (event) => {
+    event.preventDefault();
+    setIsDrawing(true);
+    const ctx = sigCanvasRef.current.getContext('2d');
+    const { x, y } = getPos(event);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const draw = (event) => {
+    if (!isDrawing) return;
+    event.preventDefault();
+    const ctx = sigCanvasRef.current.getContext('2d');
+    const { x, y } = getPos(event);
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+  };
+
+  const endDrawing = () => {
+    if (!isDrawing) return;
+    setIsDrawing(false);
+    const dataUrl = sigCanvasRef.current.toDataURL('image/png');
+    updateFormField('employee_signature', dataUrl);
+  };
+
+  const clearSignature = () => {
+    const canvas = sigCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    updateFormField('employee_signature', '');
+  };
 
   return (
-    <>
+    <div className="dashboard" style={{ overflowX: 'hidden' }}>
       {alert && (
         <Alert
           type={alert.type}
@@ -263,17 +329,9 @@ function OvertimeForm({ token, activeTab, setActiveTab, renderTabButton }) {
           <CardSkeleton />
         ) : (
           <>
-            <div className="overtime-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-              <div>
-                <h2>OT Request Form</h2>
-                <p>Submit OT details for approval.</p>
-              </div>
-              {renderTabButton && (
-                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', flexShrink: 0 }}>
-                  {renderTabButton('form', 'Request OT')}
-                  {renderTabButton('status', 'My Requests')}
-                </div>
-              )}
+            <div className="overtime-heading">
+              <h2>OT Request Form</h2>
+              <p>Submit OT details for approval.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="overtime-form">
@@ -501,36 +559,27 @@ function OvertimeForm({ token, activeTab, setActiveTab, renderTabButton }) {
                 <div className="overtime-grid">
                   <div className="overtime-field">
                     <label>Employee Signature</label>
-                    {form.employee_signature ? (
-                      <div style={{
-                        background: 'white',
-                        borderRadius: '8px',
-                        padding: '0.75rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        minHeight: '80px',
-                        border: '1px solid rgba(255, 255, 255, 0.1)'
-                      }}>
-                        <img
-                          src={form.employee_signature}
-                          alt="Employee Signature"
-                          style={{ maxWidth: '200px', maxHeight: '80px', objectFit: 'contain' }}
-                        />
+                    <div className="signature-pad">
+                      <canvas
+                        ref={sigCanvasRef}
+                        width={400}
+                        height={140}
+                        style={{ maxWidth: '100%', height: 'auto' }}
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={endDrawing}
+                        onMouseLeave={endDrawing}
+                        onTouchStart={startDrawing}
+                        onTouchMove={draw}
+                        onTouchEnd={endDrawing}
+                      />
+                      <div className="signature-actions">
+                        <button type="button" className="ghost" onClick={clearSignature}>
+                          Clear
+                        </button>
+                        <span className="signature-hint">Sign with mouse or finger</span>
                       </div>
-                    ) : (
-                      <div style={{
-                        background: '#001a2b',
-                        borderRadius: '8px',
-                        padding: '1rem',
-                        textAlign: 'center',
-                        border: '1px dashed rgba(255, 113, 32, 0.4)',
-                        color: '#FF7120',
-                        fontSize: '0.85rem'
-                      }}>
-                        No signature uploaded. Please upload one in your Profile settings.
-                      </div>
-                    )}
+                    </div>
                   </div>
                   <div className="overtime-field">
                     <label>Accounting Signature</label>
@@ -586,8 +635,8 @@ function OvertimeForm({ token, activeTab, setActiveTab, renderTabButton }) {
             </form>
           </>
         )}
+      </div>
     </div>
-    </>
   );
 }
 

@@ -71,42 +71,26 @@ const OvertimePage = ({ user, token, onLogout, onNavigate }) => {
           )}
 
           <div className={useSidebarLayout ? "flex-1 min-w-0 space-y-4 sm:space-y-8" : ""}>
-          {/* Content — tabs live inside the form card header */}
+          {/* Tab Navigation */}
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+            {renderTabButton('ot-form', 'Request Overtime')}
+            {renderTabButton('ot-status', 'OT Status')}
+            {showLeaveTabs && renderTabButton('leave-form', 'Request Leave')}
+            {showLeaveTabs && renderTabButton('leave-status', 'Leave Status')}
+          </div>
+
+          {/* Content */}
           {activeTab === 'ot-form' && (
-            <OvertimeForm
-              token={token}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              renderTabButton={renderTabButton}
-              showLeaveTabs={showLeaveTabs}
-            />
+            <OvertimeForm token={token} />
           )}
           {activeTab === 'ot-status' && (
-            <OvertimeStatus
-              token={token}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              renderTabButton={renderTabButton}
-              showLeaveTabs={showLeaveTabs}
-            />
+            <OvertimeStatus token={token} />
           )}
           {showLeaveTabs && activeTab === 'leave-form' && (
-            <LeaveForm
-              token={token}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              renderTabButton={renderTabButton}
-              showLeaveTabs={showLeaveTabs}
-            />
+            <LeaveForm token={token} />
           )}
           {showLeaveTabs && activeTab === 'leave-status' && (
-            <LeaveStatus
-              token={token}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              renderTabButton={renderTabButton}
-              showLeaveTabs={showLeaveTabs}
-            />
+            <LeaveStatus token={token} />
           )}
           </div>
         </div>

@@ -19,7 +19,7 @@ const statusLabel = (req) => {
   return 'Pending Accounting Approval';
 };
 
-function OvertimeStatus({ token, activeTab, setActiveTab, renderTabButton, showLeaveTabs }) {
+function OvertimeStatus({ token }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedForView, setSelectedForView] = useState(null);
@@ -160,20 +160,10 @@ function OvertimeStatus({ token, activeTab, setActiveTab, renderTabButton, showL
   };
 
   return (
-    <>
-      <div className="welcome p-4 sm:p-6 mb-4 sm:mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <div>
-          <h2 className="text-xl sm:text-2xl font-bold">OT Request Status</h2>
-          <p className="text-sm sm:text-base text-gray-400">View your submitted OT requests.</p>
-        </div>
-        {renderTabButton && (
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', flexShrink: 0 }}>
-            {renderTabButton('ot-form', 'Request OT')}
-            {renderTabButton('ot-status', 'OT Status')}
-            {showLeaveTabs && renderTabButton('leave-form', 'Request Leave')}
-            {showLeaveTabs && renderTabButton('leave-status', 'Leave Status')}
-          </div>
-        )}
+    <div className="dashboard">
+      <div className="welcome p-4 sm:p-6 mb-4 sm:mb-6">
+        <h2 className="text-xl sm:text-2xl font-bold">OT Request Status</h2>
+        <p className="text-sm sm:text-base text-gray-400">View your submitted OT requests.</p>
       </div>
       <div className="attendance-table">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -190,7 +180,6 @@ function OvertimeStatus({ token, activeTab, setActiveTab, renderTabButton, showL
                   <th>Department</th>
                   <th>Total Hours</th>
                   <th>Explanation</th>
-                  <th>Signature</th>
                   <th>Status</th>
                   <th>Action</th>
                 </tr>
@@ -198,7 +187,7 @@ function OvertimeStatus({ token, activeTab, setActiveTab, renderTabButton, showL
               <tbody>
                 {requests.length === 0 ? (
                   <tr>
-                    <td colSpan="7" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
+                    <td colSpan="6" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
                       No OT requests yet.
                     </td>
                   </tr>
@@ -210,17 +199,6 @@ function OvertimeStatus({ token, activeTab, setActiveTab, renderTabButton, showL
                       <td>{req.anticipated_hours || '-'}</td>
                       <td style={{ maxWidth: '320px', whiteSpace: 'normal' }}>
                         {req.explanation || '-'}
-                      </td>
-                      <td>
-                        {req.employee_signature ? (
-                          <img
-                            src={req.employee_signature}
-                            alt="Signature"
-                            style={{ maxWidth: '100px', maxHeight: '40px', objectFit: 'contain', background: 'white', borderRadius: '4px', padding: '2px' }}
-                          />
-                        ) : (
-                          <span style={{ color: '#6b7280', fontSize: '0.8rem' }}>—</span>
-                        )}
                       </td>
                       <td>
                         {statusLabel(req)}
@@ -424,7 +402,7 @@ function OvertimeStatus({ token, activeTab, setActiveTab, renderTabButton, showL
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 

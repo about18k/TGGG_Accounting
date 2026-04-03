@@ -15,9 +15,6 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#039;');
 };
 
-import { toast } from 'sonner';
-import { getProfile } from '../../../services/profileService';
-
 function OvertimeRequests({ token }) {
   const [requests, setRequests] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -65,26 +62,15 @@ function OvertimeRequests({ token }) {
   const submitApproval = async () => {
     if (!selected) return;
     try {
-      // 1. Fetch current user's profile for the signature
-      const profileData = await getProfile();
-      if (!profileData.signature_image) {
-        toast.error('Signature Missing', {
-          description: 'You must set your signature in your Profile before approving requests.'
-        });
-        return;
-      }
-
       await approveOvertime(selected.id, {
-        management_signature: profileData.signature_image,
+        management_signature: 'approved',
         approval_date: approvalDate
       });
-      toast.success('Approval saved successfully');
+      setAlert({ type: 'success', title: 'Saved', message: 'Approval updated.' });
       setSelected(null);
       await load();
     } catch (err) {
-      toast.error('Save failed', {
-        description: err.response?.data?.error || 'Could not save approval.'
-      });
+      setAlert({ type: 'error', title: 'Save failed', message: err.response?.data?.error || 'Could not save approval.' });
     }
   };
 
