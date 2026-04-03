@@ -24,7 +24,7 @@ const inputStyle = {
   fontSize: '0.9rem',
 };
 
-export default function LeaveForm({ token }) {
+export default function LeaveForm({ token, activeTab, onTabChange, extraTabs = [] }) {
   const [saving, setSaving] = useState(false);
   const [alert, setAlert] = useState(null);
   const [form, setForm] = useState({
@@ -90,8 +90,57 @@ export default function LeaveForm({ token }) {
     }
   };
 
+  const tabStyle = (isActive) => ({
+    padding: '0.5rem 1rem',
+    background: isActive ? '#FF7120' : 'transparent',
+    color: isActive ? 'white' : '#9ca3af',
+    border: `1px solid ${isActive ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    transition: 'all 0.2s',
+  });
+
+  const renderTabs = () => (
+    <div style={{ display: 'flex', gap: '0.5rem' }}>
+      {extraTabs.includes('ot-form') && (
+        <button
+          type="button"
+          onClick={() => onTabChange && onTabChange('ot-form')}
+          style={tabStyle(activeTab === 'ot-form')}
+        >
+          Request OT
+        </button>
+      )}
+      {extraTabs.includes('ot-status') && (
+        <button
+          type="button"
+          onClick={() => onTabChange && onTabChange('ot-status')}
+          style={tabStyle(activeTab === 'ot-status')}
+        >
+          OT Status
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => onTabChange && onTabChange('leave-form')}
+        style={tabStyle(activeTab === 'leave-form')}
+      >
+        Request Leave
+      </button>
+      <button
+        type="button"
+        onClick={() => onTabChange && onTabChange('leave-status')}
+        style={tabStyle(activeTab === 'leave-status')}
+      >
+        Leave Status
+      </button>
+    </div>
+  );
+
   return (
-    <div className="dashboard">
+    <>
       {alert && (
         <Alert
           type={alert.type}
@@ -102,9 +151,12 @@ export default function LeaveForm({ token }) {
       )}
 
       <div className="overtime-card" style={{ boxSizing: 'border-box', maxWidth: '100%', width: '100%', overflow: 'hidden' }}>
-        <div className="overtime-heading">
-          <h2>Leave Request Form</h2>
-          <p>Submit leave details for review and approval.</p>
+        <div className="overtime-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h2>Leave Request Form</h2>
+            <p>Submit leave details for review and approval.</p>
+          </div>
+          {onTabChange && renderTabs()}
         </div>
 
         <form onSubmit={handleSubmit} className="overtime-form">
@@ -166,6 +218,6 @@ export default function LeaveForm({ token }) {
           </div>
         </form>
       </div>
-    </div>
+    </>
   );
 }

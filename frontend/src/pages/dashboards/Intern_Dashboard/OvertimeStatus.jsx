@@ -19,7 +19,7 @@ const statusLabel = (req) => {
   return 'Pending Accounting Approval';
 };
 
-function OvertimeStatus({ token }) {
+function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
   const [requests, setRequests] = useState([]);
   const [alert, setAlert] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -162,8 +162,57 @@ function OvertimeStatus({ token }) {
     doc.document.close();
   };
 
+  const tabStyle = (isActive) => ({
+    padding: '0.5rem 1rem',
+    background: isActive ? '#FF7120' : 'transparent',
+    color: isActive ? 'white' : '#9ca3af',
+    border: `1px solid ${isActive ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    transition: 'all 0.2s'
+  });
+
+  const renderTabs = () => (
+    <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <button
+        type="button"
+        onClick={() => onTabChange && onTabChange('ot-form')}
+        style={tabStyle(activeTab === 'ot-form')}
+      >
+        Request OT
+      </button>
+      <button
+        type="button"
+        onClick={() => onTabChange && onTabChange('ot-status')}
+        style={tabStyle(activeTab === 'ot-status')}
+      >
+        OT Status
+      </button>
+      {extraTabs.includes('leave-form') && (
+        <button
+          type="button"
+          onClick={() => onTabChange && onTabChange('leave-form')}
+          style={tabStyle(activeTab === 'leave-form')}
+        >
+          Request Leave
+        </button>
+      )}
+      {extraTabs.includes('leave-status') && (
+        <button
+          type="button"
+          onClick={() => onTabChange && onTabChange('leave-status')}
+          style={tabStyle(activeTab === 'leave-status')}
+        >
+          Leave Status
+        </button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="dashboard">
+    <>
       {alert && (
         <Alert
           type={alert.type}
@@ -172,9 +221,12 @@ function OvertimeStatus({ token }) {
           onClose={() => setAlert(null)}
         />
       )}
-      <div className="welcome">
-        <h2>OT Request Status</h2>
-        <p>View your submitted OT requests.</p>
+      <div className="welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', padding: '1rem' }}>
+        <div>
+          <h2>OT Request Status</h2>
+          <p>View your submitted OT requests.</p>
+        </div>
+        {onTabChange && renderTabs()}
       </div>
       <div className="attendance-table">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -418,7 +470,7 @@ function OvertimeStatus({ token }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

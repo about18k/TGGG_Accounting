@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import Alert from '../../../components/Alert.jsx';
 import { TableSkeleton } from '../../../components/SkeletonLoader.jsx';
 import { getAllOvertime, approveOvertime } from '../../../services/overtimeService';
+import { toast } from 'sonner';
+import { getProfile } from '../../../services/profileService';
 
 const escapeHtml = (value) => {
   if (value === null || value === undefined) {
@@ -62,15 +64,26 @@ function OvertimeRequests({ token }) {
   const submitApproval = async () => {
     if (!selected) return;
     try {
+      // Fetch current user's profile for the signature
+      const profileData = await getProfile();
+      if (!profileData.signature_image) {
+        toast.error('Signature Missing', {
+          description: 'You must set your signature in your Profile before approving requests.'
+        });
+        return;
+      }
+
       await approveOvertime(selected.id, {
-        management_signature: 'approved',
+        management_signature: profileData.signature_image,
         approval_date: approvalDate
       });
-      setAlert({ type: 'success', title: 'Saved', message: 'Approval updated.' });
+      toast.success('Approval saved successfully');
       setSelected(null);
       await load();
     } catch (err) {
-      setAlert({ type: 'error', title: 'Save failed', message: err.response?.data?.error || 'Could not save approval.' });
+      toast.error('Save failed', {
+        description: err.response?.data?.error || 'Could not save approval.'
+      });
     }
   };
 

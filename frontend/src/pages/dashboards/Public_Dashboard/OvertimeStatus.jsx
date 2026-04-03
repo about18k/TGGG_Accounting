@@ -19,7 +19,7 @@ const statusLabel = (req) => {
   return 'Pending Accounting Approval';
 };
 
-function OvertimeStatus({ token }) {
+function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedForView, setSelectedForView] = useState(null);
@@ -159,11 +159,63 @@ function OvertimeStatus({ token }) {
     doc.document.close();
   };
 
+  const tabStyle = (isActive) => ({
+    padding: '0.5rem 1rem',
+    background: isActive ? '#FF7120' : 'transparent',
+    color: isActive ? 'white' : '#9ca3af',
+    border: `1px solid ${isActive ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    transition: 'all 0.2s'
+  });
+
+  const renderTabs = () => (
+    <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <button
+        type="button"
+        onClick={() => onTabChange && onTabChange('ot-form')}
+        style={tabStyle(activeTab === 'ot-form')}
+      >
+        Request OT
+      </button>
+      <button
+        type="button"
+        onClick={() => onTabChange && onTabChange('ot-status')}
+        style={tabStyle(activeTab === 'ot-status')}
+      >
+        OT Status
+      </button>
+      {extraTabs.includes('leave-form') && (
+        <button
+          type="button"
+          onClick={() => onTabChange && onTabChange('leave-form')}
+          style={tabStyle(activeTab === 'leave-form')}
+        >
+          Request Leave
+        </button>
+      )}
+      {extraTabs.includes('leave-status') && (
+        <button
+          type="button"
+          onClick={() => onTabChange && onTabChange('leave-status')}
+          style={tabStyle(activeTab === 'leave-status')}
+        >
+          Leave Status
+        </button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="dashboard">
-      <div className="welcome p-4 sm:p-6 mb-4 sm:mb-6">
-        <h2 className="text-xl sm:text-2xl font-bold">OT Request Status</h2>
-        <p className="text-sm sm:text-base text-gray-400">View your submitted OT requests.</p>
+    <>
+      <div className="welcome p-4 sm:p-6 mb-4 sm:mb-6" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h2 className="text-xl sm:text-2xl font-bold">OT Request Status</h2>
+          <p className="text-sm sm:text-base text-gray-400">View your submitted OT requests.</p>
+        </div>
+        {onTabChange && renderTabs()}
       </div>
       <div className="attendance-table">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -402,7 +454,7 @@ function OvertimeStatus({ token }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
