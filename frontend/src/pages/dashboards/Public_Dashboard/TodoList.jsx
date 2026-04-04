@@ -208,17 +208,6 @@ function TodoList({ token, user, onNotificationUpdate }) {
   const isLeader = userProfile?.is_leader;
   const leaderHasGroup = groups.some(g => g.leader_id === userProfile?.id);
 
-  const isInGroup = useMemo(() => {
-    if (!userProfile) return false;
-    return groups.some(g =>
-      String(g.leader_id) === String(userProfile.id) ||
-      g.members?.some(m =>
-        String(m.user?.id) === String(userProfile.id) ||
-        String(m.user_id) === String(userProfile.id)
-      )
-    );
-  }, [groups, userProfile]);
-
   const addDateTodo = async (e) => {
     e.preventDefault();
     if (!dateTask.trim() || submitting) return;
@@ -791,31 +780,15 @@ function TodoList({ token, user, onNotificationUpdate }) {
             </div>
           )}
 
-          {activeTab === 'team' && !isInGroup && !isCoordinator && !isLeader && (
-            <div style={{
-              padding: '1.5rem',
-              background: 'rgba(255, 113, 32, 0.05)',
-              borderRadius: '12px',
-              border: '1px solid rgba(255, 113, 32, 0.2)',
-              marginTop: '1rem',
-              textAlign: 'center'
-            }}>
-              <Icon name="info" size={24} color="#FF7120" strokeWidth={2} style={{ marginBottom: '0.5rem' }} />
-              <p style={{ fontSize: '0.9rem', color: '#9ca3af', margin: 0 }}>
-                You are currently not assigned to any team group.
-              </p>
-            </div>
-          )}
-
-          {activeTab === 'team' && (isInGroup || isCoordinator || isLeader) && (!isLeader || teamSubTab === 'tasks') && groups.length > 0 && <GroupInfo groups={groups} userProfile={userProfile} Icon={Icon} />}
+          {activeTab === 'team' && (!isLeader || teamSubTab === 'tasks') && groups.length > 0 && <GroupInfo groups={groups} userProfile={userProfile} Icon={Icon} />}
 
           {activeTab === 'personal' && (
             <TaskForm activeTab={activeTab} isLeader={isLeader} canAddTodo={canAddTodo()} dateTask={dateTask} setDateTask={setDateTask} taskDescription={taskDescription} setTaskDescription={setTaskDescription} selectedAssignee={selectedAssignee} setSelectedAssignee={setSelectedAssignee} selectedDate={selectedDate} setSelectedDate={setSelectedDate} deadlineDate={deadlineDate} setDeadlineDate={setDeadlineDate} onSubmit={addDateTodo} getGroupMembersForAssign={getGroupMembersForAssign} submitting={submitting} />
           )}
-          {activeTab === 'team' && teamSubTab === 'tasks' && !isLeader && isInGroup && (
+          {activeTab === 'team' && teamSubTab === 'tasks' && !isLeader && (
             <TaskForm activeTab="team-suggest" isLeader={isLeader} canAddTodo={canAddTodo()} dateTask={dateTask} setDateTask={setDateTask} taskDescription={taskDescription} setTaskDescription={setTaskDescription} selectedAssignee={selectedAssignee} setSelectedAssignee={setSelectedAssignee} selectedDate={selectedDate} setSelectedDate={setSelectedDate} deadlineDate={deadlineDate} setDeadlineDate={setDeadlineDate} onSubmit={addDateTodo} getGroupMembersForAssign={getGroupMembersForAssign} submitting={submitting} />
           )}
-          {activeTab === 'team' && teamSubTab === 'manage' && (isLeader || isCoordinator) && (
+          {activeTab === 'team' && teamSubTab === 'manage' && (
             <TaskForm activeTab="group" isLeader={isLeader} canAddTodo={canAddTodo()} dateTask={dateTask} setDateTask={setDateTask} taskDescription={taskDescription} setTaskDescription={setTaskDescription} selectedAssignee={selectedAssignee} setSelectedAssignee={setSelectedAssignee} selectedDate={selectedDate} setSelectedDate={setSelectedDate} deadlineDate={deadlineDate} setDeadlineDate={setDeadlineDate} onSubmit={addDateTodo} getGroupMembersForAssign={getGroupMembersForAssign} submitting={submitting} />
           )}
 
@@ -1137,40 +1110,10 @@ function TodoList({ token, user, onNotificationUpdate }) {
             <>
               <h3 style={{ flexShrink: 0 }}>Tasks for {selectedDate.toLocaleDateString()}</h3>
 
-              {activeTab === 'team' && teamSubTab === 'tasks' && (isInGroup || isCoordinator || isLeader) && <TeamFilter filterText={filterText} setFilterText={setFilterText} filterMember={filterMember} setFilterMember={setFilterMember} groups={groups} Icon={Icon} />}
+              {activeTab === 'team' && teamSubTab === 'tasks' && <TeamFilter filterText={filterText} setFilterText={setFilterText} filterMember={filterMember} setFilterMember={setFilterMember} groups={groups} Icon={Icon} />}
 
               <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
-                {activeTab === 'team' && !isInGroup && !isCoordinator && !isLeader ? (
-                  <div style={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '2rem',
-                    textAlign: 'center',
-                    background: 'rgba(0, 31, 53, 0.3)',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255, 113, 32, 0.1)'
-                  }}>
-                    <div style={{
-                      width: '80px',
-                      height: '80px',
-                      borderRadius: '50%',
-                      background: 'rgba(255, 113, 32, 0.1)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: '1.5rem'
-                    }}>
-                      <Icon name="team" size={40} color="#FF7120" strokeWidth={1.5} />
-                    </div>
-                    <h3 style={{ fontSize: '1.25rem', color: '#e8eaed', marginBottom: '0.75rem' }}>No Team Group Found</h3>
-                    <p style={{ color: '#9ca3af', maxWidth: '400px', lineHeight: '1.6', margin: '0 auto 1.5rem' }}>
-                      You are not currently a member of any team group. Please contact your Site Coordinator to be added to a group and start collaborating on team tasks.
-                    </p>
-                  </div>
-                ) : activeTab === 'assigned' ? (
+                {activeTab === 'assigned' ? (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1rem' }}>
                     <div>
                       <h3 style={{ color: '#e8eaed', fontSize: '1rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
