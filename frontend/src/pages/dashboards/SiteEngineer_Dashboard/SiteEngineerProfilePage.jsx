@@ -19,13 +19,11 @@ const SiteEngineerProfilePage = ({ user, token, onLogout, onNavigate }) => {
           </aside>
 
           <main className="flex-1 min-w-0">
-            <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-4 sm:p-6">
-              <Profile
-                token={token}
-                user={user}
-                onLogout={onLogout}
-              />
-            </div>
+            <Profile
+              token={token}
+              user={user}
+              onLogout={onLogout}
+            />
           </main>
         </div>
       </div>

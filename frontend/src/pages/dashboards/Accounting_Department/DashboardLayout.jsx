@@ -243,36 +243,17 @@ export function DashboardLayout({
                 </PopoverContent>
               </Popover>
 
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    className="border border-[#FF7120] text-[#FF7120] rounded-full w-9 h-9 flex items-center justify-center hover:bg-[#FF7120] hover:text-white transition-all"
-                  >
-                    <User className="h-4 w-4" />
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-[calc(100vw-2rem)] sm:w-52 p-2 border-[#AEAAAA]/20 bg-[#001f35] text-white shadow-xl z-[60]" align="end" sideOffset={8}>
-                  <div className="p-3 border-b border-white/10 mb-1">
-                    <p className="font-semibold text-sm">Account</p>
-                    <p className="text-xs text-white/55">Manage account actions</p>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <button
-                      onClick={() => onNavigate('settings')}
-                      className="w-full flex items-center px-3 py-2.5 rounded-lg text-sm text-[#AEAAAA] transition-all hover:bg-[#FF7120]/10 hover:text-[#FF7120]"
-                    >
-                      Settings
-                    </button>
-                    <button
-                      onClick={onLogout}
-                      className="w-full flex items-center px-3 py-2.5 rounded-lg text-sm text-red-400 transition-all hover:bg-red-500/10 hover:text-red-300"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <button
+                type="button"
+                onClick={() => onNavigate('profile')}
+                className={`border border-[#FF7120] rounded-full w-9 h-9 flex items-center justify-center transition-all ${
+                  currentPage === 'profile'
+                    ? 'bg-[#FF7120] text-white'
+                    : 'text-[#FF7120] hover:bg-[#FF7120] hover:text-white'
+                }`}
+              >
+                <User className="h-4 w-4" />
+              </button>
             </div>
 
             {/* Right side on mobile, Hidden on desktop: Hamburger Menu Trigger */}

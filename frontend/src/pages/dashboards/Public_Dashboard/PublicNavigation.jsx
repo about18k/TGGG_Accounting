@@ -206,8 +206,8 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    width: '32px',
-                    height: '32px',
+                    width: '36px',
+                    height: '36px',
                     transition: 'all 0.2s',
                     position: 'relative'
                   }}
@@ -311,8 +311,8 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '32px',
-                height: '32px',
+                width: '36px',
+                height: '36px',
                 transition: 'all 0.2s'
               }}
             >

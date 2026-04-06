@@ -4,7 +4,7 @@
   --color-background: #021B2C;
   --color-foreground: #FFFFFF;
   --color-card: #002035;
-  --color-primary: #F27229;
+  --color-primary: #FF7120;
   --color-primary-foreground: #FFFFFF;
   --color-secondary: #47545E;
   --color-secondary-foreground: #FFFFFF;
@@ -16,12 +16,18 @@
   --color-border: #47545E;
   --color-input: #47545E;
   --color-input-background: #1a2332;
-  --color-ring: #F27229;
+  --color-ring: #FF7120;
 }
 
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
+}
+
+/* Color date input calendar icons to primary color */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(56%) sepia(91%) saturate(2487%) hue-rotate(345deg) brightness(101%) contrast(101%);
+  cursor: pointer;
 }
 
 /* Sonner toast overrides — match project theme */
@@ -56,7 +62,7 @@ body {
 }
 
 [data-sonner-toast][data-type='success'] {
-  border-color: rgba(242, 114, 41, 0.3) !important;
+  border-color: rgba(255, 113, 32, 0.3) !important;
 }
 
 [data-sonner-toast] [data-title] {
@@ -66,7 +72,7 @@ body {
 }
 
 [data-sonner-toast] [data-description] {
-  color: #F27229 !important;
+  color: #FF7120 !important;
   font-size: 0.75rem !important;
 }
 

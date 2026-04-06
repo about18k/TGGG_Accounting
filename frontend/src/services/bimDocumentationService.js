@@ -92,8 +92,31 @@ const bimDocumentationService = {
    */
   updateDocumentation: async (id, data) => {
     try {
-      const response = await api.patch(`/bim-docs/${id}/`, data);
-      return { success: true, data: response.data };
+      // If files are included, use FormData
+      if (data.imageFiles && data.imageFiles.length > 0) {
+        const formData = new FormData();
+        formData.append('title', data.title);
+        formData.append('description', data.description || '');
+        formData.append('doc_type', data.doc_type);
+        formData.append('doc_date', data.doc_date);
+
+        // Add image files
+        data.imageFiles.forEach((file) => {
+          formData.append('files', file);
+          formData.append(`file_type_${file.name}`, 'image');
+        });
+
+        const response = await api.patch(`/bim-docs/${id}/`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        return { success: true, data: response.data };
+      } else {
+        // No files, just update text fields
+        const response = await api.patch(`/bim-docs/${id}/`, data);
+        return { success: true, data: response.data };
+      }
     } catch (error) {
       return {
         success: false,

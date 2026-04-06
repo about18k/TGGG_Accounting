@@ -51,12 +51,20 @@ def upload_file_to_supabase(file_obj, doc_id):
         }
     """
     try:
-        if not SUPABASE_URL or not (SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY):
+        if not SUPABASE_URL:
             return {
                 'success': False,
                 'file_path': None,
                 'file_url': None,
-                'error': 'Supabase credentials not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.'
+                'error': 'SUPABASE_URL not configured in .env file'
+            }
+        
+        if not (SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY):
+            return {
+                'success': False,
+                'file_path': None,
+                'file_url': None,
+                'error': 'SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY not configured in .env file'
             }
         
         client = get_supabase_client()
@@ -64,11 +72,12 @@ def upload_file_to_supabase(file_obj, doc_id):
         # Generate file path: bim-docs/doc_id/YYYY/MM/DD/filename
         now = datetime.now()
         file_path = f"{doc_id}/{now.year}/{now.month:02d}/{now.day:02d}/{file_obj.name}"
-        bucket_path = f"{SUPABASE_BUCKET}/{file_path}"
         
         # Read file content
         file_content = file_obj.read()
         file_obj.seek(0)  # Reset file pointer for potential re-reads
+        
+        logger.info(f"Uploading file to Supabase bucket '{SUPABASE_BUCKET}' at path: {file_path}")
         
         # Upload to Supabase Storage
         response = client.storage.from_(SUPABASE_BUCKET).upload(
@@ -80,7 +89,7 @@ def upload_file_to_supabase(file_obj, doc_id):
         # Generate public URL
         public_url = client.storage.from_(SUPABASE_BUCKET).get_public_url(file_path)
         
-        logger.info(f"File uploaded to Supabase: {bucket_path}")
+        logger.info(f"File uploaded successfully to Supabase: {file_path}")
         
         return {
             'success': True,
@@ -91,7 +100,7 @@ def upload_file_to_supabase(file_obj, doc_id):
         
     except Exception as e:
         error_msg = f"Supabase upload error: {str(e)}"
-        logger.error(error_msg)
+        logger.error(error_msg, exc_info=True)
         return {
             'success': False,
             'file_path': None,

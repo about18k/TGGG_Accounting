@@ -290,9 +290,11 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
             # Optionally: Rollback doc if all files failed
             if not uploaded_files:
                 doc.delete()
+                error_details = upload_errors[0] if upload_errors else {}
                 return Response({
                     'error': 'All file uploads failed. Documentation not saved.',
-                    'details': upload_errors
+                    'details': upload_errors,
+                    'message': error_details.get('error', 'Unknown upload error')
                 }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             # Otherwise, partial success
             return Response({
@@ -312,6 +314,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         """
         Update BIM documentation.
         Only the creator can update draft docs or docs rejected by Studio Head.
+        Supports adding new files during update.
         """
         doc = self.get_object()
         
@@ -333,6 +336,49 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(doc, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+        
+        # Handle file uploads if present
+        files = request.FILES.getlist('files')
+        if files:
+            upload_errors = []
+            uploaded_files = []
+
+            for file in files:
+                file_type = request.POST.get(f'file_type_{file.name}', 'image')
+                try:
+                    upload_result = upload_file_to_supabase(file, doc.id)
+                    if not upload_result['success']:
+                        upload_errors.append({
+                            'file': file.name,
+                            'error': upload_result['error'] or 'Unknown error during upload.'
+                        })
+                        continue
+
+                    saved_file = BimDocumentationFile.objects.create(
+                        documentation=doc,
+                        file_name=file.name,
+                        file_type=file_type,
+                        file_path=upload_result['file_path'],
+                        file_url=upload_result['file_url'],
+                        file_size=file.size,
+                    )
+                    uploaded_files.append(saved_file.id)
+                except Exception as e:
+                    upload_errors.append({
+                        'file': file.name,
+                        'error': str(e)
+                    })
+
+            if upload_errors:
+                logger.warning(f"Some files failed to upload during update: {upload_errors}")
+                # Return partial success if some files uploaded
+                if uploaded_files:
+                    return Response({
+                        'warning': 'Some files failed to upload.',
+                        'uploaded_file_ids': uploaded_files,
+                        'upload_errors': upload_errors,
+                        'doc': serializer.data
+                    }, status=status.HTTP_207_MULTI_STATUS)
         
         return Response(serializer.data)
     

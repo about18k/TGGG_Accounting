@@ -5,7 +5,7 @@ import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import InternSidebar from './components/InternSidebar';
 
 const OvertimePage = ({ user, token, onLogout, onNavigate }) => {
-  const [activeTab, setActiveTab] = useState('form');
+  const [activeTab, setActiveTab] = useState('ot-form');
 
   return (
     <div className="min-h-screen bg-[#00273C] relative">
@@ -22,84 +22,19 @@ const OvertimePage = ({ user, token, onLogout, onNavigate }) => {
           </aside>
 
           <main className="flex-1 min-w-0">
-            <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-4 sm:p-6">
-              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-                <button
-                  onClick={() => setActiveTab('form')}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: activeTab === 'form' ? '#FF7120' : 'transparent',
-                    color: activeTab === 'form' ? 'white' : '#9ca3af',
-                    border: `1px solid ${activeTab === 'form' ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activeTab !== 'form') {
-                      e.currentTarget.style.background = '#FF7120';
-                      e.currentTarget.style.color = 'white';
-                      e.currentTarget.style.borderColor = '#FF7120';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeTab !== 'form') {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#9ca3af';
-                      e.currentTarget.style.borderColor = 'rgba(255, 113, 32, 0.3)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }
-                  }}
-                >
-                  Request Overtime
-                </button>
-                <button
-                  onClick={() => setActiveTab('status')}
-                  style={{
-                    padding: '0.75rem 1.5rem',
-                    background: activeTab === 'status' ? '#FF7120' : 'transparent',
-                    color: activeTab === 'status' ? 'white' : '#9ca3af',
-                    border: `1px solid ${activeTab === 'status' ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activeTab !== 'status') {
-                      e.currentTarget.style.background = '#FF7120';
-                      e.currentTarget.style.color = 'white';
-                      e.currentTarget.style.borderColor = '#FF7120';
-                      e.currentTarget.style.transform = 'translateY(-1px)';
-                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeTab !== 'status') {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.color = '#9ca3af';
-                      e.currentTarget.style.borderColor = 'rgba(255, 113, 32, 0.3)';
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }
-                  }}
-                >
-                  My Requests
-                </button>
-              </div>
-
-              {activeTab === 'form' ? (
-                <OvertimeForm token={token} />
-              ) : (
-                <OvertimeStatus token={token} />
-              )}
-            </div>
+            {activeTab === 'ot-form' ? (
+              <OvertimeForm
+                token={token}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              />
+            ) : (
+              <OvertimeStatus
+                token={token}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              />
+            )}
           </main>
         </div>
       </div>

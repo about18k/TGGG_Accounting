@@ -26,7 +26,7 @@ const badgeStyleByStatus = {
   },
 };
 
-export default function LeaveStatus({ token }) {
+export default function LeaveStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState(null);
   const [requests, setRequests] = useState([]);
@@ -50,8 +50,57 @@ export default function LeaveStatus({ token }) {
     load();
   }, [token]);
 
+  const tabStyle = (isActive) => ({
+    padding: '0.5rem 1rem',
+    background: isActive ? '#FF7120' : 'transparent',
+    color: isActive ? 'white' : '#9ca3af',
+    border: `1px solid ${isActive ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    transition: 'all 0.2s',
+  });
+
+  const renderTabs = () => (
+    <div style={{ display: 'flex', gap: '0.5rem' }}>
+      {extraTabs.includes('ot-form') && (
+        <button
+          type="button"
+          onClick={() => onTabChange && onTabChange('ot-form')}
+          style={tabStyle(activeTab === 'ot-form')}
+        >
+          Request OT
+        </button>
+      )}
+      {extraTabs.includes('ot-status') && (
+        <button
+          type="button"
+          onClick={() => onTabChange && onTabChange('ot-status')}
+          style={tabStyle(activeTab === 'ot-status')}
+        >
+          OT Status
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => onTabChange && onTabChange('leave-form')}
+        style={tabStyle(activeTab === 'leave-form')}
+      >
+        Request Leave
+      </button>
+      <button
+        type="button"
+        onClick={() => onTabChange && onTabChange('leave-status')}
+        style={tabStyle(activeTab === 'leave-status')}
+      >
+        Leave Status
+      </button>
+    </div>
+  );
+
   return (
-    <div className="dashboard">
+    <>
       {alert && (
         <Alert
           type={alert.type}
@@ -62,8 +111,9 @@ export default function LeaveStatus({ token }) {
       )}
 
       <div className="attendance-table">
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <h3 style={{ margin: 0 }}>My Leave Requests</h3>
+          {onTabChange && renderTabs()}
         </div>
 
         {loading ? (
@@ -125,6 +175,6 @@ export default function LeaveStatus({ token }) {
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

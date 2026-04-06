@@ -269,7 +269,6 @@ function Profile({ token, user, onLogout }) {
             <CardSkeleton />
           ) : (
             <div className="checkin-form">
-              <h3>Profile Information</h3>
 
               <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                 <div style={{

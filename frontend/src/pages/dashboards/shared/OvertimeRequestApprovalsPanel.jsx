@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Clock3, Search, UserRound } from 'lucide-react';
 import { approveOvertime, getAllOvertime, removeOvertime } from '../../../services/overtimeService';
+import { toast } from 'sonner';
+import { getProfile } from '../../../services/profileService';
 
 const REVIEWER_CONFIG = {
   accounting: {
@@ -119,17 +121,29 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
       return;
     }
 
-    const payload = { management_signature: 'confirmed' };
-
     setSavingId(requestItem.id);
     setError('');
 
     try {
+      // Fetch current user's profile for the signature
+      const profileData = await getProfile();
+      if (!profileData.signature_image) {
+        toast.error('Signature Missing', {
+          description: 'You must set your signature in your Profile before confirming requests.'
+        });
+        setSavingId(null);
+        return;
+      }
+
+      const payload = { [reviewer.field]: profileData.signature_image };
+
       const updated = await approveOvertime(requestItem.id, payload);
       setRequests((previous) => previous.map((item) => (item.id === requestItem.id ? updated : item)));
       setSelectedId((previous) => (previous === requestItem.id ? requestItem.id : previous));
+      toast.success('Confirmed successfully');
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to confirm OT request.');
+      toast.error('Confirmation failed');
     } finally {
       setSavingId(null);
     }

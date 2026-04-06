@@ -141,6 +141,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                 description: docDescription.trim(),
                 doc_type: docType.trim(),
                 doc_date: docDate,
+                imageFiles,
             })
             : await bimDocumentationService.createDocumentation({
                 title: docTitle.trim(),

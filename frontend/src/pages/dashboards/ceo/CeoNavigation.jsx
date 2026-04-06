@@ -143,40 +143,17 @@ export default function CeoNavigation({ onNavigate, currentPage = 'attendance', 
             </PopoverContent>
           </Popover>
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                className={`border border-[#FF7120] rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center transition-all ${
-                  currentPage === 'profile'
-                    ? 'bg-[#FF7120] text-white'
-                    : 'text-[#FF7120] hover:bg-[#FF7120] hover:text-white'
-                }`}
-              >
-                <User className="h-4 w-4 sm:h-5 sm:w-5" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent className="w-52 p-0 border-white/10 bg-[#001f35] text-white" align="end">
-              <div className="p-4 border-b border-white/10">
-                <p className="font-semibold text-sm">{user ? `${user.first_name} ${user.last_name}` : 'Profile'}</p>
-                <p className="text-xs text-white/55">CEO • Executive Suite</p>
-              </div>
-              <div className="p-2">
-                <button
-                  onClick={() => onNavigate?.('profile')}
-                  className="w-full rounded-lg px-3 py-2 text-left text-sm text-white/80 transition-colors hover:bg-white/10 hover:text-white"
-                >
-                  Profile
-                </button>
-                <button
-                  onClick={onLogout}
-                  className="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-red-200 transition-colors hover:bg-red-500/20 hover:text-white"
-                >
-                  Logout
-                </button>
-              </div>
-            </PopoverContent>
-          </Popover>
+          <button
+            type="button"
+            onClick={() => onNavigate?.('profile')}
+            className={`border border-[#FF7120] rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center transition-all ${
+              currentPage === 'profile'
+                ? 'bg-[#FF7120] text-white'
+                : 'text-[#FF7120] hover:bg-[#FF7120] hover:text-white'
+            }`}
+          >
+            <User className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
 
           <button
             type="button"

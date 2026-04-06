@@ -19,7 +19,7 @@ const statusLabel = (req) => {
   return 'Pending Accounting Approval';
 };
 
-function OvertimeStatus({ token }) {
+function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
   const [requests, setRequests] = useState([]);
   const [alert, setAlert] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -50,6 +50,13 @@ function OvertimeStatus({ token }) {
     if (!doc) return;
     const periods = Array.isArray(req.periods) ? req.periods : [];
 
+    const fixUrl = (url) => {
+      if (!url) return '';
+      if (url.startsWith('data:') || url.startsWith('http')) return url;
+      // If it's a relative path, prefix with backend URL
+      return `http://localhost:8000${url.startsWith('/') ? '' : '/'}${url}`;
+    };
+
     const periodRows = [];
     for (let i = 0; i < 5; i++) {
       const period = periods[i];
@@ -72,9 +79,9 @@ function OvertimeStatus({ token }) {
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 15px; font-size: 10pt; line-height: 1.3; }
             .form-container { max-width: 800px; margin: 0 auto; border: 2px solid #000; padding: 0; }
-            .header { display: flex; flex-direction: column; align-items: center; border-bottom: 2px solid #000; padding: 20px 20px; }
-            .logo { width: 400px; height: auto; margin-top: -40px; margin-right: 80px; }
-            .header-text { margin-top: -35px; flex: 1; text-align: center; }
+            .header { display: flex; flex-direction: column; align-items: center; border-bottom: 2px solid #000; padding: 25px 20px; text-align: center; }
+            .logo { max-width: 380px; height: auto; margin-bottom: 15px; display: block; }
+            .header-text { width: 100%; }
             .form-title { font-size: 14pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
             .section { padding: 10px 15px; border-bottom: 1px solid #000; }
             .section:last-child { border-bottom: none; }
@@ -87,13 +94,14 @@ function OvertimeStatus({ token }) {
             .periods-table th { background: #e0e0e0; border: 1px solid #000; padding: 5px 3px; font-size: 9pt; font-weight: bold; text-align: center; }
             .periods-table td.period-cell { border: 1px solid #000; padding: 5px 3px; height: 20px; text-align: center; font-size: 9pt; }
             .explanation-box { border: 1px solid #000; min-height: 50px; padding: 6px; margin-top: 5px; font-size: 9pt; line-height: 1.3; }
-            .signature-section { display: flex; justify-content: space-between; margin-top: 8px; }
-            .signature-block { width: 45%; text-align: center; }
-            .signature-block1 { margin-top: 60px; width: 45%; text-align: center; }
+            .signature-section { display: flex; justify-content: space-between; margin-top: 25px; align-items: flex-end; }
+            .signature-block { width: 45%; text-align: center; display: flex; flex-direction: column; align-items: center; }
+            .signature-block1 { width: 45%; text-align: center; display: flex; flex-direction: column; align-items: center; }
             .signature-line { border-bottom: 1px solid #000; height: 30px; margin-bottom: 3px; position: relative; }
             .signature-image { width: 100%; height: 60px; background: #fff; display: flex; align-items: center; justifyContent: center; margin-bottom: 0px; padding-top: 5px; }
-            .signature-image img { max-width: 100%; max-height: 100%; display: block; }
-            .signature-label { font-size: 8pt; font-weight: bold; }
+            .signature-image img { max-width: 100%; max-height: 100%; display: block; margin: 0 auto; }
+            .employee-name { font-weight: bold; font-size: 10pt; margin: 2px 0; text-transform: uppercase; }
+            .signature-label { font-size: 8pt; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; display: block; }
             .approval-title { font-weight: bold; font-size: 10pt; margin-bottom: 8px; text-align: center; text-transform: uppercase; }
             .approval-signatures { display: flex; justify-content: space-around; }
             .approval-block { width: 40%; text-align: center; }
@@ -105,7 +113,7 @@ function OvertimeStatus({ token }) {
         <body>
           <div class="form-container">
             <div class="header">
-              <img src="/imgs/formlogo.png" alt="Company Logo" class="logo" />
+              <img src="/formlogo.png" alt="Company Logo" class="logo" />
               <div class="header-text">
                 <div class="form-title">OT Request Form</div>
               </div>
@@ -135,13 +143,17 @@ function OvertimeStatus({ token }) {
               <div class="section-title">Employee Acknowledgment</div>
               <div class="signature-section">
                 <div class="signature-block">
-                  ${req.employee_signature ? `<div class="signature-image"><img src="${req.employee_signature}" alt="Employee Signature" /></div>` : ''}
-                  <div class="signature-line"></div>
+                  <div class="signature-image">
+                    ${req.employee_signature ? `<img src="${fixUrl(req.employee_signature)}" alt="Employee Signature" />` : '<div style="height:60px"></div>'}
+                  </div>
+                  <div class="employee-name">${escapeHtml(req.employee_name || req.full_name || '')}</div>
                   <div class="signature-label">Employee Signature</div>
                 </div>
                 <div class="signature-block1">
-                  <div class="signature-line">${escapeHtml(req.date_completed || '')}</div>
-                  <div class="signature-label">Date</div>
+                  <div style="height:60px; display:flex; align-items:flex-end; justify-content:center; font-weight:bold; font-size:10pt; padding-bottom:2px;">
+                    ${escapeHtml(req.date_completed || '')}
+                  </div>
+                  <div class="signature-label">Date Request Submitted</div>
                 </div>
               </div>
             </div>
@@ -149,7 +161,12 @@ function OvertimeStatus({ token }) {
               <div class="approval-title">For Official Use Only - Approval</div>
               <div class="field-row" style="margin-bottom:15px;"><div class="field-group"><span class="field-label">Approval Date:</span><span class="field-value">${escapeHtml(req.approval_date || '')}</span><div class="approval-note" style="margin-left:15px;">Approved</div></div></div>
               <div class="approval-signatures">
-                <div class="approval-block"><div class="signature-line" style="margin-top:15px;"></div><div class="signature-label">Accounting Signature</div></div>
+                <div class="approval-block">
+                  <div class="signature-image">
+                    ${req.management_signature ? `<img src="${fixUrl(req.management_signature)}" alt="Accounting Signature" />` : '<div style="height:60px"></div>'}
+                  </div>
+                  <div class="signature-label">Accounting Signature</div>
+                </div>
               </div>
             </div>
           </div>
@@ -162,8 +179,57 @@ function OvertimeStatus({ token }) {
     doc.document.close();
   };
 
+  const tabStyle = (isActive) => ({
+    padding: '0.5rem 1rem',
+    background: isActive ? '#FF7120' : 'transparent',
+    color: isActive ? 'white' : '#9ca3af',
+    border: `1px solid ${isActive ? '#FF7120' : 'rgba(255, 113, 32, 0.3)'}`,
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    fontWeight: '600',
+    transition: 'all 0.2s'
+  });
+
+  const renderTabs = () => (
+    <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <button
+        type="button"
+        onClick={() => onTabChange && onTabChange('ot-form')}
+        style={tabStyle(activeTab === 'ot-form')}
+      >
+        Request OT
+      </button>
+      <button
+        type="button"
+        onClick={() => onTabChange && onTabChange('ot-status')}
+        style={tabStyle(activeTab === 'ot-status')}
+      >
+        OT Status
+      </button>
+      {extraTabs.includes('leave-form') && (
+        <button
+          type="button"
+          onClick={() => onTabChange && onTabChange('leave-form')}
+          style={tabStyle(activeTab === 'leave-form')}
+        >
+          Request Leave
+        </button>
+      )}
+      {extraTabs.includes('leave-status') && (
+        <button
+          type="button"
+          onClick={() => onTabChange && onTabChange('leave-status')}
+          style={tabStyle(activeTab === 'leave-status')}
+        >
+          Leave Status
+        </button>
+      )}
+    </div>
+  );
+
   return (
-    <div className="dashboard">
+    <>
       {alert && (
         <Alert
           type={alert.type}
@@ -172,9 +238,12 @@ function OvertimeStatus({ token }) {
           onClose={() => setAlert(null)}
         />
       )}
-      <div className="welcome">
-        <h2>OT Request Status</h2>
-        <p>View your submitted OT requests.</p>
+      <div className="welcome" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem', padding: '1rem' }}>
+        <div>
+          <h2>OT Request Status</h2>
+          <p>View your submitted OT requests.</p>
+        </div>
+        {onTabChange && renderTabs()}
       </div>
       <div className="attendance-table">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
@@ -418,7 +487,7 @@ function OvertimeStatus({ token }) {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

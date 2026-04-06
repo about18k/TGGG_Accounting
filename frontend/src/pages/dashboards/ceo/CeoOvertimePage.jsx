@@ -59,17 +59,36 @@ const CeoOvertimePage = ({ user, token, onLogout, onNavigate }) => {
           </aside>
 
           <div className="flex-1 min-w-0 space-y-4 sm:space-y-8">
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
-              {renderTabButton('ot-form', 'Request OT')}
-              {renderTabButton('ot-status', 'OT Status')}
-              {renderTabButton('leave-form', 'Request Leave')}
-              {renderTabButton('leave-status', 'Leave Status')}
-            </div>
-
-            {activeTab === 'ot-form' && <OvertimeForm token={token} />}
-            {activeTab === 'ot-status' && <OvertimeStatus token={token} />}
-            {activeTab === 'leave-form' && <LeaveForm token={token} />}
-            {activeTab === 'leave-status' && <LeaveStatus token={token} />}
+            {activeTab === 'ot-form' && (
+              <OvertimeForm
+                token={token}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                extraTabs={['leave-form', 'leave-status']}
+              />
+            )}
+            {activeTab === 'ot-status' && (
+              <OvertimeStatus
+                token={token}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                extraTabs={['leave-form', 'leave-status']}
+              />
+            )}
+            {activeTab === 'leave-form' && (
+              <LeaveForm
+                token={token}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              />
+            )}
+            {activeTab === 'leave-status' && (
+              <LeaveStatus
+                token={token}
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+              />
+            )}
           </div>
         </div>
       </div>
