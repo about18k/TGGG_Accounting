@@ -193,7 +193,7 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
                 type="date"
                 value={rangeStartDate}
                 onChange={(e) => setRangeStartDate(e.target.value)}
-                className="rounded-lg border border-white/15 bg-[#001f35] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 [color-scheme:dark]"
+                className="rounded-lg border border-white/15 bg-[#001f35] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 scheme-dark"
               />
             </label>
 
@@ -203,25 +203,25 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
                 type="date"
                 value={rangeEndDate}
                 onChange={(e) => setRangeEndDate(e.target.value)}
-                className="rounded-lg border border-white/15 bg-[#001f35] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 [color-scheme:dark]"
+                className="rounded-lg border border-white/15 bg-[#001f35] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/60 scheme-dark"
               />
             </label>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-            <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3">
+            <div className="rounded-xl border border-white/10 bg-background/70 p-3">
               <p className="text-xs text-white/60">Total Hours</p>
               <p className="mt-1 text-2xl font-semibold text-white">{formatDurationFromHours(attendanceTotals.totalHours)}</p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3">
+            <div className="rounded-xl border border-white/10 bg-background/70 p-3">
               <p className="text-xs text-white/60">Total Days Worked</p>
               <p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalDaysWorked}</p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3">
+            <div className="rounded-xl border border-white/10 bg-background/70 p-3">
               <p className="text-xs text-white/60">Total Late</p>
               <p className="mt-1 text-2xl font-semibold text-white">{formatDurationFromHours(attendanceTotals.totalLate)}</p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3">
+            <div className="rounded-xl border border-white/10 bg-background/70 p-3">
               <p className="text-xs text-white/60">Total Overtime Worked</p>
               <p className="mt-1 text-2xl font-semibold text-white">{formatDurationFromHours(attendanceTotals.totalOvertimeHours)}</p>
             </div>
@@ -284,13 +284,13 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
   return (
     <div className="min-h-screen bg-[#00273C] relative">
       <div className="pointer-events-none absolute inset-0">
-        <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
+        <div className="absolute top-40 -right-40 h-130 w-130 rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
 
       <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
 
       <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
-        <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-6">
+        <div className="max-w-400 mx-auto flex flex-col lg:flex-row gap-6">
           <aside className="w-64 shrink-0 hidden lg:block">
             <SiteCoordinatorSidebar currentPage="attendance" onNavigate={onNavigate} activeSection="attendance" onSelectSection={() => { }} />
           </aside>

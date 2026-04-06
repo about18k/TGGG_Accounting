@@ -31,7 +31,7 @@ const CustomToolbar = ({ id, onAttach }) => (
                 className="flex items-center justify-center p-1.5 rounded-md hover:bg-white/10 group transition"
                 title="Attach file (Max 3)"
             >
-                <Paperclip className="h-[18px] w-[18px] text-white/50 group-hover:text-[#FF7120] transition-colors" />
+                <Paperclip className="h-4.5 w-4.5 text-white/50 group-hover:text-[#FF7120] transition-colors" />
             </button>
         </div>
     </div>
@@ -233,7 +233,7 @@ export default function WorkDocCard({
             )}
 
             {/* Map Portal Target */}
-            <div id="map-preview-portal" className="empty:min-h-[300px] empty:mt-6 empty:rounded-2xl empty:bg-white/5 empty:animate-pulse"></div>
+            <div id="map-preview-portal" className="empty:min-h-75 empty:mt-6 empty:rounded-2xl empty:bg-white/5 empty:animate-pulse"></div>
             </div>
         </div>
     );

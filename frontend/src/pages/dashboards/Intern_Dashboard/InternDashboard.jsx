@@ -146,7 +146,7 @@ export default function InternDashboard({ user, onNavigate }) {
             )}
           </div>
           <ChevronDown
-            className={`h-5 w-5 text-white/60 transition-transform duration-300 flex-shrink-0 ${
+            className={`h-5 w-5 text-white/60 transition-transform duration-300 shrink-0 ${
               isAttendanceTotalsOpen ? 'rotate-180' : ''
             }`}
           />
@@ -155,11 +155,11 @@ export default function InternDashboard({ user, onNavigate }) {
         {isAttendanceTotalsOpen && (
           <div className="px-4 sm:px-6 pt-4 pb-4 sm:pb-6 space-y-4 border-t border-white/10">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-              <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Date Started</p><p className="mt-1 text-lg font-semibold text-white">{attendanceStartDateLabel}</p></div>
-              <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Total Days Worked</p><p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalDaysWorked}</p></div>
-              <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Total Hours</p><p className="mt-1 text-2xl font-semibold text-white">{formatDurationFromHours(attendanceTotals.totalHours)}</p></div>
-              <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Total Late</p><p className="mt-1 text-2xl font-semibold text-white">{formatDurationFromHours(attendanceTotals.totalLate)}</p></div>
-              <div className="rounded-xl border border-white/10 bg-[#021B2C]/70 p-3"><p className="text-xs text-white/60">Total Overtime Worked</p><p className="mt-1 text-2xl font-semibold text-white">{formatDurationFromHours(attendanceTotals.totalOvertimeHours)}</p></div>
+              <div className="rounded-xl border border-white/10 bg-background/70 p-3"><p className="text-xs text-white/60">Date Started</p><p className="mt-1 text-lg font-semibold text-white">{attendanceStartDateLabel}</p></div>
+              <div className="rounded-xl border border-white/10 bg-background/70 p-3"><p className="text-xs text-white/60">Total Days Worked</p><p className="mt-1 text-2xl font-semibold text-white">{attendanceTotals.totalDaysWorked}</p></div>
+              <div className="rounded-xl border border-white/10 bg-background/70 p-3"><p className="text-xs text-white/60">Total Hours</p><p className="mt-1 text-2xl font-semibold text-white">{formatDurationFromHours(attendanceTotals.totalHours)}</p></div>
+              <div className="rounded-xl border border-white/10 bg-background/70 p-3"><p className="text-xs text-white/60">Total Late</p><p className="mt-1 text-2xl font-semibold text-white">{formatDurationFromHours(attendanceTotals.totalLate)}</p></div>
+              <div className="rounded-xl border border-white/10 bg-background/70 p-3"><p className="text-xs text-white/60">Total Overtime Worked</p><p className="mt-1 text-2xl font-semibold text-white">{formatDurationFromHours(attendanceTotals.totalOvertimeHours)}</p></div>
             </div>
           </div>
         )}
@@ -223,13 +223,13 @@ export default function InternDashboard({ user, onNavigate }) {
   return (
     <div className="min-h-screen bg-[#00273C] relative">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
+        <div className="absolute top-40 -right-40 h-130 w-130 rounded-full bg-cyan-400/10 blur-[90px]" />
       </div>
 
       <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
 
       <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
-        <div className="max-w-[1600px] mx-auto flex flex-col lg:flex-row gap-6">
+        <div className="max-w-400 mx-auto flex flex-col lg:flex-row gap-6">
           <aside className="w-64 shrink-0 hidden lg:block">
             <InternSidebar 
               currentPage="attendance" 

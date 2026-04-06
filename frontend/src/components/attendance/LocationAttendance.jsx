@@ -480,7 +480,7 @@ const LocationAttendance = ({
   ) => {
     return (
       <div
-        className="rounded-xl border border-white/8 bg-white/[0.03] p-4 space-y-3"
+        className="rounded-xl border border-white/8 bg-white/3 p-4 space-y-3"
       >
         {/* Section header */}
         <div className="flex items-center gap-2.5">

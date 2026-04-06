@@ -40,7 +40,7 @@ export default function AttendanceHistoryTable({
   return (
     <div className={cardClass}>
       <div className="p-4 sm:p-6 border-b border-white/10 flex flex-wrap items-center justify-between gap-3">
-        <h3 className="text-white font-semibold flex-1 min-w-[200px] text-lg tracking-tight">
+        <h3 className="text-white font-semibold flex-1 min-w-50 text-lg tracking-tight">
           My Attendance History
         </h3>
         <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#001a2b] px-3 py-2 w-full sm:w-auto">
@@ -53,8 +53,8 @@ export default function AttendanceHistoryTable({
         </div>
       </div>
 
-      <div className="max-h-[520px] overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-        <table className="w-full min-w-[1200px] border-collapse">
+      <div className="max-h-130 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <table className="w-full min-w-300 border-collapse">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[#001a2b] border-b border-white/10">
               {[
@@ -166,7 +166,7 @@ export default function AttendanceHistoryTable({
                             <span className="text-emerald-300">On time</span>
                           )}
                         </td>
-                        <td className="px-4 py-4 text-white/70 text-sm max-w-[200px]">
+                        <td className="px-4 py-4 text-white/70 text-sm max-w-50">
                           <div className="flex flex-col gap-1.5">
                             {(am || pm || ot) && (
                               <>
@@ -219,7 +219,7 @@ export default function AttendanceHistoryTable({
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-4 text-white/85 text-sm max-w-[180px]">
+                        <td className="px-4 py-4 text-white/85 text-sm max-w-45">
                           <div className="flex items-center gap-2">
                             <span className="truncate">{allNotes || '-'}</span>
                             {allNotes && (
@@ -260,7 +260,7 @@ export default function AttendanceHistoryTable({
                                   d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                                 />
                               </svg>
-                              <span className="truncate max-w-[150px] inline-block" title={attachment.filename}>
+                              <span className="truncate max-w-37.5 inline-block" title={attachment.filename}>
                                 {attachment.filename}
                               </span>
                             </a>
@@ -283,7 +283,7 @@ export default function AttendanceHistoryTable({
       {/* Work Done Modal */}
       {selectedWorkData && (
         <div 
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+          className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
           onClick={() => setSelectedWorkData(null)}
         >
           <div 

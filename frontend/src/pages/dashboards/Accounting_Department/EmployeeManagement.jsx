@@ -637,6 +637,7 @@ export function EmployeeManagement() {
       </Card>
 
       {/* Employee Cards */}
+      <div className="max-h-[calc(100vh-270px)] overflow-y-auto pr-1">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {filteredEmployees.map((employee) => {
           const attendanceMetrics = employeeAttendanceStats.get(String(employee.id)) || {
@@ -649,63 +650,62 @@ export function EmployeeManagement() {
           };
 
           return (
-          <Card key={employee.id} className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm hover:shadow-xl transition-shadow cursor-pointer flex flex-col" onClick={() => openEmployeeDetails(employee)}>
-            <CardContent className="p-6 flex flex-col h-full">
-              <div className="flex items-start justify-between mb-4 gap-2">
+          <Card key={employee.id} className="border border-white/10 shadow-md bg-[#021B2C] hover:shadow-lg transition-shadow cursor-pointer flex flex-col rounded-2xl" onClick={() => openEmployeeDetails(employee)}>
+            <CardContent className="p-3 flex flex-col h-full gap-2">
+              <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-3 min-w-0 flex-1">
-                  <Avatar className="w-12 h-12 flex-shrink-0">
+                  <Avatar className="w-11 h-11 shrink-0">
                     <AvatarImage src={employee.avatar} alt={employee.name} />
                     <AvatarFallback>{employee.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-medium text-sm truncate">{employee.name || '---'}</h3>
-                    <p className="text-xs text-muted-foreground truncate">{employee.position || '---'}</p>
+                    <h3 className="font-medium text-sm truncate text-white">{employee.name || '---'}</h3>
+                    <p className="text-[11px] text-white/60 truncate">{employee.position || '---'}</p>
                   </div>
                 </div>
-                <div className="flex-shrink-0">
+                <div className="shrink-0">
                   {getStatusBadge(employee.status)}
                 </div>
               </div>
 
-              <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg p-4 mb-3 border border-green-200/30">
-                <p className="text-xs text-muted-foreground mb-1">Monthly Salary</p>
-                <p className="text-xl font-bold text-green-600">
+              <div className="w-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg p-2.5 border border-green-200/30">
+                <p className="text-[10px] text-white/60">Monthly Salary</p>
+                <p className="text-lg font-semibold tracking-tight text-green-400 truncate">
                   {employee.salary ? `₱${Number(employee.salary).toLocaleString('en-PH')}` : '---'}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 mb-3">
-                <div className="bg-background rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Total Days</p>
-                  <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : attendanceMetrics.totalDays}</p>
+              <div className="grid grid-cols-2 gap-2 auto-rows-fr">
+                <div className="bg-[#001f35] rounded-lg px-2.5 py-2 h-16">
+                  <p className="text-[10px] text-white/60">Total Days</p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight leading-none text-[#FF6B00] truncate">{isAttendanceLoading ? '...' : attendanceMetrics.totalDays}</p>
                 </div>
-                <div className="bg-background rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Total Hours</p>
-                  <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalHours)}</p>
+                <div className="bg-[#001f35] rounded-lg px-2.5 py-2 h-16">
+                  <p className="text-[10px] text-white/60">Total Hours</p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight leading-none text-[#FF6B00] truncate" title={isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalHours)}>{isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalHours)}</p>
                 </div>
-                <div className="bg-background rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">On-Time</p>
-                  <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : attendanceMetrics.onTime}</p>
+                <div className="bg-[#001f35] rounded-lg px-2.5 py-2 h-16">
+                  <p className="text-[10px] text-white/60">On-Time</p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight leading-none text-[#FF6B00] truncate">{isAttendanceLoading ? '...' : attendanceMetrics.onTime}</p>
                 </div>
-                <div className="bg-background rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground mb-1">Late</p>
-                  <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : attendanceMetrics.late}</p>
+                <div className="bg-[#001f35] rounded-lg px-2.5 py-2 h-16">
+                  <p className="text-[10px] text-white/60">Late</p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight leading-none text-[#FF6B00] truncate">{isAttendanceLoading ? '...' : attendanceMetrics.late}</p>
                 </div>
-              </div>
-
-              <div className="bg-background rounded-lg p-3">
-                <p className="text-xs text-muted-foreground mb-1">Total Late</p>
-                <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalLate)}</p>
-              </div>
-
-              <div className="bg-background rounded-lg p-3 mt-3">
-                <p className="text-xs text-muted-foreground mb-1">Total Overtime</p>
-                <p className="text-2xl font-bold text-primary">{isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalOvertime)}</p>
+                <div className="bg-[#001f35] rounded-lg px-2.5 py-2 h-16">
+                  <p className="text-[10px] text-white/60">Total Late</p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight leading-none text-[#FF6B00] truncate" title={isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalLate)}>{isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalLate)}</p>
+                </div>
+                <div className="bg-[#001f35] rounded-lg px-2.5 py-2 h-16">
+                  <p className="text-[10px] text-white/60">Total Overtime</p>
+                  <p className="mt-1 text-lg font-semibold tracking-tight leading-none text-[#FF6B00] truncate" title={isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalOvertime)}>{isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalOvertime)}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
         );
         })}
+      </div>
       </div>
 
       {/* Employee Detail Dialog */}
