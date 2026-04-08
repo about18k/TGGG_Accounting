@@ -13,6 +13,11 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#039;');
 };
 
+const formatJobPosition = (value) => {
+  if (!value) return '';
+  return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
 const statusLabel = (req) => {
   const accountingApproved = !!req.management_signature;
   if (accountingApproved) return 'Approved';
@@ -119,7 +124,7 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
               <div class="section-title">Employee Information</div>
               <div class="field-row"><div class="field-group"><span class="field-label">Employee Name:</span><span class="field-value">${escapeHtml(req.employee_name || req.full_name || '')}</span></div></div>
               <div class="field-row">
-                <div class="field-group" style="flex:1; margin-right:20px;"><span class="field-label">Job Position:</span><span class="field-value">${escapeHtml(req.job_position || '')}</span></div>
+                <div class="field-group" style="flex:1; margin-right:20px;"><span class="field-label">Job Position:</span><span class="field-value">${escapeHtml(formatJobPosition(req.job_position || ''))}</span></div>
                 <div class="field-group" style="flex:1;"><span class="field-label">Department:</span><span class="field-value">${escapeHtml(req.department || '')}</span></div>
               </div>
               <div class="field-row"><div class="field-group"><span class="field-label">Date of Request:</span><span class="field-value">${escapeHtml(req.date_completed || '')}</span></div></div>
@@ -344,7 +349,7 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
               </div>
               <div>
                 <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Job Position</label>
-                <div style={{ color: '#e8eaed' }}>{selectedForView.job_position || '-'}</div>
+                <div style={{ color: '#e8eaed' }}>{formatJobPosition(selectedForView.job_position) || '-'}</div>
               </div>
               <div>
                 <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Department</label>

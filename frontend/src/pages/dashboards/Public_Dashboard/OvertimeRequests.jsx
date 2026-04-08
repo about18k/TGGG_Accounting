@@ -17,6 +17,11 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#039;');
 };
 
+const formatJobPosition = (value) => {
+  if (!value) return '';
+  return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
 function OvertimeRequests({ token }) {
   const [requests, setRequests] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -349,7 +354,7 @@ function OvertimeRequests({ token }) {
               <div class="field-row">
                 <div class="field-group" style="flex: 1; margin-right: 20px;">
                   <span class="field-label">Job Position:</span>
-                  <span class="field-value">${escapeHtml(req.job_position || '')}</span>
+                  <span class="field-value">${escapeHtml(formatJobPosition(req.job_position || ''))}</span>
                 </div>
                 <div class="field-group" style="flex: 1;">
                   <span class="field-label">Department:</span>
@@ -605,7 +610,7 @@ function OvertimeRequests({ token }) {
               </div>
               <div>
                 <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Job Position</label>
-                <div style={{ color: '#e8eaed' }}>{selected.job_position || '-'}</div>
+                <div style={{ color: '#e8eaed' }}>{formatJobPosition(selected.job_position) || '-'}</div>
               </div>
               <div>
                 <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Department</label>
