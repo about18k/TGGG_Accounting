@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { getEvents, createEvent } from '../../../../services/attendanceService';
+import { getEvents, createEvent, updateEvent, deleteEvent } from '../../../../services/attendanceService';
 import {
   CalendarDays,
   Plus,
@@ -8,7 +8,12 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
+  Pencil,
+  Trash2,
+  Save,
+  X,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Label, Switch } from '../../../../components/ui/accounting-ui';
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -71,22 +76,32 @@ const buildMonthGrid = (monthDate) => {
 };
 
 export default function AccountingEventsPanel() {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    const now = new Date();
-    return new Date(now.getFullYear(), now.getMonth(), 1);
-  });
-  const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
-  const [form, setForm] = useState({
+  const initialFormState = {
     title: '',
     date: '',
     event_type: 'event',
     is_holiday: false,
     description: '',
+  };
+
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingEventId, setDeletingEventId] = useState(null);
+  const [editingEventId, setEditingEventId] = useState(null);
+  const [confirmDeleteEvent, setConfirmDeleteEvent] = useState(null);
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
   });
+  const [selectedDate, setSelectedDate] = useState(() => toIsoDate(new Date()));
+  const [form, setForm] = useState(initialFormState);
   const [error, setError] = useState('');
+
+  const resetForm = () => {
+    setForm(initialFormState);
+    setEditingEventId(null);
+  };
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -115,21 +130,26 @@ export default function AccountingEventsPanel() {
     }
     setSaving(true);
     setError('');
+    const isEditing = Boolean(editingEventId);
     try {
-      const createdEvent = await createEvent(form);
-      setForm({ title: '', date: '', event_type: 'event', is_holiday: false, description: '' });
+      const savedEvent = isEditing
+        ? await updateEvent(editingEventId, form)
+        : await createEvent(form);
+      resetForm();
 
-      if (createdEvent && (createdEvent.id || createdEvent.date)) {
+      toast.success(isEditing ? 'Event updated successfully.' : 'Event added successfully.');
+
+      if (savedEvent && (savedEvent.id || savedEvent.date)) {
         setEvents((prev) => {
-          const next = [createdEvent, ...prev.filter((item) => item?.id !== createdEvent.id)];
+          const next = [savedEvent, ...prev.filter((item) => item?.id !== savedEvent.id)];
           return next.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
         });
 
-        if (createdEvent.date) {
-          const createdDate = parseIsoDate(createdEvent.date);
-          if (createdDate) {
-            setCurrentMonth(new Date(createdDate.getFullYear(), createdDate.getMonth(), 1));
-            setSelectedDate(createdEvent.date);
+        if (savedEvent.date) {
+          const savedDate = parseIsoDate(savedEvent.date);
+          if (savedDate) {
+            setCurrentMonth(new Date(savedDate.getFullYear(), savedDate.getMonth(), 1));
+            setSelectedDate(savedEvent.date);
           }
         }
       } else {
@@ -140,6 +160,64 @@ export default function AccountingEventsPanel() {
       setError(msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const startEditingEvent = (eventItem) => {
+    if (!eventItem?.id) {
+      setError('This event cannot be edited because it has no ID.');
+      toast.error('Unable to edit this event because it has no ID.');
+      return;
+    }
+
+    setEditingEventId(eventItem.id);
+    setForm({
+      title: eventItem.title || '',
+      date: eventItem.date || '',
+      event_type: eventItem.event_type || 'event',
+      is_holiday: Boolean(eventItem.is_holiday),
+      description: eventItem.description || '',
+    });
+
+    if (eventItem.date) {
+      const editDate = parseIsoDate(eventItem.date);
+      if (editDate) {
+        setCurrentMonth(new Date(editDate.getFullYear(), editDate.getMonth(), 1));
+        setSelectedDate(eventItem.date);
+      }
+    }
+
+    setError('');
+    toast.success('Edit mode enabled. Update the form, then click Save Changes.');
+  };
+
+  const confirmDelete = (eventItem) => {
+    if (!eventItem?.id) {
+      setError('This event cannot be deleted because it has no ID.');
+      toast.error('Unable to delete this event because it has no ID.');
+      return;
+    }
+
+    setConfirmDeleteEvent(eventItem);
+  };
+
+  const handleDeleteEvent = async (eventItem) => {
+    if (!eventItem?.id) return;
+
+    setDeletingEventId(eventItem.id);
+    setError('');
+    try {
+      await deleteEvent(eventItem.id);
+      setEvents((prev) => prev.filter((item) => item?.id !== eventItem.id));
+      if (editingEventId === eventItem.id) {
+        resetForm();
+      }
+      toast.success('Event deleted successfully.');
+    } catch (err) {
+      const msg = err.response?.data?.error || 'Failed to delete event';
+      setError(msg);
+    } finally {
+      setDeletingEventId(null);
     }
   };
 
@@ -200,8 +278,8 @@ export default function AccountingEventsPanel() {
       <div className="bg-[#00273C]/60 rounded-xl border border-white/10 p-6 shadow-lg">
         <div className="space-y-4 text-white">
           <div className="flex items-center gap-2 mb-4">
-            <Plus className="w-5 h-5 text-[#FF7120]" />
-            <h3 className="text-white font-semibold text-lg">Add New Event</h3>
+            {editingEventId ? <Pencil className="w-5 h-5 text-[#FF7120]" /> : <Plus className="w-5 h-5 text-[#FF7120]" />}
+            <h3 className="text-white font-semibold text-lg">{editingEventId ? 'Edit Event' : 'Add New Event'}</h3>
           </div>
           <form onSubmit={handleSubmit} className="grid md:grid-cols-2 gap-4">
             <div>
@@ -221,6 +299,7 @@ export default function AccountingEventsPanel() {
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
                 required
+                min={todayIso}
                 className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#FF7120] transition-colors [color-scheme:dark]"
               />
             </div>
@@ -260,13 +339,23 @@ export default function AccountingEventsPanel() {
               />
             </div>
             <div className="md:col-span-2 flex justify-end">
+              {editingEventId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="mr-2 flex items-center gap-2 border border-white/15 hover:border-white/30 text-white px-4 py-2.5 rounded-lg text-sm font-semibold transition-all"
+                >
+                  <X className="w-4 h-4" />
+                  Cancel
+                </button>
+              )}
               <button 
                 type="submit" 
                 disabled={saving}
                 className="flex items-center gap-2 bg-[#FF7120] hover:bg-[#ff853e] text-white px-6 py-2.5 rounded-lg text-sm font-bold transition-all disabled:opacity-50 shadow-lg shadow-[#FF7120]/10"
               >
-                <Plus className="w-4 h-4" />
-                {saving ? 'Saving...' : 'Add Event'}
+                {editingEventId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                {saving ? 'Saving...' : editingEventId ? 'Save Changes' : 'Add Event'}
               </button>
             </div>
             {error && (
@@ -336,17 +425,26 @@ export default function AccountingEventsPanel() {
                 const isToday = dayKey === todayIso;
                 const isSelected = dayKey === selectedDate;
                 const hasBlockedEvent = dayEvents.some((eventItem) => eventBlocksAttendance(eventItem));
+                const isPastDate = dayKey < todayIso;
+                const canOpenDate = !isPastDate || dayEvents.length > 0;
 
                 return (
                   <button
                     key={dayKey}
                     type="button"
-                    onClick={() => setSelectedDate(dayKey)}
+                    onClick={() => {
+                      if (canOpenDate) {
+                        setSelectedDate(dayKey);
+                      }
+                    }}
+                    disabled={!canOpenDate}
                     className={`min-h-[88px] rounded-lg border p-2 text-left transition-all focus:outline-none focus:ring-2 focus:ring-[#FF7120]/50 ${
                       inCurrentMonth
                         ? 'bg-[#021B2C]/70 border-white/10 hover:border-white/20'
                         : 'bg-[#021B2C]/35 border-white/5 opacity-70'
-                    } ${isSelected ? 'border-[#FF7120]/45 ring-1 ring-[#FF7120]/35' : ''}`}
+                    } ${isSelected ? 'border-[#FF7120]/45 ring-1 ring-[#FF7120]/35' : ''} ${
+                      !canOpenDate ? 'cursor-not-allowed opacity-50 hover:border-white/10' : ''
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-1">
                       <span
@@ -451,6 +549,26 @@ export default function AccountingEventsPanel() {
                     {eventItem.description && (
                       <p className="text-[11px] text-white/50 mt-2 leading-relaxed">{eventItem.description}</p>
                     )}
+                    <div className="mt-3 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => startEditingEvent(eventItem)}
+                        disabled={deletingEventId === eventItem.id || saving}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-white/20 px-2.5 py-1.5 text-[11px] font-semibold text-white/90 hover:border-white/35 transition disabled:opacity-50"
+                      >
+                        <Pencil size={12} />
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => confirmDelete(eventItem)}
+                        disabled={deletingEventId === eventItem.id || saving}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-red-400/30 px-2.5 py-1.5 text-[11px] font-semibold text-red-200 hover:border-red-300/55 transition disabled:opacity-50"
+                      >
+                        <Trash2 size={12} />
+                        {deletingEventId === eventItem.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
                   </div>
                 );
               })}
@@ -471,6 +589,37 @@ export default function AccountingEventsPanel() {
           )}
         </div>
       </div>
+
+      {confirmDeleteEvent && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="w-full max-w-md rounded-xl border border-white/15 bg-[#001f35] p-5 shadow-2xl">
+            <h4 className="text-white text-lg font-semibold">Delete Event</h4>
+            <p className="mt-2 text-sm text-white/75 leading-relaxed">
+              Delete "{confirmDeleteEvent.title}" on {formatLongDate(confirmDeleteEvent.date)}? This action cannot be undone.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteEvent(null)}
+                className="px-4 py-2 rounded-lg border border-white/20 text-white/85 hover:border-white/35 text-sm font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const eventToDelete = confirmDeleteEvent;
+                  setConfirmDeleteEvent(null);
+                  await handleDeleteEvent(eventToDelete);
+                }}
+                className="px-4 py-2 rounded-lg border border-red-400/35 bg-red-500/15 text-red-200 hover:bg-red-500/25 text-sm font-semibold"
+              >
+                Delete Event
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   approvePendingUser,
+  createUserAccount,
   deleteUserAccount,
   getAllUsers,
   getPendingUsers,
@@ -174,6 +175,20 @@ export function useStudioHeadDashboard() {
     }
   }
 
+  async function addUser(payload) {
+    try {
+      setMessage('');
+      await createUserAccount(payload);
+      setMessage('Account created successfully.');
+      await fetchUsers();
+      return { success: true };
+    } catch (e) {
+      const errorMsg = e?.response?.data?.error || e?.message || 'Failed to create account.';
+      setMessage(errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }
+
   async function toggleUserStatus(userId, isActive) {
     try {
       setUserActionById((prev) => ({ ...prev, [userId]: true }));
@@ -296,6 +311,7 @@ export function useStudioHeadDashboard() {
     searchTerm,
     setSearchTerm,
     filteredUsers,
+    addUser,
     editUser,
     toggleUserStatus,
     removeUser,

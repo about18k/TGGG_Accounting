@@ -54,6 +54,16 @@ class MaterialRequestWorkflowTests(APITestCase):
             department=self.department,
             is_active=True,
         )
+        self.accounting = User.objects.create_user(
+            username='accounting',
+            email='accounting@example.com',
+            password='testpass123',
+            first_name='Accounting',
+            last_name='Officer',
+            role='accounting',
+            department=self.department,
+            is_active=True,
+        )
 
         self.payload = {
             'project_name': 'Warehouse Expansion',
@@ -292,3 +302,31 @@ class MaterialRequestWorkflowTests(APITestCase):
         )
         self.assertIsNotNone(notification)
         self.assertIn('site coordinator', notification.message.lower())
+
+    def test_ceo_final_approval_notifies_accounting(self):
+        request_id = self._create_and_submit_request(creator=self.site_engineer)
+
+        self.client.force_authenticate(self.studio_head)
+        studio_head_response = self.client.post(
+            f'/api/material-requests/{request_id}/approval_action/',
+            {'action': 'approve', 'comments': 'Forwarding to CEO now.'},
+            format='json',
+        )
+        self.assertEqual(studio_head_response.status_code, status.HTTP_200_OK)
+
+        self.client.force_authenticate(self.ceo)
+        ceo_response = self.client.post(
+            f'/api/material-requests/{request_id}/approval_action/',
+            {'action': 'approve', 'comments': 'Approved for procurement.'},
+            format='json',
+        )
+        self.assertEqual(ceo_response.status_code, status.HTTP_200_OK)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.accounting, type='matreq_ceo_approved')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('fully approved', notification.title.lower())

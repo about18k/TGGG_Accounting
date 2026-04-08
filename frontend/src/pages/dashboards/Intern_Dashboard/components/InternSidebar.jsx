@@ -6,8 +6,8 @@ const SECTION_LINKS = [
 
 const PAGE_LINKS = [
   { id: 'calendar', label: 'Calendar', icon: CalendarDays, page: 'calendar' },
-  { id: 'overtime', label: 'Overtime & Leave', icon: Clock, page: 'overtime' },
-  { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo' },
+  { id: 'overtime', label: 'My Overtime', icon: Clock, page: 'overtime' },
+  // { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo' },
 ];
 
 export default function InternSidebar({

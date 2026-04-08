@@ -7,8 +7,8 @@ const SECTION_LINKS = [
 const PAGE_LINKS = [
   { id: 'calendar', label: 'Calendar', icon: CalendarDays, page: 'calendar' },
   { id: 'documentation', label: 'Design Documentation', icon: FolderKanban, page: 'documentation' },
-  { id: 'overtime', label: 'Overtime', icon: Clock, page: 'overtime' },
-  { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo' },
+  { id: 'overtime', label: 'My Overtime', icon: Clock, page: 'overtime' },
+  // { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo' },
 ];
 
 const PRIORITY_PAGE_LINKS = PAGE_LINKS.filter((item) => item.page === 'calendar' || item.page === 'overtime' || item.page === 'todo');

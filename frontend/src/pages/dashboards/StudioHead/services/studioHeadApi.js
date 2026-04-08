@@ -10,6 +10,7 @@ export {
   getPendingUsers,
   approvePendingUser,
   getAllUsers,
+  createUserAccount,
   updateUserAccount,
   deleteUserAccount,
   getDepartments,

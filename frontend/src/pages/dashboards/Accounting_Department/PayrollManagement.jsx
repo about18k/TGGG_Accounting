@@ -1550,12 +1550,6 @@ export function PayrollManagement() {
                 </div>
                 <div className="space-y-2">
                   <Label>Rest Day</Label>
-                  <Input
-                    value=""
-                    readOnly
-                    placeholder=""
-                    className="bg-background border-white/10 text-white"
-                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="restDayOt">Rest Day OT</Label>
@@ -1571,12 +1565,6 @@ export function PayrollManagement() {
                 </div>
                 <div className="space-y-2">
                   <Label>Holiday</Label>
-                  <Input
-                    value=""
-                    readOnly
-                    placeholder=""
-                    className="bg-background border-white/10 text-white"
-                  />
                 </div>
               </CardContent>
             </Card>

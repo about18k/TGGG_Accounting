@@ -207,6 +207,18 @@ const materialRequestService = {
       };
     }
   },
+
+  getRecentApprovedRequests: async () => {
+    try {
+      const response = await api.get('/material-requests/projects/recent-approved-requests/');
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to fetch recent approved requests'),
+      };
+    }
+  },
 };
 
 export default materialRequestService;

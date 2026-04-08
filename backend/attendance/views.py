@@ -847,6 +847,12 @@ def calendar_events(request):
     except ValueError:
         return Response({'error': 'Invalid date. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
 
+    if event_date < date.today():
+        return Response(
+            {'error': 'Past dates are not allowed. Please choose today or a future date.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     if event_type not in dict(CalendarEvent.EVENT_TYPES):
         event_type = 'event'
 
@@ -886,6 +892,80 @@ def calendar_events(request):
         'description': event.description,
         'created_by': event.created_by_id,
     }, status=status.HTTP_201_CREATED)
+
+
+@api_view(['PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def calendar_event_detail(request, event_id):
+    if request.user.role != 'accounting':
+        return Response({'error': 'Only Accounting department can manage events.'}, status=status.HTTP_403_FORBIDDEN)
+
+    event = CalendarEvent.objects.filter(id=event_id).first()
+    if not event:
+        return Response({'error': 'Event not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if request.method == 'DELETE':
+        event.delete()
+        return Response({'success': True}, status=status.HTTP_200_OK)
+
+    title = (request.data.get('title') or '').strip()
+    event_date_raw = request.data.get('date')
+    raw_event_type = (request.data.get('event_type') or 'event').strip().lower()
+    event_type = EVENT_TYPE_ALIASES.get(raw_event_type, raw_event_type)
+    description = (request.data.get('description') or '').strip()
+    is_holiday_flag = bool(request.data.get('is_holiday'))
+
+    if not title:
+        return Response({'error': 'Title is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    if not event_date_raw:
+        return Response({'error': 'Date is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    try:
+        event_date = date.fromisoformat(str(event_date_raw))
+    except ValueError:
+        return Response({'error': 'Invalid date. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if event_date < date.today():
+        return Response(
+            {'error': 'Past dates are not allowed. Please choose today or a future date.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if event_type not in dict(CalendarEvent.EVENT_TYPES):
+        event_type = 'event'
+
+    duplicate = CalendarEvent.objects.filter(title=title, date=event_date).exclude(id=event.id).exists()
+    if duplicate:
+        return Response({'error': 'An event with the same title and date already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    previous_blocked = _event_blocks_attendance(event.event_type, event.is_holiday)
+    is_holiday = bool(is_holiday_flag or event_type in NON_WORKING_EVENT_TYPES)
+
+    event.title = title
+    event.date = event_date
+    event.event_type = event_type
+    event.is_holiday = is_holiday
+    event.description = description
+    event.created_by = request.user
+    event.save(update_fields=['title', 'date', 'event_type', 'is_holiday', 'description', 'created_by', 'updated_at'])
+
+    now_blocks_attendance = _event_blocks_attendance(event.event_type, event.is_holiday)
+    if now_blocks_attendance and not previous_blocked:
+        try:
+            _notify_non_working_event(event, request.user)
+        except Exception as exc:
+            print(f"⚠️ Calendar non-working notification failed for event_id={event.id}: {exc}")
+
+    return Response({
+        'id': event.id,
+        'title': event.title,
+        'date': event.date,
+        'event_type': event.event_type,
+        'is_holiday': event.is_holiday,
+        'blocks_attendance': now_blocks_attendance,
+        'description': event.description,
+        'created_by': event.created_by_id,
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])

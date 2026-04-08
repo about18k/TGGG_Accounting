@@ -7,11 +7,12 @@ import { toast } from 'sonner';
 import Alert from '../../../components/Alert';
 
 const MAX_UPLOAD_FILES = 5;
+const TODAY_ISO = new Date().toISOString().split('T')[0];
 
 const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
     const [activeTab, setActiveTab] = useState('create');
     const [docTitle, setDocTitle] = useState('');
-    const [docDate, setDocDate] = useState(new Date().toISOString().split('T')[0]);
+    const [docDate, setDocDate] = useState(TODAY_ISO);
     const [docType, setDocType] = useState('');
     const [docDescription, setDocDescription] = useState('');
     const [imageFiles, setImageFiles] = useState([]);
@@ -140,7 +141,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
 
     const resetDocumentationForm = () => {
         setDocTitle('');
-        setDocDate(new Date().toISOString().split('T')[0]);
+        setDocDate(TODAY_ISO);
         setDocType('');
         setDocDescription('');
         setImageFiles([]);
@@ -151,7 +152,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
 
     const startEditingDocumentation = (doc) => {
         setDocTitle(doc.title || '');
-        setDocDate(doc.doc_date || new Date().toISOString().split('T')[0]);
+        setDocDate(TODAY_ISO);
         setDocType(doc.doc_type || '');
         setDocDescription(doc.description || '');
         setImageFiles([]);
@@ -210,6 +211,10 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
         }
         if (!docDate) {
             toast.error('Validation Error', { description: 'Please select a date.' });
+            return;
+        }
+        if (docDate !== TODAY_ISO) {
+            toast.error('Validation Error', { description: 'Only today\'s date is allowed.' });
             return;
         }
         if (!docType.trim()) {
@@ -496,6 +501,8 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                                 value={docDate}
                                                 onChange={(e) => setDocDate(e.target.value)}
                                                 type="date"
+                                                min={TODAY_ISO}
+                                                max={TODAY_ISO}
                                                 className="h-10 w-full rounded-xl border border-white/15 bg-[#00273C]/60 px-3 text-sm text-white outline-none focus:border-[#FF7120]/50"
                                             />
                                         </div>

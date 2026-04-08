@@ -522,13 +522,87 @@ def accounts_overview(request):
     })
 
 
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def list_users(request):
-    if not _can_view_user_directory(request.user):
+    if request.method == 'GET':
+        if not _can_view_user_directory(request.user):
+            return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+        users = CustomUser.objects.select_related('department').all().order_by('last_name', 'first_name', 'email')
+        return Response(CustomUserSerializer(users, many=True).data)
+
+    if not _is_studio_head_or_admin(request.user):
         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
-    users = CustomUser.objects.select_related('department').all().order_by('last_name', 'first_name', 'email')
-    return Response(CustomUserSerializer(users, many=True).data)
+
+    email = (request.data.get('email') or '').strip().lower()
+    first_name = (request.data.get('first_name') or '').strip()
+    last_name = (request.data.get('last_name') or '').strip()
+    password = (request.data.get('password') or '').strip()
+    role = normalize_role_input(request.data.get('role')) or 'employee'
+    department_id = request.data.get('department_id') if 'department_id' in request.data else None
+    date_hired = request.data.get('date_hired') if 'date_hired' in request.data else None
+    is_active = request.data.get('is_active', True)
+
+    if not email or not first_name or not last_name or not password:
+        return Response(
+            {'error': 'Email, first name, last name, and password are required.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if len(password) < 8:
+        return Response({'error': 'Password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if role not in ALLOWED_ROLES:
+        return Response({'error': 'Invalid role'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if CustomUser.objects.filter(email=email).exists():
+        return Response({'error': 'User with this email already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    department = None
+    if 'department_id' in request.data and department_id not in [None, '', 'null', 'None']:
+        try:
+            department = Department.objects.get(id=department_id)
+        except Department.DoesNotExist:
+            return Response({'error': 'Department not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    hired_date_value = None
+    if 'date_hired' in request.data and date_hired not in [None, '', 'null', 'None']:
+        hired_date_value = parse_date(str(date_hired))
+        if not hired_date_value:
+            return Response({'error': 'Invalid date_hired format. Use YYYY-MM-DD.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    normalized_is_active = is_active
+    if isinstance(is_active, str):
+        normalized_is_active = is_active.lower() in ['1', 'true', 'yes', 'on']
+    else:
+        normalized_is_active = bool(is_active)
+
+    username_base = email.split('@')[0] if '@' in email else email
+    username = username_base
+    suffix = 1
+    while CustomUser.objects.filter(username=username).exists():
+        suffix += 1
+        username = f'{username_base}{suffix}'
+
+    user = CustomUser.objects.create_user(
+        email=email,
+        username=username,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        role=role,
+        department=department,
+        date_hired=hired_date_value,
+        is_active=normalized_is_active,
+    )
+
+    return Response(
+        {
+            'success': True,
+            'user': CustomUserSerializer(user).data,
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(['PATCH', 'DELETE'])

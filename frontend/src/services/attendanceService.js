@@ -86,6 +86,18 @@ export async function createEvent(payload) {
     return data;
 }
 
+export async function updateEvent(eventId, payload) {
+    const { data } = await api.put(`/attendance/events/${eventId}/`, payload);
+    invalidateRequestCache(ATTENDANCE_CACHE_PREFIX.events);
+    return data;
+}
+
+export async function deleteEvent(eventId) {
+    const { data } = await api.delete(`/attendance/events/${eventId}/`);
+    invalidateRequestCache(ATTENDANCE_CACHE_PREFIX.events);
+    return data;
+}
+
 export async function getOvertimeRecords(options = {}) {
     return withRequestCache({
         key: ATTENDANCE_CACHE_PREFIX.overtime,

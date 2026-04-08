@@ -64,6 +64,27 @@ def _notify_studio_head_material_request_submitted(material_request, actor):
         )
 
 
+def _notify_accounting_material_request_ceo_approved(material_request, actor):
+    """Notify active Accounting users when CEO/president gives final approval."""
+    recipients = (
+        CustomUser.objects
+        .filter(is_active=True, role='accounting')
+        .exclude(id=actor.id)
+    )
+
+    for recipient in recipients:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=actor,
+            notif_type='matreq_ceo_approved',
+            title='Material Request Fully Approved',
+            message=(
+                f'CEO approved material request "{material_request.project_name}". '
+                'It is now ready for Accounting processing.'
+            ),
+        )
+
+
 def upload_matreq_img_to_supabase(file_obj, user_id):
     supabase_url = getattr(settings, 'SUPABASE_URL', None)
     supabase_key = getattr(settings, 'SUPABASE_KEY', None)
@@ -399,6 +420,10 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
 
             if action_type == 'approve':
                 material_request.approve_ceo(user, comments)
+                try:
+                    _notify_accounting_material_request_ceo_approved(material_request, user)
+                except Exception as exc:
+                    print(f"⚠️ Material request Accounting notification failed for request_id={material_request.id}: {exc}")
                 return Response(
                     {'message': 'Material request approved.'},
                     status=status.HTTP_200_OK,
@@ -550,8 +575,8 @@ class ProjectViewSet(viewsets.ModelViewSet):
         user = self.request.user
 
         if user.role in self.creator_roles:
-            # See their own projects
-            return Project.objects.filter(created_by=user).select_related('created_by')
+            # Site Engineers and Coordinators can see all projects (for visibility across the site)
+            return Project.objects.all().select_related('created_by').distinct()
         elif user.role in ['studio_head', 'ceo', 'president', 'accounting', 'admin']:
             # See all projects that have at least one submitted mat req
             return Project.objects.filter(
@@ -598,4 +623,19 @@ class ProjectViewSet(viewsets.ModelViewSet):
             'reviewed_by_ceo',
         ).prefetch_related('items')
         serializer = MaterialRequestSerializer(approved, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='recent-approved-requests')
+    def recent_approved_requests(self, request):
+        """Return recent approved material requests across all projects (limit: 10)."""
+        approved_requests = MaterialRequest.objects.filter(
+            status='approved',
+        ).order_by('-ceo_reviewed_at').select_related(
+            'project',
+            'created_by',
+            'reviewed_by_studio_head',
+            'reviewed_by_ceo',
+        ).prefetch_related('items')[:10]
+        
+        serializer = MaterialRequestSerializer(approved_requests, many=True, context={'request': request})
         return Response(serializer.data)

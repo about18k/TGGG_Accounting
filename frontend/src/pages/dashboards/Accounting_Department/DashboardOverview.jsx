@@ -47,7 +47,36 @@ const mockData = {
   pendingApprovals: []
 };
 
-export function DashboardOverview({ user }) {
+const formatAttendanceTime = (value) => {
+  if (!value) return 'Time not recorded';
+
+  const text = String(value).trim();
+  const timeMatch = text.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if (timeMatch) {
+    const hours = Number(timeMatch[1]);
+    const minutes = Number(timeMatch[2]);
+    const seconds = Number(timeMatch[3] || 0);
+    const date = new Date();
+    date.setHours(hours, minutes, seconds, 0);
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  return text;
+};
+
+const formatAttendanceStatus = (value) => {
+  const status = String(value || '').trim().toLowerCase();
+  if (status === 'present') return 'On Time';
+  if (status === 'late') return 'Late';
+  return status ? status.replace(/_/g, ' ') : 'Status not recorded';
+};
+
+export function DashboardOverview({ user, onNavigate }) {
 
   const [metrics, setMetrics] = useState({
     totalEmployees: mockData.totalEmployees,
@@ -167,8 +196,10 @@ export function DashboardOverview({ user }) {
         const recentActivities = sortedAttendance.slice(0, 8).map((rec, idx) => ({
           id: rec.id || idx,
           user: rec.employee_name || 'Unknown',
-          action: (rec.status_label || rec.status || 'Status').replace(/_/g, ' '),
-          time: rec.time_in || rec.created_at || rec.date,
+          action: formatAttendanceStatus(rec.status_label || rec.status),
+          timeLabel: rec.time_in ? 'Time In' : rec.time_out ? 'Time Out' : 'Time',
+          time: formatAttendanceTime(rec.time_in || rec.time_out || rec.created_at || rec.date),
+          location: rec.clock_in_address || rec.clock_out_address || rec.location || 'Location not available',
           type: rec.status || 'attendance',
         }));
         setActivities(recentActivities);
@@ -178,6 +209,7 @@ export function DashboardOverview({ user }) {
           id: o.id,
           type: 'OT Request',
           employee: o.employee_name || o.full_name || 'Unknown',
+            date: o.date_completed || o.created_at || '',
           status: 'pending',
         })));
 
@@ -325,12 +357,12 @@ export function DashboardOverview({ user }) {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activities */}
+        {/* Recent Attendance */}
         <Card className="lg:col-span-2 border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-primary" />
-              Recent Activities
+              RECENT ATTENDANCE
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -345,8 +377,12 @@ export function DashboardOverview({ user }) {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm font-medium">{activity.user}</p>
-                    <p className="text-sm text-muted-foreground">{activity.action}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{activity.time}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {activity.action} · {activity.timeLabel}: {activity.time}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Location: {activity.location}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -413,20 +449,18 @@ export function DashboardOverview({ user }) {
           <CardContent>
             <div className="space-y-3">
               {pendingApprovals.map((approval) => (
-                <div key={approval.id} className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                <button
+                  key={approval.id}
+                  type="button"
+                  onClick={() => onNavigate?.('otrequest')}
+                  className="w-full flex items-center justify-between p-3 rounded-lg border border-border/50 text-left transition-colors hover:bg-primary/5 hover:border-primary/30"
+                >
                   <div>
                     <p className="text-sm font-medium">{approval.type}</p>
                     <p className="text-xs text-muted-foreground">{approval.employee}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="h-7 px-2">
-                      Reject
-                    </Button>
-                    <Button size="sm" className="h-7 px-2">
-                      Approve
-                    </Button>
-                  </div>
-                </div>
+                  <p className="text-xs text-primary font-medium">Click to review</p>
+                </button>
               ))}
             </div>
           </CardContent>

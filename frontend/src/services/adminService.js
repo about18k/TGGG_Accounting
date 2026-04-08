@@ -73,6 +73,14 @@ export async function updateUserAccount(userId, payload) {
     return data;
 }
 
+export async function createUserAccount(payload) {
+    const { data } = await api.post('/accounts/users/', payload);
+    invalidateRequestCache(ADMIN_CACHE_PREFIX.allUsers);
+    invalidateRequestCache(ADMIN_CACHE_PREFIX.pendingUsers);
+    invalidateRequestCache(ADMIN_CACHE_PREFIX.accountingEmployees);
+    return data;
+}
+
 export async function deleteUserAccount(userId) {
     const { data } = await api.delete(`/accounts/users/${userId}/`);
     invalidateRequestCache(ADMIN_CACHE_PREFIX.allUsers);

@@ -17,7 +17,6 @@ import {
   ArrowUpDown,
   Bell,
   Check,
-  Search,
   User,
   Grip,
   Filter,
@@ -308,14 +307,6 @@ export function DashboardLayout({
                     <div>
                       <h1 className="text-2xl font-semibold text-white">{currentTab.title}</h1>
                       <p className="text-white/60 text-sm mt-1">{currentTab.description}</p>
-                    </div>
-                    <div className="relative w-full md:w-80">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/45" />
-                      <input
-                        type="text"
-                        placeholder="Search..."
-                        className="h-10 w-full rounded-xl border border-white/15 bg-[#00273C]/60 pl-10 pr-4 text-sm text-white placeholder:text-white/45 outline-none focus:border-[#FF7120]/70 focus:ring-2 focus:ring-[#FF7120]/25"
-                      />
                     </div>
                   </div>
 

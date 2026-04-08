@@ -38,6 +38,7 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate, curren
     searchTerm,
     setSearchTerm,
     filteredUsers,
+    addUser,
     editUser,
     toggleUserStatus,
     removeUser,
@@ -109,6 +110,7 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate, curren
                       userActionById={userActionById}
                       filteredUsers={filteredUsers}
                       allowedRoles={allowedRoles}
+                      onAddUser={addUser}
                       onEditUser={editUser}
                       onToggleUserStatus={toggleUserStatus}
                       onDeleteUser={removeUser}

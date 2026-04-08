@@ -21,9 +21,11 @@ import materialRequestService from '../../../services/materialRequestService';
 import MaterialRequestCommentThread from '../../../components/MaterialRequestCommentThread';
 import MaterialRequestFormModal from '../../../components/modals/MaterialRequestFormModal';
 
+const TODAY_ISO = new Date().toISOString().split('T')[0];
+
 const DEFAULT_FORM = {
   projectName: '',
-  requestDate: new Date().toISOString().split('T')[0],
+  requestDate: TODAY_ISO,
   requiredDate: '',
   priority: 'normal',
   deliveryLocation: '',
@@ -116,7 +118,7 @@ const MaterialRequest = ({ user }) => {
   const [showCreateProjectModal, setShowCreateProjectModal] = useState(false);
   const [projectForm, setProjectForm] = useState({
     name: '',
-    date_started: new Date().toISOString().split('T')[0],
+    date_started: TODAY_ISO,
     location: '',
   });
   const [savingProject, setSavingProject] = useState(false);
@@ -236,7 +238,7 @@ const MaterialRequest = ({ user }) => {
     if (result.success) {
       toast.success(`Project "${result.data.name}" created.`);
       setProjects((prev) => [result.data, ...prev]);
-      setProjectForm({ name: '', date_started: new Date().toISOString().split('T')[0], location: '' });
+      setProjectForm({ name: '', date_started: TODAY_ISO, location: '' });
       setShowCreateProjectModal(false);
       // Also set as selected project for new mat req and prefill delivery location
       handleProjectSelectionForRequest(result.data);
@@ -486,6 +488,11 @@ const MaterialRequest = ({ user }) => {
       return false;
     }
 
+    if (formData.requestDate !== TODAY_ISO) {
+      toast.error('Request Date must be today.');
+      return false;
+    }
+
     if (formData.requiredDate < formData.requestDate) {
       toast.error('Required date cannot be earlier than request date.');
       return false;
@@ -709,7 +716,7 @@ const MaterialRequest = ({ user }) => {
             onClick={() => setActiveTab('manage')}
             className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${activeTab === 'manage' ? 'bg-[#FF7120] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
           >
-            Manage Requests
+            My Requests
           </button>
           <button
             type="button"
@@ -718,7 +725,7 @@ const MaterialRequest = ({ user }) => {
           >
             <span className="inline-flex items-center gap-1.5">
               <FolderOpen className="h-4 w-4" />
-              Projects
+              All Projects & Approvals
             </span>
           </button>
         </div>
@@ -777,6 +784,9 @@ const MaterialRequest = ({ user }) => {
                 required
                 value={formData.requestDate}
                 onChange={(event) => setFormData((current) => ({ ...current, requestDate: event.target.value }))}
+                min={TODAY_ISO}
+                max={TODAY_ISO}
+                readOnly
                 className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-[#FF7120]/50"
               />
             </div>
@@ -1025,6 +1035,11 @@ const MaterialRequest = ({ user }) => {
 
       {activeTab === 'manage' && (
         <div className="p-6">
+          <div className="mb-6">
+            <h2 className="text-lg font-semibold text-white">My Material Requests</h2>
+            <p className="text-sm text-white/50 mt-1">Manage your own material requests throughout the approval workflow.</p>
+          </div>
+
           {loading && (
             <p className="text-center text-white/60 py-8">Loading material requests...</p>
           )}
@@ -1209,20 +1224,22 @@ const MaterialRequest = ({ user }) => {
       {/* ── Projects Tab ────────────────────────────────────── */}
       {activeTab === 'projects' && (
         <div className="p-6">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Your Projects</h2>
-              <p className="text-sm text-white/50 mt-1">Select a project to view its approved material requests.</p>
+          {/* Projects and Approved Requests by Project */}
+          <div>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-lg font-semibold text-white">All Projects</h2>
+                <p className="text-sm text-white/50 mt-1">Select a project to view its approved material requests.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateProjectModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-xl text-sm font-medium hover:brightness-95 transition"
+              >
+                <Plus className="h-4 w-4" />
+                New Project
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowCreateProjectModal(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-xl text-sm font-medium hover:brightness-95 transition"
-            >
-              <Plus className="h-4 w-4" />
-              New Project
-            </button>
-          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left – project list */}
@@ -1351,6 +1368,7 @@ const MaterialRequest = ({ user }) => {
             </div>
           </div>
         </div>
+        </div>
       )}
 
       {/* ── Create Project Modal ─────────────────────────────── */}
@@ -1385,6 +1403,9 @@ const MaterialRequest = ({ user }) => {
                   type="date"
                   value={projectForm.date_started}
                   onChange={(e) => setProjectForm((prev) => ({ ...prev, date_started: e.target.value }))}
+                  min={TODAY_ISO}
+                  max={TODAY_ISO}
+                  readOnly
                   className="w-full bg-[#001f35] border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-[#FF7120]/50"
                 />
               </div>

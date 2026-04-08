@@ -170,7 +170,7 @@ export function renderAccountingDashboard({
         }
         switch (activeTab) {
             case 'dashboard':
-                return <AccountingDashboardOverview user={user} />;
+                return <AccountingDashboardOverview user={user} onNavigate={handleNavigate} />;
             case 'employees':
                 return <AccountingEmployeeManagement />;
             case 'attendance':
@@ -180,7 +180,7 @@ export function renderAccountingDashboard({
             case 'settings':
                 return <AccountingSettings />;
             default:
-                return <AccountingDashboardOverview user={user} />;
+                return <AccountingDashboardOverview user={user} onNavigate={handleNavigate} />;
         }
     };
 

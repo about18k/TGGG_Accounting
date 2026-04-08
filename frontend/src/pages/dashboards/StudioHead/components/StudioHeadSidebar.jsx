@@ -3,7 +3,7 @@ import { Calendar, CalendarDays, Clock, User, UserCheck, Users, GitMerge, Folder
 const PRIMARY_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Calendar, page: 'attendance' },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays, page: 'calendar' },
-  { id: 'overtime', label: 'Overtime & Leave', icon: Clock, page: 'overtime' },
+  { id: 'overtime', label: 'My Overtime', icon: Clock, page: 'overtime' },
 ];
 
 const DOCUMENTATION_LINKS = [

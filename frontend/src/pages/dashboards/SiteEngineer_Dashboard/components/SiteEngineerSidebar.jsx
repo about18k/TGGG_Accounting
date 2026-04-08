@@ -3,8 +3,8 @@ import { ClipboardList, Clock, Calendar, CalendarDays, CheckSquare } from 'lucid
 const PRIORITY_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Calendar, section: 'attendance', type: 'section' },
   { id: 'calendar', label: 'Calendar', icon: CalendarDays, page: 'calendar', type: 'page' },
-  { id: 'overtime', label: 'Overtime', icon: Clock, page: 'overtime', type: 'page' },
-  { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo', type: 'page' },
+  { id: 'overtime', label: 'My Overtime', icon: Clock, page: 'overtime', type: 'page' },
+  // { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo', type: 'page' },
 ];
 
 const SECONDARY_LINKS = [

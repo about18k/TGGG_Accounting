@@ -343,7 +343,7 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
                   >
                     <option value="">Select department</option>
                     <option value="OJT Department">OJT Department</option>
-                    <option value="Design Department">DesignDepartment</option>
+                    <option value="Design Department">Design Department</option>
                     <option value="Engineering Department">Engineering Department</option>
                     <option value="Accounting Department">Accounting Department</option>
                   </select>

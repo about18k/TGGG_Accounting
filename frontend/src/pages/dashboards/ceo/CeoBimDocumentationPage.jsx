@@ -109,9 +109,16 @@ const formatDateTime = (value) => {
     });
 };
 
-const formatFileSize = (bytes) => {
-    if (!bytes) return 'Unknown size';
-    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+const normalizeFileUrl = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+
+    // Keep URLs safe when file names include spaces or special characters.
+    try {
+        return encodeURI(raw);
+    } catch {
+        return raw;
+    }
 };
 
 const isImageFile = (file) => {
@@ -407,7 +414,7 @@ const CeoBimDocumentationPage = ({
     };
 
     const openImagePreview = (file) => {
-        const imageUrl = file?.file_url || file?.file || null;
+        const imageUrl = normalizeFileUrl(file?.file_url || file?.file || null);
         if (!imageUrl) return;
 
         setPreviewImage({
@@ -568,58 +575,46 @@ const CeoBimDocumentationPage = ({
 
                                             <div>
                                                 <h3 className="text-sm font-semibold text-white mb-3">Attached Files</h3>
-                                                {attachmentCount > 0 ? (
-                                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                                        {(selectedDoc.files || []).map((file) => {
-                                                            const fileHref = file.file_url || file.file || null;
-                                                            const previewableImage = Boolean(fileHref) && isImageFile(file);
-                                                            const displayFileName = getAttachmentDisplayName(file.file_name);
-                                                            return (
-                                                                <div key={file.id} className="group relative rounded-lg border border-white/10 bg-black/20 p-2 hover:border-white/20 transition">
+                                                {(() => {
+                                                    const imageFiles = (selectedDoc.files || []).filter((file) => {
+                                                        const fileHref = normalizeFileUrl(file.file_url || file.file || null);
+                                                        return Boolean(fileHref) && isImageFile(file);
+                                                    });
+
+                                                    if (imageFiles.length === 0) {
+                                                        return (
+                                                            <p className="text-sm text-white/50">
+                                                                No image attachments were included with this documentation.
+                                                            </p>
+                                                        );
+                                                    }
+
+                                                    return (
+                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                            {imageFiles.map((file) => {
+                                                                const fileHref = normalizeFileUrl(file.file_url || file.file || null);
+                                                                const displayFileName = getAttachmentDisplayName(file.file_name);
+
+                                                                return (
                                                                     <button
+                                                                        key={file.id}
                                                                         type="button"
-                                                                        onClick={() => {
-                                                                            if (previewableImage && fileHref) {
-                                                                                openImagePreview(file);
-                                                                                return;
-                                                                            }
-                                                                            if (fileHref) {
-                                                                                window.open(fileHref, '_blank', 'noopener,noreferrer');
-                                                                            }
-                                                                        }}
-                                                                        className="w-full text-left"
+                                                                        onClick={() => openImagePreview(file)}
+                                                                        className="group overflow-hidden rounded-xl border border-white/10 bg-black/20 hover:border-[#FF7120]/35 transition"
                                                                         title={displayFileName}
                                                                     >
-                                                                        {previewableImage && fileHref ? (
-                                                                            <img
-                                                                                src={fileHref}
-                                                                                alt={displayFileName || 'Attachment image'}
-                                                                                className="h-20 w-full object-cover rounded-md"
-                                                                            />
-                                                                        ) : (
-                                                                            <div className="h-20 w-full rounded-md bg-white/5 grid place-items-center">
-                                                                                {displayFileName?.toLowerCase().endsWith('.pdf') ? (
-                                                                                    <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                                                                        <text x="7" y="17" fontSize="6" fill="currentColor" fontWeight="bold">PDF</text>
-                                                                                    </svg>
-                                                                                ) : (
-                                                                                    <svg className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                                                                                        <text x="5" y="17" fontSize="5" fill="currentColor" fontWeight="bold">DOC</text>
-                                                                                    </svg>
-                                                                                )}
-                                                                            </div>
-                                                                        )}
-                                                                        <p className="mt-1 text-[11px] text-white/70 truncate">{displayFileName}</p>
+                                                                        <img
+                                                                            src={fileHref}
+                                                                            alt={displayFileName}
+                                                                            className="h-32 sm:h-36 w-full object-cover transition duration-200 group-hover:scale-105"
+                                                                            loading="lazy"
+                                                                        />
                                                                     </button>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                ) : (
-                                                    <p className="text-sm text-white/50">No attachments were included with this documentation.</p>
-                                                )}
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
                                             </div>
 
                                             {requiresDecision ? (

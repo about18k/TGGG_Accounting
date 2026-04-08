@@ -24,6 +24,7 @@ export default function ManageUsersPanel({
   userActionById,
   filteredUsers,
   allowedRoles,
+  onAddUser,
   onEditUser,
   onToggleUserStatus,
   onDeleteUser,
@@ -32,6 +33,18 @@ export default function ManageUsersPanel({
   const [departments, setDepartments] = useState([]);
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState('');
+  const [addForm, setAddForm] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    password: '',
+    role: 'employee',
+    department_id: '',
+    date_hired: '',
+  });
   const [editError, setEditError] = useState('');
   const [editForm, setEditForm] = useState({
     first_name: '',
@@ -101,6 +114,70 @@ export default function ManageUsersPanel({
     setEditingUser(null);
   };
 
+  const openAddEditor = () => {
+    setAddError('');
+    setShowAddForm(true);
+  };
+
+  const closeAddEditor = () => {
+    if (addLoading) {
+      return;
+    }
+
+    setAddError('');
+    setShowAddForm(false);
+    setAddForm({
+      first_name: '',
+      last_name: '',
+      email: '',
+      password: '',
+      role: 'employee',
+      department_id: '',
+      date_hired: '',
+    });
+  };
+
+  const handleAddSubmit = async (event) => {
+    event.preventDefault();
+
+    const firstName = addForm.first_name.trim();
+    const lastName = addForm.last_name.trim();
+    const email = addForm.email.trim().toLowerCase();
+    const password = addForm.password;
+
+    if (!firstName || !lastName || !email || !password) {
+      setAddError('First name, last name, email, and password are required.');
+      return;
+    }
+
+    if (password.length < 8) {
+      setAddError('Password must be at least 8 characters.');
+      return;
+    }
+
+    const payload = {
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      password,
+      role: addForm.role,
+      department_id: addForm.department_id === '' ? null : Number(addForm.department_id),
+      date_hired: addForm.date_hired || null,
+      is_active: true,
+    };
+
+    setAddLoading(true);
+    const result = await onAddUser?.(payload);
+    setAddLoading(false);
+
+    if (result?.success) {
+      closeAddEditor();
+      return;
+    }
+
+    setAddError(result?.error || 'Failed to create account.');
+  };
+
   const handleEditSubmit = async (event) => {
     event.preventDefault();
     if (!editingUser) {
@@ -162,14 +239,159 @@ export default function ManageUsersPanel({
             </div>
 
             <button
-              className="flex items-center justify-center gap-2 bg-[#FF7120] hover:bg-[#ff853e] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors opacity-60 cursor-not-allowed whitespace-nowrap"
-              disabled
+              type="button"
+              onClick={openAddEditor}
+              className="flex items-center justify-center gap-2 bg-[#FF7120] hover:bg-[#ff853e] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
             >
               <Plus size={16} />
               Add Account
             </button>
           </div>
         </div>
+
+        {showAddForm && (
+          <div className="mb-6 rounded-xl border border-emerald-400/20 bg-[#001f35] p-5">
+            <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Add Account</h3>
+                <p className="text-white/60 text-sm mt-1">
+                  Create a new user account directly from Studio Head.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeAddEditor}
+                disabled={addLoading}
+                className="border border-white/10 text-white/70 hover:text-white hover:border-white/20 rounded-lg px-4 py-2 text-sm transition-colors disabled:opacity-50"
+              >
+                Close
+              </button>
+            </div>
+
+            <form onSubmit={handleAddSubmit} className="grid gap-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="block text-xs text-white/60 mb-2">First Name</span>
+                  <input
+                    type="text"
+                    value={addForm.first_name}
+                    onChange={(event) => setAddForm((prev) => ({ ...prev, first_name: event.target.value }))}
+                    disabled={addLoading}
+                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="block text-xs text-white/60 mb-2">Last Name</span>
+                  <input
+                    type="text"
+                    value={addForm.last_name}
+                    onChange={(event) => setAddForm((prev) => ({ ...prev, last_name: event.target.value }))}
+                    disabled={addLoading}
+                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="block text-xs text-white/60 mb-2">Email</span>
+                  <input
+                    type="email"
+                    value={addForm.email}
+                    onChange={(event) => setAddForm((prev) => ({ ...prev, email: event.target.value }))}
+                    disabled={addLoading}
+                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="block text-xs text-white/60 mb-2">Temporary Password</span>
+                  <input
+                    type="password"
+                    value={addForm.password}
+                    onChange={(event) => setAddForm((prev) => ({ ...prev, password: event.target.value }))}
+                    disabled={addLoading}
+                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    placeholder="At least 8 characters"
+                  />
+                </label>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="block">
+                  <span className="block text-xs text-white/60 mb-2">Role</span>
+                  <select
+                    value={addForm.role}
+                    onChange={(event) => setAddForm((prev) => ({ ...prev, role: event.target.value }))}
+                    disabled={addLoading}
+                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                  >
+                    {(allowedRoles || []).map((roleOption) => (
+                      <option key={roleOption.value} value={roleOption.value}>
+                        {roleOption.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="block">
+                  <span className="block text-xs text-white/60 mb-2">
+                    Department {departmentsLoading ? '(loading...)' : ''}
+                  </span>
+                  <select
+                    value={addForm.department_id}
+                    onChange={(event) => setAddForm((prev) => ({ ...prev, department_id: event.target.value }))}
+                    disabled={addLoading || departmentsLoading}
+                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                  >
+                    <option value="">Unassigned</option>
+                    {departments.map((department) => (
+                      <option key={department.id} value={department.id}>
+                        {department.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <label className="block max-w-xs">
+                <span className="block text-xs text-white/60 mb-2">Date Started Working</span>
+                <input
+                  type="date"
+                  value={addForm.date_hired}
+                  onChange={(event) => setAddForm((prev) => ({ ...prev, date_hired: event.target.value }))}
+                  disabled={addLoading}
+                  className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                />
+              </label>
+
+              {addError && (
+                <div className="text-sm text-red-300">{addError}</div>
+              )}
+
+              <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={closeAddEditor}
+                  disabled={addLoading}
+                  className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/70 hover:text-white hover:border-white/20 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={addLoading}
+                  className="rounded-lg bg-[#FF7120] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ff853e] transition-colors disabled:opacity-50"
+                >
+                  {addLoading ? 'Creating...' : 'Create Account'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
 
         {editingUser && (
           <div
