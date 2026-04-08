@@ -10,6 +10,7 @@ import StudioHeadProfilePage from '../pages/dashboards/StudioHead/StudioHeadProf
 import StudioHeadBimDocumentationPage from '../pages/dashboards/StudioHead/StudioHeadBimDocumentationPage';
 import StudioHeadJuniorArchitectDocumentationPage from '../pages/dashboards/StudioHead/StudioHeadJuniorArchitectDocumentationPage';
 import StudioHeadMaterialRequestPage from '../pages/dashboards/StudioHead/StudioHeadMaterialRequestPage';
+import StudioHeadOvertimePage from '../pages/dashboards/StudioHead/StudioHeadOvertimePage';
 
 import InternAttendanceDashboard from '../pages/dashboards/Intern_Dashboard/InternAttendance';
 import InternOvertimePage from '../pages/dashboards/Intern_Dashboard/OvertimePage';
@@ -217,7 +218,7 @@ export function renderDashboard({
     if (user.role === 'studio_head' || user.role === 'admin') {
         if (currentPage === 'attendance') return <StudioHeadAttendance user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'calendar') return <SuspendedCalendarPage user={user} onNavigate={handleNavigate} />;
-        if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
+        if (currentPage === 'overtime') return <StudioHeadOvertimePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'profile') return <StudioHeadProfilePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'studio-head-bim-docs') return <StudioHeadBimDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'studio-head-junior-docs') return <StudioHeadJuniorArchitectDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;

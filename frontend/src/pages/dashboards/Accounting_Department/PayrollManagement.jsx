@@ -46,9 +46,16 @@ import {
   UserCheck,
 } from 'lucide-react';
 
+const pesoFormatter = new Intl.NumberFormat('en-PH', {
+  style: 'currency',
+  currency: 'PHP',
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 const formatCurrency = (amount) => {
   const value = Number(amount || 0);
-  return `₱${value.toFixed(2)}`;
+  return pesoFormatter.format(value);
 };
 
 const toNumber = (value) => {
@@ -1313,7 +1320,7 @@ export function PayrollManagement() {
                           <div key={contribution.id} className="p-2 rounded bg-[#021B2C] flex items-center justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-white truncate">{contribution.name}</p>
-                              <p className="text-xs text-white/60">₱{parseFloat(contribution.amount).toFixed(2)}</p>
+                              <p className="text-xs text-white/60">{formatCurrency(contribution.amount)}</p>
                             </div>
                             <Button
                               variant="ghost"
@@ -1618,7 +1625,7 @@ export function PayrollManagement() {
                               className="bg-background border-white/10 text-white h-9"
                             />
                           ) : (
-                            <p className="text-sm font-medium text-right">₱{toNumber(item.amount).toFixed(2)}</p>
+                            <p className="text-sm font-medium text-right">{formatCurrency(item.amount)}</p>
                           )}
                         </div>
                       ))}

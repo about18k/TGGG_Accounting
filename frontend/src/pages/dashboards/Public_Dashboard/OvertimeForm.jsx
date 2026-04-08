@@ -213,7 +213,12 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
         start_time: '',
         end_time: ''
       }]);
-      setForm(getInitialFormState());
+      setForm((prev) => ({
+        ...getInitialFormState(),
+        employee_name: prev.employee_name,
+        job_position: prev.job_position,
+        employee_signature: prev.employee_signature,
+      }));
     } catch (err) {
       const msg = err.response?.data?.error || 'Failed to submit OT request.';
       toast.error('Error', { description: msg });
@@ -294,7 +299,7 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
                   <input
                     type="text"
                     value={form.employee_name}
-                    onChange={(e) => updateFormField('employee_name', e.target.value)}
+                    readOnly
                     required
                   />
                 </div>
@@ -303,7 +308,7 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
                   <input
                     type="text"
                     value={form.job_position}
-                    onChange={(e) => updateFormField('job_position', e.target.value)}
+                    readOnly
                     required
                   />
                 </div>
