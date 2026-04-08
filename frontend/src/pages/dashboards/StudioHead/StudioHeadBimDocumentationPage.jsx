@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-    CalendarDays,
     CheckCircle2,
     Clock3,
     FileText,
@@ -142,6 +141,7 @@ const isImageFile = (file) => {
 };
 
 const getDisplayType = (type) => DOC_TYPE_LABELS[type] || type || 'Documentation';
+const normalizeText = (value) => String(value || '').trim().toLowerCase();
 
 const SummaryCard = ({ label, value, icon: Icon, tone = 'neutral', isActive = false, onClick }) => {
     const toneStyles = {
@@ -175,9 +175,16 @@ const SummaryCard = ({ label, value, icon: Icon, tone = 'neutral', isActive = fa
     );
 };
 
-const DocumentListItem = ({ doc, isSelected, onSelect }) => {
+const DocumentListItem = ({ doc, isSelected, onSelect, showStudioHeadNote = true }) => {
     const statusMeta = getStatusMeta(doc);
     const attachmentCount = doc.files?.length ?? doc.file_count ?? 0;
+    const titleText = String(doc.title || 'Untitled documentation').trim();
+    const displayType = String(getDisplayType(doc.doc_type) || '').trim();
+    const normalizedTitle = normalizeText(titleText);
+    const normalizedType = normalizeText(displayType);
+    const shouldShowType = Boolean(displayType)
+        && normalizedType !== normalizedTitle
+        && !['no file', 'no files'].includes(normalizedType);
 
     return (
         <button
@@ -191,24 +198,22 @@ const DocumentListItem = ({ doc, isSelected, onSelect }) => {
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white line-clamp-2">{doc.title}</p>
-                    <p className="mt-1 text-xs text-white/45">{getDisplayType(doc.doc_type)}</p>
+                    <p className="text-sm font-semibold text-white line-clamp-2">{titleText}</p>
+                    {shouldShowType && (
+                        <p className="mt-1 text-xs text-white/45">{displayType}</p>
+                    )}
                 </div>
                 <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
             </div>
 
-            <div className="mt-3 grid gap-2 text-xs text-white/55 sm:grid-cols-2">
+            <div className="mt-3 grid gap-2 text-xs text-white/55 sm:grid-cols-1">
                 <div className="flex items-center gap-2 min-w-0">
                     <User2 className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">{doc.created_by_name || 'Unknown author'}</span>
                 </div>
-                <div className="flex items-center gap-2 min-w-0">
-                    <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{formatDate(doc.doc_date)}</span>
-                </div>
             </div>
 
-            {doc.studio_head_comments && (
+            {showStudioHeadNote && doc.studio_head_comments && (
                 <div className="mt-3 rounded-xl border border-white/10 bg-black/10 px-3 py-2">
                     <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/35">Studio Head Note</p>
                     <p className="mt-1 text-xs text-white/65 line-clamp-2">{doc.studio_head_comments}</p>
@@ -235,6 +240,7 @@ const StudioHeadBimDocumentationPage = ({
     navigationCurrentPage = 'studio-head-bim-docs',
     sidebarCurrentPage = 'studio-head-bim-docs',
     documentationQuery = {},
+    showListStudioHeadNote = true,
 }) => {
     const [activeTab, setActiveTab] = useState('pending');
     const [pendingDocs, setPendingDocs] = useState([]);
@@ -512,6 +518,7 @@ const StudioHeadBimDocumentationPage = ({
                                                         doc={doc}
                                                         isSelected={selectedDoc?.id === doc.id}
                                                         onSelect={setSelectedDocId}
+                                                        showStudioHeadNote={showListStudioHeadNote}
                                                     />
                                                 ))}
                                             </div>
@@ -675,8 +682,7 @@ const StudioHeadBimDocumentationPage = ({
                                             )}
 
                                             <div className="border-t border-white/10 pt-6">
-                                                <p className="text-sm font-semibold text-white mb-3">Discussion</p>
-                                                <CommentThread docId={selectedDoc.id} currentUser={user} />
+                                                <CommentThread docId={selectedDoc.id} currentUser={user} collapsible defaultOpen={false} />
                                             </div>
                                         </div>
                                     </section>
