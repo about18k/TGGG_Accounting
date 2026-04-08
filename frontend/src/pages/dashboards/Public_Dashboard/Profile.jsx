@@ -595,33 +595,9 @@ function Profile({ token, user, onLogout }) {
                       fontSize: '0.85rem'
                     }}
                   >
-                    {showSignatureSection ? 'Cancel' : 'Set Signature'}
+                    {showSignatureSection ? 'Cancel' : profile.signature_image ? 'Update Signature' : 'Set Signature'}
                   </button>
                 </div>
-
-                {!showSignatureSection && profile.signature_image && (
-                  <div
-                    style={{
-                      width: '100%',
-                      maxWidth: '280px',
-                      height: '90px',
-                      margin: '1rem auto 0',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255, 113, 32, 0.45)',
-                      background: '#FFFFFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    <img
-                      src={profile.signature_image}
-                      alt="Signature"
-                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                    />
-                  </div>
-                )}
 
                 {showSignatureSection && (
                   <div style={{ marginTop: '1rem' }}>

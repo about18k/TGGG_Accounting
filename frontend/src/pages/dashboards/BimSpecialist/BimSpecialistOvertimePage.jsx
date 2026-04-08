@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import OvertimeForm from '../Public_Dashboard/OvertimeForm.jsx';
 import OvertimeStatus from '../Public_Dashboard/OvertimeStatus.jsx';
-import LeaveForm from '../Public_Dashboard/LeaveForm.jsx';
-import LeaveStatus from '../Public_Dashboard/LeaveStatus.jsx';
 import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import BimSpecialistSidebar from './components/BimSpecialistSidebar';
 
@@ -68,26 +66,10 @@ const BimSpecialistOvertimePage = ({ user, token, onNavigate }) => {
                                 token={token}
                                 activeTab={activeTab}
                                 onTabChange={setActiveTab}
-                                extraTabs={['leave-form', 'leave-status']}
                             />
                         )}
                         {activeTab === 'ot-status' && (
                             <OvertimeStatus
-                                token={token}
-                                activeTab={activeTab}
-                                onTabChange={setActiveTab}
-                                extraTabs={['leave-form', 'leave-status']}
-                            />
-                        )}
-                        {activeTab === 'leave-form' && (
-                            <LeaveForm
-                                token={token}
-                                activeTab={activeTab}
-                                onTabChange={setActiveTab}
-                            />
-                        )}
-                        {activeTab === 'leave-status' && (
-                            <LeaveStatus
                                 token={token}
                                 activeTab={activeTab}
                                 onTabChange={setActiveTab}

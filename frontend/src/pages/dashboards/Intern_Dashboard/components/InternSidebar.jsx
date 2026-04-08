@@ -1,7 +1,6 @@
-import { Home, Calendar, CalendarDays, Clock, CheckSquare } from 'lucide-react';
+import { Calendar, CalendarDays, Clock, CheckSquare } from 'lucide-react';
 
 const SECTION_LINKS = [
-  { id: 'overview', label: 'Dashboard', icon: Home, section: 'overview' },
   { id: 'attendance', label: 'Attendance', icon: Calendar, section: 'attendance' },
 ];
 
@@ -14,7 +13,7 @@ const PAGE_LINKS = [
 export default function InternSidebar({
   currentPage = 'attendance',
   onNavigate,
-  activeSection = 'overview',
+  activeSection = 'attendance',
   onSelectSection,
 }) {
   const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg';
@@ -34,7 +33,7 @@ export default function InternSidebar({
           <p className="px-4 text-[10px] font-semibold uppercase tracking-[0.15em] text-white/30 mb-2">Personal</p>
           {SECTION_LINKS.map((item) => {
             const Icon = item.icon;
-            const isActive = activeSection === item.section;
+            const isActive = currentPage === 'attendance' && activeSection === item.section;
             return (
               <button
                 key={item.id}

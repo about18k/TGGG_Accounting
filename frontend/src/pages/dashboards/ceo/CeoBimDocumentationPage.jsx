@@ -569,57 +569,50 @@ const CeoBimDocumentationPage = ({
                                             <div>
                                                 <h3 className="text-sm font-semibold text-white mb-3">Attached Files</h3>
                                                 {attachmentCount > 0 ? (
-                                                    <div className="space-y-2">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                                                         {(selectedDoc.files || []).map((file) => {
                                                             const fileHref = file.file_url || file.file || null;
                                                             const previewableImage = Boolean(fileHref) && isImageFile(file);
                                                             const displayFileName = getAttachmentDisplayName(file.file_name);
-                                                            const fileLine = (
-                                                                <>
-                                                                    <div className="grid h-9 w-9 place-items-center rounded-lg bg-white/5 text-white/70">
-                                                                        <FileText className="h-4 w-4" />
-                                                                    </div>
-                                                                    <div className="min-w-0 flex-1">
-                                                                        <p className="text-sm text-white truncate">{displayFileName}</p>
-                                                                        <p className="text-xs text-white/50">
-                                                                            {formatFileSize(file.file_size)} • {formatDate(file.uploaded_at)}
-                                                                        </p>
-                                                                    </div>
-                                                                </>
-                                                            );
-
-                                                            if (previewableImage) {
-                                                                return (
-                                                                    <button
-                                                                        key={file.id}
-                                                                        type="button"
-                                                                        onClick={() => openImagePreview(file)}
-                                                                        className="w-full flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-[#FF7120]/35"
-                                                                    >
-                                                                        {fileLine}
-                                                                        <span className="text-xs font-semibold text-[#FFBE9B]">Preview</span>
-                                                                    </button>
-                                                                );
-                                                            }
-
-                                                            if (fileHref) {
-                                                                return (
-                                                                    <a
-                                                                        key={file.id}
-                                                                        href={fileHref}
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:border-white/20"
-                                                                    >
-                                                                        {fileLine}
-                                                                        <span className="text-xs font-semibold text-white/60">Open</span>
-                                                                    </a>
-                                                                );
-                                                            }
-
                                                             return (
-                                                                <div key={file.id} className="flex items-center gap-3 p-3 rounded-lg bg-white/5 border border-white/10">
-                                                                    {fileLine}
+                                                                <div key={file.id} className="group relative rounded-lg border border-white/10 bg-black/20 p-2 hover:border-white/20 transition">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (previewableImage && fileHref) {
+                                                                                openImagePreview(file);
+                                                                                return;
+                                                                            }
+                                                                            if (fileHref) {
+                                                                                window.open(fileHref, '_blank', 'noopener,noreferrer');
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left"
+                                                                        title={displayFileName}
+                                                                    >
+                                                                        {previewableImage && fileHref ? (
+                                                                            <img
+                                                                                src={fileHref}
+                                                                                alt={displayFileName || 'Attachment image'}
+                                                                                className="h-20 w-full object-cover rounded-md"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="h-20 w-full rounded-md bg-white/5 grid place-items-center">
+                                                                                {displayFileName?.toLowerCase().endsWith('.pdf') ? (
+                                                                                    <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                                                        <text x="7" y="17" fontSize="6" fill="currentColor" fontWeight="bold">PDF</text>
+                                                                                    </svg>
+                                                                                ) : (
+                                                                                    <svg className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                                                        <text x="5" y="17" fontSize="5" fill="currentColor" fontWeight="bold">DOC</text>
+                                                                                    </svg>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                        <p className="mt-1 text-[11px] text-white/70 truncate">{displayFileName}</p>
+                                                                    </button>
                                                                 </div>
                                                             );
                                                         })}
