@@ -8,10 +8,13 @@ import './services/api'; // registers shared axios instance + interceptors
 import Login from './pages/Login';
 import { renderDashboard } from './routes/routeConfig';
 import * as notifService from './services/notificationService';
+import { configureToastConsistency } from './utils/toastUtils';
 
 // AdminDashboard removed. Use StudioHeadDashboard instead.
 
 export default function App() {
+  configureToastConsistency();
+
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState(null);
@@ -144,10 +147,12 @@ export default function App() {
             color: '#fff',
           },
           classNames: {
-            title: 'text-white font-semibold text-sm',
-            description: 'text-[#F27229] text-xs',
-            error: 'border-[#d4183d]/30 bg-[#001f35]',
-            success: 'border-[#F27229]/30 bg-[#001f35]',
+            title: 'text-white font-semibold text-sm leading-5',
+            description: 'text-white/80 font-medium text-sm leading-5',
+            success: 'border-emerald-400/35 bg-[#001f35]',
+            error: 'border-rose-400/35 bg-[#001f35]',
+            warning: 'border-amber-400/35 bg-[#001f35]',
+            info: 'border-sky-400/35 bg-[#001f35]',
           },
         }}
         richColors={false}

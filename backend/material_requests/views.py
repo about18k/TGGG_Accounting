@@ -18,7 +18,6 @@ from .serializers import (
     MaterialRequestCommentSerializer,
     ProjectSerializer,
 )
-from bim_documentation.tasks import upload_material_request_file_async
 
 
 def _notify_ceo_material_request_forwarded(material_request, actor):
@@ -233,38 +232,23 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             )
 
         data = request.data.copy()
-        upload_task_id = None
-        
+
         request_image_file = request.FILES.get('request_image')
         if request_image_file:
-            if 'request_image' in data:
-                # DRF throws an error if we pass a file payload to a URLField, so we remove the file object
-                if hasattr(data, 'pop'):
-                    data.pop('request_image')
-            # Set placeholder - will be updated by async task
-            data['request_image'] = ''
+            if 'request_image' in data and hasattr(data, 'pop'):
+                # URLField expects a URL string, not file payload.
+                data.pop('request_image')
+            try:
+                public_url = upload_matreq_img_to_supabase(request_image_file, request.user.id)
+                if public_url:
+                    data['request_image'] = public_url
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        
-        # Queue async file upload after DB save
-        if request_image_file:
-            file_path = f"{request.user.id}/matreq_{uuid.uuid4().hex}.{request_image_file.name.split('.')[-1]}"
-            task = upload_material_request_file_async.delay(
-                file_path=file_path,
-                file_content_path=request_image_file,
-                request_id=serializer.instance.id,
-                user_id=request.user.id
-            )
-            upload_task_id = task.id
-        
-        response_data = serializer.data
-        if upload_task_id:
-            response_data['upload_task_id'] = upload_task_id
-            response_data['message'] = 'Material request created. Image uploading in background...'
-        
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         material_request = self.get_object()

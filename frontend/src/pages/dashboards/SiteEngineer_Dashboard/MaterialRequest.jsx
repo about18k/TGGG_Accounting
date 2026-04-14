@@ -84,6 +84,30 @@ const isStudioHeadRejected = (request) => {
   );
 };
 
+const normalizeRequestImageUrl = (value) => {
+  if (!value) return null;
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return normalizeRequestImageUrl(parsed);
+      } catch {
+        return trimmed;
+      }
+    }
+    return trimmed;
+  }
+
+  if (typeof value === 'object') {
+    return value.public_url || value.publicUrl || value.url || null;
+  }
+
+  return null;
+};
+
 const formatDate = (value) => {
   if (!value) return '-';
   return new Date(value).toLocaleDateString('en-US', {
@@ -108,6 +132,7 @@ const MaterialRequest = ({ user }) => {
   const [selectedRequestForModal, setSelectedRequestForModal] = useState(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+  const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
 
   // ── Project state ────────────────────────────────────────
   const [projects, setProjects] = useState([]);
@@ -162,6 +187,7 @@ const MaterialRequest = ({ user }) => {
     setCurrentMaterial(DEFAULT_MATERIAL);
     setUploadedImage(null);
     setImagePreview(null);
+    setImagePreviewFailed(false);
     setRequests([]);
     fetchRequests();
   }, [user?.id, user?.role]);
@@ -262,6 +288,7 @@ const MaterialRequest = ({ user }) => {
     setCurrentMaterial(DEFAULT_MATERIAL);
     setUploadedImage(null);
     setImagePreview(null);
+    setImagePreviewFailed(false);
     setEditingRequestId(null);
     setEditingRejectedRequest(false);
   };
@@ -283,15 +310,16 @@ const MaterialRequest = ({ user }) => {
 
     setFormData({
       projectName: request.project_name || '',
-      request_date: request.request_date || DEFAULT_FORM.requestDate,
-      required_date: request.required_date || '',
+      requestDate: request.request_date || DEFAULT_FORM.requestDate,
+      requiredDate: request.required_date || '',
       priority: request.priority || 'normal',
-      delivery_location: request.delivery_location || '',
+      deliveryLocation: request.delivery_location || '',
       notes: request.notes || '',
     });
     setMaterials(mappedItems);
     setUploadedImage(null);
-    setImagePreview(request.request_image || null);
+    setImagePreview(normalizeRequestImageUrl(request.request_image));
+    setImagePreviewFailed(false);
     setCurrentMaterial(DEFAULT_MATERIAL);
     setEditingRequestId(request.id);
     setEditingRejectedRequest(isStudioHeadRejected(request));
@@ -363,6 +391,7 @@ const MaterialRequest = ({ user }) => {
     }
 
     setUploadedImage(file);
+    setImagePreviewFailed(false);
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
@@ -373,6 +402,7 @@ const MaterialRequest = ({ user }) => {
   const removeImage = () => {
     setUploadedImage(null);
     setImagePreview(null);
+    setImagePreviewFailed(false);
     // If editing and we remove an existing image, we might need to track that.
     // For now, if imagePreview is just the URL from backend, clearing it means removing it.
   };
@@ -945,11 +975,21 @@ const MaterialRequest = ({ user }) => {
                 </div>
               ) : (
                 <div className="relative group w-full max-w-[400px]">
-                  <img
-                    src={imagePreview}
-                    alt="Material Request"
-                    className="w-full h-auto rounded-lg border border-white/10 shadow-lg"
-                  />
+                  {!imagePreviewFailed ? (
+                    <img
+                      src={imagePreview}
+                      alt="Material Request"
+                      className="w-full h-auto rounded-lg border border-white/10 shadow-lg"
+                      onError={() => setImagePreviewFailed(true)}
+                    />
+                  ) : (
+                    <div className="w-full rounded-lg border border-amber-400/25 bg-amber-500/10 p-4 text-center">
+                      <p className="text-sm text-amber-100 font-medium">Preview unavailable</p>
+                      <p className="text-xs text-amber-200/80 mt-1">
+                        Attachment exists but cannot be rendered inline.
+                      </p>
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-3 rounded-lg">
                     <button
                       type="button"
@@ -969,6 +1009,16 @@ const MaterialRequest = ({ user }) => {
                       />
                     </label>
                   </div>
+                  {imagePreview && (
+                    <a
+                      href={imagePreview}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex mt-3 text-xs text-[#FFBE9B] hover:text-[#FFD7BF] underline"
+                    >
+                      Open attached image
+                    </a>
+                  )}
                   <p className="text-center text-white/40 text-xs mt-3">High-quality image uploaded. Verify contents are readable.</p>
                 </div>
               )}
@@ -1046,6 +1096,7 @@ const MaterialRequest = ({ user }) => {
                 const stage = getRequestStage(request);
                 const statusMeta = STATUS_META[stage] || STATUS_META.draft;
                 const rejectedByStudioHead = isStudioHeadRejected(request);
+                const requestImageUrl = normalizeRequestImageUrl(request.request_image);
                 const canSubmit = request.status === 'draft' || rejectedByStudioHead;
                 const canEdit = request.status === 'draft' || rejectedByStudioHead;
                 const canDelete = request.status === 'draft';
@@ -1079,7 +1130,6 @@ const MaterialRequest = ({ user }) => {
                       <p className="text-white/45 text-xs">Materials</p>
                       <p className="text-white mt-1">
                         {request.item_count || request.items?.length || 0} item(s)
-                        {request.request_image && <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded border border-blue-500/30">Has Photo</span>}
                       </p>
                       {Array.isArray(request.items) && request.items.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -1095,7 +1145,7 @@ const MaterialRequest = ({ user }) => {
                           )}
                         </div>
                       ) : (
-                        request.request_image && (
+                        requestImageUrl && (
                           <div className="mt-2 text-xs text-white/50 italic flex items-center gap-1.5">
                             <ImageIcon className="h-3 w-3" />
                             Photo-based request (no items listed)
@@ -1103,6 +1153,28 @@ const MaterialRequest = ({ user }) => {
                         )
                       )}
                     </div>
+
+                    {requestImageUrl && (
+                      <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
+                        <p className="text-white/45 text-xs">Request Attachment</p>
+                        <a
+                          href={requestImageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-block group"
+                          title="Open attached request image"
+                        >
+                          <img
+                            src={requestImageUrl}
+                            alt={`${request.project_name || 'Material request'} attachment`}
+                            className="w-24 h-24 object-cover rounded-lg border border-blue-500/30 bg-[#001f35] shadow-sm group-hover:brightness-110 transition"
+                          />
+                        </a>
+                        <p className="text-xs text-blue-200/80 mt-2">
+                          {request.project_name || 'Material request'} attachment
+                        </p>
+                      </div>
+                    )}
 
                     {request.studio_head_comments && (
                       <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3">

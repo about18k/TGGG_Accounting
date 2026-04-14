@@ -1,4 +1,6 @@
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from unittest.mock import patch
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -378,3 +380,64 @@ class MaterialRequestWorkflowTests(APITestCase):
         )
         self.assertIsNotNone(notification)
         self.assertIn('ceo', notification.message.lower())
+
+    @patch('material_requests.views.upload_matreq_img_to_supabase', return_value='https://example.com/matreq-image.jpg')
+    def test_create_material_request_with_image_only_saves_as_draft(self, _mock_upload):
+        self.client.force_authenticate(self.site_engineer)
+
+        image_file = SimpleUploadedFile(
+            'matreq.png',
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR',
+            content_type='image/png',
+        )
+
+        response = self.client.post(
+            '/api/material-requests/',
+            {
+                'project_name': 'Warehouse Expansion',
+                'request_date': '2026-03-17',
+                'required_date': '2026-03-24',
+                'priority': 'high',
+                'delivery_location': 'North Yard Storage',
+                'notes': 'Image-only request',
+                'items': '[]',
+                'request_image': image_file,
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data['status'], 'draft')
+        self.assertEqual(response.data['request_image'], 'https://example.com/matreq-image.jpg')
+
+    @patch('material_requests.views.upload_matreq_img_to_supabase', return_value='https://example.com/matreq-image.jpg')
+    def test_create_then_submit_material_request_with_image_only(self, _mock_upload):
+        self.client.force_authenticate(self.site_coordinator)
+
+        image_file = SimpleUploadedFile(
+            'matreq.png',
+            b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR',
+            content_type='image/png',
+        )
+
+        create_response = self.client.post(
+            '/api/material-requests/',
+            {
+                'project_name': 'Coordinator Image Request',
+                'request_date': '2026-03-17',
+                'required_date': '2026-03-24',
+                'priority': 'normal',
+                'delivery_location': 'South Yard Storage',
+                'notes': 'Coordinator image-only request',
+                'items': '[]',
+                'request_image': image_file,
+            },
+            format='multipart',
+        )
+
+        self.assertEqual(create_response.status_code, status.HTTP_201_CREATED)
+        request_id = create_response.data['id']
+
+        submit_response = self.client.post(f'/api/material-requests/{request_id}/submit/', {}, format='json')
+        self.assertEqual(submit_response.status_code, status.HTTP_200_OK)
+        self.assertEqual(submit_response.data['status'], 'pending_review')
