@@ -301,55 +301,55 @@ function Profile({ token, user, onLogout }) {
                 </div>
 
                 <div style={{ position: 'relative', display: 'inline-block' }}>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={isUploading}
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (file && file.size > 5 * 1024 * 1024) {
-                        showAlert('error', 'File Too Large', 'Image must be less than 5MB.');
-                        e.target.value = '';
-                        return;
-                      }
-                      if (file) {
-                        const objectUrl = URL.createObjectURL(file);
-                        setProfile(prev => ({ ...prev, profile_picture: objectUrl }));
-                        setProfilePic(file);
-                      }
-                      e.target.value = '';
-                    }}
-                    style={{
-                      position: 'absolute',
-                      opacity: 0,
-                      width: '100%',
-                      height: '100%',
-                      cursor: 'pointer'
-                    }}
-                    id="profile-pic-upload"
-                  />
-                  <label
-                    htmlFor="profile-pic-upload"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '0.5rem 1rem',
-                      background: isUploading ? 'rgba(255, 113, 32, 0.5)' : '#FF7120',
-                      color: 'white',
-                      borderRadius: '6px',
-                      cursor: isUploading ? 'not-allowed' : 'pointer',
-                      fontSize: '0.9rem',
-                      fontWeight: '500'
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
-                      <circle cx="12" cy="13" r="3" />
-                    </svg>
-                    Change Picture
-                  </label>
-                </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        disabled={isUploading}
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file && file.size > 5 * 1024 * 1024) {
+                            showAlert('error', 'File Too Large', 'Image must be less than 5MB.');
+                            e.target.value = '';
+                            return;
+                          }
+                          if (file) {
+                            const objectUrl = URL.createObjectURL(file);
+                            setProfile(prev => ({ ...prev, profile_picture: objectUrl }));
+                            setProfilePic(file);
+                          }
+                          e.target.value = '';
+                        }}
+                        style={{
+                          position: 'absolute',
+                          opacity: 0,
+                          width: '100%',
+                          height: '100%',
+                          cursor: 'pointer'
+                        }}
+                        id="profile-pic-upload"
+                      />
+                      <label
+                        htmlFor="profile-pic-upload"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '0.5rem 1rem',
+                          background: isUploading ? 'rgba(255, 113, 32, 0.5)' : '#FF7120',
+                          color: 'white',
+                          borderRadius: '6px',
+                          cursor: isUploading ? 'not-allowed' : 'pointer',
+                          fontSize: '0.9rem',
+                          fontWeight: '500'
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z" />
+                          <circle cx="12" cy="13" r="3" />
+                        </svg>
+                        Change Picture
+                      </label>
+                    </div>
 
                 {profilePic && (
                   <div style={{ marginTop: '1rem' }}>

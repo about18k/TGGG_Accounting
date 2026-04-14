@@ -11,6 +11,7 @@ const StudioHeadJuniorArchitectDocumentationPage = ({ user, onNavigate }) => (
         navigationCurrentPage="studio-head-junior-docs"
         sidebarCurrentPage="studio-head-junior-docs"
         documentationQuery={{ created_by_role: 'junior_architect' }}
+        showListStudioHeadNote={false}
     />
 );
 

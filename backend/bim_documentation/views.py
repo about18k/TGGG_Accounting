@@ -137,6 +137,25 @@ def _notify_studio_head_documentation_submitted(doc, actor):
         )
 
 
+def _notify_documentation_rejected(doc, actor):
+    """Notify documentation creator when Studio Head/CEO rejects the document."""
+    creator = getattr(doc, 'created_by', None)
+    if not creator or not creator.is_active or creator.id == actor.id:
+        return
+
+    decision_role = 'Studio Head' if actor.role == 'studio_head' else 'CEO'
+    NotificationService.create_notification(
+        recipient=creator,
+        actor=actor,
+        notif_type='bim_rejected',
+        title='Documentation Rejected',
+        message=(
+            f'Your documentation "{doc.title}" was rejected by {decision_role}. '
+            'Please review the comments and revise if required.'
+        ),
+    )
+
+
 class BimDocumentationViewSet(viewsets.ModelViewSet):
     """
     ViewSet for BIM Documentation management.
@@ -511,6 +530,10 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                     content=f"❌ Rejected by Studio Head: {comments}" if comments else "❌ Rejected by Studio Head.",
                     is_system_comment=True,
                 )
+                try:
+                    _notify_documentation_rejected(doc, user)
+                except Exception as exc:
+                    logger.warning('Failed to notify creator for Studio Head BIM rejection doc %s: %s', doc.id, exc)
                 return Response(
                     {'message': 'Documentation rejected'},
                     status=status.HTTP_200_OK
@@ -552,6 +575,10 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                     content=f"❌ Rejected by CEO: {comments}" if comments else "❌ Rejected by CEO.",
                     is_system_comment=True,
                 )
+                try:
+                    _notify_documentation_rejected(doc, user)
+                except Exception as exc:
+                    logger.warning('Failed to notify creator for CEO BIM rejection doc %s: %s', doc.id, exc)
                 return Response(
                     {'message': 'Documentation rejected'},
                     status=status.HTTP_200_OK

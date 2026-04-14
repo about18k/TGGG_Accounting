@@ -152,6 +152,22 @@ class OvertimeApprovalWorkflowTests(TestCase):
 		self.assertIsNotNone(notification)
 		self.assertIn('time in and time out', notification.message.lower())
 
+	def test_accounting_removal_notifies_employee_of_overtime_rejection(self):
+		request_data = self._create_request_as_employee()
+
+		self._authenticate(self.accounting)
+		delete_response = self.client.delete(f"/api/overtime/{request_data['id']}")
+		self.assertEqual(delete_response.status_code, 200)
+
+		notification = (
+			TodoNotification.objects
+			.filter(recipient=self.employee, type='ot_rejected')
+			.order_by('-created_at')
+			.first()
+		)
+		self.assertIsNotNone(notification)
+		self.assertIn('rejected', notification.title.lower())
+
 	@patch('attendance.views.determine_session', return_value='overtime')
 	@patch('attendance.views.is_late_for_session', return_value=False)
 	def test_overtime_clock_in_requires_fully_approved_request(self, _mock_is_late, _mock_session):

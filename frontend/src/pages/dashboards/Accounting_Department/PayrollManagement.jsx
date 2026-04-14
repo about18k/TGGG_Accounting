@@ -877,31 +877,9 @@ export function PayrollManagement() {
         payslip_form: payslipPreviewData.payslipFormPayload,
       };
 
-      const responseData = await processPayroll(payload);
+      await processPayroll(payload);
 
-      const name = responseData?.payslip?.employee_name || selectedEmployeeData?.name || 'Employee';
-      const netSalary = responseData?.payslip?.net_salary || payslipPreviewData.salaryNetPay;
-      
-      // Create success message with Image and Email info
-      let successMessage = `✅ Payslip processed successfully!\n\nEmployee: ${name}\nNet Salary: ${formatCurrency(netSalary)}\n\nPayroll has been saved to the database.`;
-      
-      // Add Image info if available
-      if (responseData?.image?.generated) {
-        successMessage += '\n\n🖼️ Payslip Image: Saved to database.\nClick the employee\'s record in Recent Payroll Records to view it.';
-      }
-      
-      // Add Email info if attempted
-      if (responseData?.email) {
-        if (responseData.email.sent) {
-          successMessage += `\n\n📧 Email: Sent successfully to ${responseData.email.recipient}`;
-        } else if (responseData.email.message) {
-          successMessage += `\n\n📧 Email: ${responseData.email.message}`;
-        } else {
-          successMessage += `\n\n📧 Email: Not sent`;
-        }
-      }
-
-      toast.success('Payroll Processed', { description: successMessage });
+      toast.success('Process payroll successful.');
       
       await fetchPayrollData();
       setIsPayslipPreviewOpen(false);
@@ -971,7 +949,7 @@ export function PayrollManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Payroll</p>
-                <p className="text-2xl font-medium mt-2 text-primary">{formatCurrency(totalPayroll)}</p>
+                <p className="text-2xl font-medium mt-2 text-white">{formatCurrency(totalPayroll)}</p>
               </div>
               <DollarSign className="w-8 h-8 text-primary" />
             </div>
@@ -984,7 +962,7 @@ export function PayrollManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Average Salary</p>
-                <p className="text-2xl font-medium mt-2 text-primary">{formatCurrency(averageSalary)}</p>
+                <p className="text-2xl font-medium mt-2 text-white">{formatCurrency(averageSalary)}</p>
               </div>
               <CheckCircle className="w-8 h-8 text-primary" />
             </div>
@@ -997,7 +975,7 @@ export function PayrollManagement() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Deductions</p>
-                <p className="text-2xl font-medium mt-2 text-primary">{formatCurrency(totalDeductions)}</p>
+                <p className="text-2xl font-medium mt-2 text-white">{formatCurrency(totalDeductions)}</p>
               </div>
               <AlertCircle className="w-8 h-8 text-primary" />
             </div>

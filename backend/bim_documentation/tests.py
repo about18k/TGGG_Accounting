@@ -334,6 +334,60 @@ class BimDocumentationResubmissionTests(APITestCase):
         self.assertIsNotNone(notification)
         self.assertIn('junior architect', notification.message.lower())
 
+    def test_studio_head_rejection_notifies_documentation_creator(self):
+        doc_id = self._create_and_submit_documentation(
+            creator=self.bim_specialist,
+            title='BIM Doc Rejected by Studio Head',
+        )
+
+        self.client.force_authenticate(self.studio_head)
+        reject_response = self.client.post(
+            f'/api/bim-docs/{doc_id}/approval_action/',
+            {'action': 'reject', 'comments': 'Needs revised detail tags.'},
+            format='json',
+        )
+        self.assertEqual(reject_response.status_code, status.HTTP_200_OK)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.bim_specialist, type='bim_rejected')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('rejected', notification.title.lower())
+
+    def test_ceo_rejection_notifies_documentation_creator(self):
+        doc_id = self._create_and_submit_documentation(
+            creator=self.bim_specialist,
+            title='BIM Doc Rejected by CEO',
+        )
+
+        self.client.force_authenticate(self.studio_head)
+        studio_head_approve = self.client.post(
+            f'/api/bim-docs/{doc_id}/approval_action/',
+            {'action': 'approve', 'comments': 'Ready for executive review.'},
+            format='json',
+        )
+        self.assertEqual(studio_head_approve.status_code, status.HTTP_200_OK)
+
+        self.client.force_authenticate(self.ceo)
+        ceo_reject = self.client.post(
+            f'/api/bim-docs/{doc_id}/approval_action/',
+            {'action': 'reject', 'comments': 'Please improve technical notes.'},
+            format='json',
+        )
+        self.assertEqual(ceo_reject.status_code, status.HTTP_200_OK)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.bim_specialist, type='bim_rejected')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('ceo', notification.message.lower())
+
     def test_create_documentation_requires_at_least_one_uploaded_image(self):
         self.client.force_authenticate(self.bim_specialist)
 

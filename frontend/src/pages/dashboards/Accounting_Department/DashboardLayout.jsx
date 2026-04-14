@@ -23,7 +23,8 @@ import {
   MoreHorizontal,
   Calendar,
   Settings,
-  LogOut
+  LogOut,
+  Download,
 } from 'lucide-react';
 import AccountingSidebar from './AccountingSidebar';
 
@@ -89,6 +90,7 @@ export function DashboardLayout({
     const getCategoryFromType = (type) => {
       if (!type) return 'system';
       if (type.includes('ot_')) return 'overtime';
+      if (type.includes('matreq_')) return 'system';
       if (type.includes('checkout') || type.includes('attendance')) return 'attendance';
       return 'system';
     };
@@ -308,6 +310,16 @@ export function DashboardLayout({
                       <h1 className="text-2xl font-semibold text-white">{currentTab.title}</h1>
                       <p className="text-white/60 text-sm mt-1">{currentTab.description}</p>
                     </div>
+                    {activeTab === 'attendance' && (
+                      <Button
+                        variant="outline"
+                        className="gap-2 self-start md:self-auto"
+                        onClick={() => window.dispatchEvent(new CustomEvent('open-accounting-attendance-export'))}
+                      >
+                        <Download className="w-4 h-4" />
+                        Export Report
+                      </Button>
+                    )}
                   </div>
 
                   <div className="p-6">

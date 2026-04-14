@@ -6,6 +6,7 @@ import materialRequestService from '../../services/materialRequestService';
 export default function BudgetAllocationModal({ isOpen, onClose, request, onSuccess }) {
   const [budgetAllocated, setBudgetAllocated] = useState('');
   const [accountingNotes, setAccountingNotes] = useState('');
+  const [editableItems, setEditableItems] = useState([]);
   const [receiptFile, setReceiptFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,11 +22,24 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
 
   useEffect(() => {
     if (isOpen && request) {
+      const requestItems = Array.isArray(request.items) ? request.items : [];
+      setEditableItems(requestItems.map((item) => ({
+        id: item.id,
+        name: item.name || '',
+        quantity: Number(item.quantity) || 0,
+        unit: item.unit || '',
+        price: Number(item.price) || 0,
+        discount: Number(item.discount) || 0,
+      })));
       if (request.budget_allocated) {
         setBudgetAllocated(request.budget_allocated);
       } else {
-        // Auto-fill with the total calculated from items if no budget allocated yet
-        const total = (request.items || []).reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+        const total = requestItems.reduce((sum, item) => {
+          const quantity = Number(item.quantity) || 0;
+          const price = Number(item.price) || 0;
+          const discount = Number(item.discount) || 0;
+          return sum + Math.max(0, (quantity * price) - discount);
+        }, 0);
         setBudgetAllocated(total ? total.toString() : '');
       }
       setAccountingNotes(request.accounting_notes || '');
@@ -34,7 +48,31 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
 
   if (!isOpen || !request) return null;
 
-  const totalRequested = (request.items || []).reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+  const normalizeMoney = (value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return 0;
+    return parsed;
+  };
+
+  const computedItems = editableItems.map((item) => {
+    const quantity = normalizeMoney(item.quantity);
+    const price = normalizeMoney(item.price);
+    const gross = quantity * price;
+    const discount = Math.min(normalizeMoney(item.discount), gross);
+    const total = gross - discount;
+    return { ...item, quantity, price, gross, discount, total };
+  });
+
+  const grossTotal = computedItems.reduce((sum, item) => sum + item.gross, 0);
+  const totalDiscount = computedItems.reduce((sum, item) => sum + item.discount, 0);
+  const totalRequested = computedItems.reduce((sum, item) => sum + item.total, 0);
+
+  const updateItemDiscount = (itemId, value) => {
+    setEditableItems((current) => current.map((item) => {
+      if (item.id !== itemId) return item;
+      return { ...item, discount: value };
+    }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,18 +81,31 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
       return;
     }
 
+    for (const item of computedItems) {
+      if (item.discount > item.gross) {
+        toast.error(`Discount for "${item.name || 'item'}" cannot exceed gross amount.`);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     let payload;
+    const discountsPayload = computedItems.map((item) => ({
+      id: item.id,
+      discount: item.discount.toFixed(2),
+    }));
     
     if (receiptFile) {
       payload = new FormData();
       payload.append('budget_allocated', budgetAllocated);
       payload.append('accounting_notes', accountingNotes);
+      payload.append('item_discounts', JSON.stringify(discountsPayload));
       payload.append('accounting_receipt', receiptFile);
     } else {
       payload = {
         budget_allocated: budgetAllocated,
         accounting_notes: accountingNotes,
+        item_discounts: discountsPayload,
       };
     }
 
@@ -74,7 +125,7 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm">
       <div 
-        className="w-full max-w-lg rounded-[1.25rem] border border-[#10344d] bg-[#041e30] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+        className="w-full max-w-4xl rounded-[1.25rem] border border-[#10344d] bg-[#041e30] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-[#10344d] px-6 py-5">
@@ -95,13 +146,73 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
             <p className="text-[#547C97] text-[10px] uppercase font-bold tracking-widest mb-1">Project</p>
             <p className="text-white font-medium mb-3">{request.project_name || 'N/A'}</p>
             
-            <p className="text-[#547C97] text-[10px] uppercase font-bold tracking-widest mb-1">Total Requested Amount</p>
+            <p className="text-[#547C97] text-[10px] uppercase font-bold tracking-widest mb-1">Net Requested Amount</p>
             <p className="text-xl font-bold text-[#FF7120]">
               ₱{totalRequested.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
             </p>
+            <div className="mt-2 text-xs text-white/70 space-y-1">
+              <p>Gross: ₱{grossTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+              <p>Total Discounts: ₱{totalDiscount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+            </div>
           </div>
 
           <form id="allocation-form" onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-[10px] font-bold tracking-widest uppercase text-white/80 mb-2">
+                Item Discounts (Accounting)
+              </label>
+              <div className="rounded-xl border border-[#10344d] bg-[#011423] overflow-x-auto">
+                <table className="w-full min-w-[740px] text-sm">
+                  <thead className="bg-[#08263c] text-[#9ec3da] text-[11px] uppercase tracking-wider">
+                    <tr>
+                      <th className="text-left px-3 py-2">Item</th>
+                      <th className="text-right px-3 py-2">Qty</th>
+                      <th className="text-right px-3 py-2">Price</th>
+                      <th className="text-right px-3 py-2">Gross</th>
+                      <th className="text-right px-3 py-2">Discount</th>
+                      <th className="text-right px-3 py-2">Net Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {computedItems.map((item) => (
+                      <tr key={item.id} className="border-t border-[#10344d]">
+                        <td className="px-3 py-2 text-white">{item.name || '-'}</td>
+                        <td className="px-3 py-2 text-right text-white/80">
+                          {item.quantity.toLocaleString('en-PH', { minimumFractionDigits: 2 })} {item.unit}
+                        </td>
+                        <td className="px-3 py-2 text-right text-white/80">
+                          ₱{item.price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-3 py-2 text-right text-white/80">
+                          ₱{item.gross.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="px-3 py-2 text-right">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.discount}
+                            onChange={(e) => updateItemDiscount(item.id, e.target.value)}
+                            className="w-32 ml-auto rounded-lg border border-[#10344d] bg-[#041e30] px-3 py-1.5 text-white text-right outline-none focus:border-[#FF7120]/60"
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-right font-semibold text-[#FFBE9B]">
+                          ₱{item.total.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    ))}
+                    {computedItems.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="px-3 py-4 text-center text-white/55">
+                          No itemized materials found.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
             <div>
               <label className="block text-[10px] font-bold tracking-widest uppercase text-white/80 mb-2">
                 Allocated Budget (₱) <span className="text-[#FF7120]">*</span>
@@ -138,7 +249,7 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
               <label className="block text-[10px] font-bold tracking-widest uppercase text-white/80 mb-2">
                 Proof of Transfer (Optional)
               </label>
-              
+
               <div className="rounded-xl border border-[#10344d] bg-[#011423] p-2 transition hover:bg-[#021b2e] shadow-inner group">
                 <input
                   type="file"

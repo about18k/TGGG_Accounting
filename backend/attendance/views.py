@@ -105,6 +105,19 @@ def _notify_overtime_fully_approved(overtime_request, actor):
     )
 
 
+def _notify_overtime_rejected(overtime_request, actor):
+    NotificationService.create_notification(
+        recipient=overtime_request.employee,
+        actor=actor,
+        notif_type='ot_rejected',
+        title='OT Request Rejected',
+        message=(
+            'Your OT request was rejected by Accounting. '
+            'Please submit a new request with corrected details if needed.'
+        ),
+    )
+
+
 def _can_review_overtime(user):
     return bool(user.is_superuser or user.role in OVERTIME_REVIEWER_ROLES)
 
@@ -1122,6 +1135,11 @@ def delete_overtime_request(request, request_id):
             {'error': 'Confirmed overtime requests cannot be removed.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+    try:
+        _notify_overtime_rejected(overtime_request, request.user)
+    except Exception as e:
+        print(f"⚠️ Overtime rejection notification failed for request_id={overtime_request.id}: {e}")
 
     overtime_request.delete()
     return Response({'message': 'Overtime request removed.'}, status=status.HTTP_200_OK)

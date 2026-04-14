@@ -261,6 +261,10 @@ NOTIFICATION_TYPE_CHOICES = [
     ('matreq_submitted_to_sh', 'Material Request Submitted To Studio Head'),
     ('bim_forwarded_to_ceo', 'BIM Forwarded To CEO'),
     ('matreq_forwarded_to_ceo', 'Material Request Forwarded To CEO'),
+    ('bim_rejected', 'BIM Rejected'),
+    ('matreq_rejected', 'Material Request Rejected'),
+    ('ot_rejected', 'OT Rejected'),
+    ('matreq_ceo_approved', 'Material Request CEO Approved'),
     ('ceo_payroll_processed', 'CEO Payroll Processed'),
 ]
 

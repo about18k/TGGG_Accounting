@@ -24,6 +24,32 @@ body {
   color: var(--color-foreground);
 }
 
+/* Global interactive cursor states */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+summary,
+label[for],
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+input[type="file"]:not(:disabled),
+input[type="range"]:not(:disabled),
+input[type="color"]:not(:disabled),
+input[type="image"]:not(:disabled),
+select:not(:disabled) {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
 /* Color date input calendar icons to primary color */
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(56%) sepia(91%) saturate(2487%) hue-rotate(345deg) brightness(101%) contrast(101%);
@@ -353,7 +379,19 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .overtime-submit {
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.overtime-submit-error {
+  margin: 0;
+  color: #fcd34d;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  flex: 1;
+  min-width: 220px;
 }
 
 .overtime-submit button {
@@ -366,6 +404,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.2s;
+  margin-left: auto;
 }
 
 .overtime-submit button:hover:not(:disabled) {

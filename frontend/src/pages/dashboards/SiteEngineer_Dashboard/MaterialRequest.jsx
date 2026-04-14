@@ -38,7 +38,6 @@ const DEFAULT_MATERIAL = {
   quantity: '',
   unit: '',
   price: '',
-  discount: '',
   specifications: '',
 };
 
@@ -85,6 +84,30 @@ const isStudioHeadRejected = (request) => {
   );
 };
 
+const normalizeRequestImageUrl = (value) => {
+  if (!value) return null;
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return normalizeRequestImageUrl(parsed);
+      } catch {
+        return trimmed;
+      }
+    }
+    return trimmed;
+  }
+
+  if (typeof value === 'object') {
+    return value.public_url || value.publicUrl || value.url || null;
+  }
+
+  return null;
+};
+
 const formatDate = (value) => {
   if (!value) return '-';
   return new Date(value).toLocaleDateString('en-US', {
@@ -109,6 +132,7 @@ const MaterialRequest = ({ user }) => {
   const [selectedRequestForModal, setSelectedRequestForModal] = useState(null);
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
+  const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
 
   // ── Project state ────────────────────────────────────────
   const [projects, setProjects] = useState([]);
@@ -163,6 +187,7 @@ const MaterialRequest = ({ user }) => {
     setCurrentMaterial(DEFAULT_MATERIAL);
     setUploadedImage(null);
     setImagePreview(null);
+    setImagePreviewFailed(false);
     setRequests([]);
     fetchRequests();
   }, [user?.id, user?.role]);
@@ -263,6 +288,7 @@ const MaterialRequest = ({ user }) => {
     setCurrentMaterial(DEFAULT_MATERIAL);
     setUploadedImage(null);
     setImagePreview(null);
+    setImagePreviewFailed(false);
     setEditingRequestId(null);
     setEditingRejectedRequest(false);
   };
@@ -284,15 +310,16 @@ const MaterialRequest = ({ user }) => {
 
     setFormData({
       projectName: request.project_name || '',
-      request_date: request.request_date || DEFAULT_FORM.requestDate,
-      required_date: request.required_date || '',
+      requestDate: request.request_date || DEFAULT_FORM.requestDate,
+      requiredDate: request.required_date || '',
       priority: request.priority || 'normal',
-      delivery_location: request.delivery_location || '',
+      deliveryLocation: request.delivery_location || '',
       notes: request.notes || '',
     });
     setMaterials(mappedItems);
     setUploadedImage(null);
-    setImagePreview(request.request_image || null);
+    setImagePreview(normalizeRequestImageUrl(request.request_image));
+    setImagePreviewFailed(false);
     setCurrentMaterial(DEFAULT_MATERIAL);
     setEditingRequestId(request.id);
     setEditingRejectedRequest(isStudioHeadRejected(request));
@@ -324,11 +351,10 @@ const MaterialRequest = ({ user }) => {
       quantity: String(currentMaterial.quantity).trim(),
       unit: currentMaterial.unit.trim(),
       price: currentMaterial.price ? String(currentMaterial.price).trim() : '0.00',
-      discount: currentMaterial.discount ? String(currentMaterial.discount).trim() : '0.00',
       total: (
-        (parseFloat(currentMaterial.quantity || 0) * parseFloat(currentMaterial.price || 0)) -
-        parseFloat(currentMaterial.discount || 0)
+        parseFloat(currentMaterial.quantity || 0) * parseFloat(currentMaterial.price || 0)
       ).toFixed(2),
+      discount: '0.00',
       specifications: currentMaterial.specifications.trim(),
     };
 
@@ -365,6 +391,7 @@ const MaterialRequest = ({ user }) => {
     }
 
     setUploadedImage(file);
+    setImagePreviewFailed(false);
     const reader = new FileReader();
     reader.onloadend = () => {
       setImagePreview(reader.result);
@@ -375,6 +402,7 @@ const MaterialRequest = ({ user }) => {
   const removeImage = () => {
     setUploadedImage(null);
     setImagePreview(null);
+    setImagePreviewFailed(false);
     // If editing and we remove an existing image, we might need to track that.
     // For now, if imagePreview is just the URL from backend, clearing it means removing it.
   };
@@ -842,7 +870,7 @@ const MaterialRequest = ({ user }) => {
                 </select>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-3">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
                 <input
                   type="number"
                   min="0"
@@ -876,15 +904,6 @@ const MaterialRequest = ({ user }) => {
                   className="bg-[#001f35] border border-white/10 rounded-lg px-4 py-2 text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/50"
                 />
                 <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={currentMaterial.discount}
-                  onChange={(event) => setCurrentMaterial((current) => ({ ...current, discount: event.target.value }))}
-                  placeholder="Discount"
-                  className="bg-[#001f35] border border-white/10 rounded-lg px-4 py-2 text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/50"
-                />
-                <input
                   type="text"
                   value={currentMaterial.specifications}
                   onChange={(event) => setCurrentMaterial((current) => ({ ...current, specifications: event.target.value }))}
@@ -913,7 +932,7 @@ const MaterialRequest = ({ user }) => {
                         {material.category && <span className="text-xs px-2 py-1 bg-[#FF7120]/20 text-[#FFBE9B] rounded">{material.category}</span>}
                       </div>
                       <p className="text-white/60 text-sm mt-1">
-                        Quantity: {material.quantity} {material.unit} | Price: {material.price} | Discount: {material.discount} | Total: {material.total}
+                        Quantity: {material.quantity} {material.unit} | Price: {material.price} | Total: {material.total}
                         {material.specifications ? ` - ${material.specifications}` : ''}
                       </p>
                     </div>
@@ -956,11 +975,21 @@ const MaterialRequest = ({ user }) => {
                 </div>
               ) : (
                 <div className="relative group w-full max-w-[400px]">
-                  <img
-                    src={imagePreview}
-                    alt="Material Request"
-                    className="w-full h-auto rounded-lg border border-white/10 shadow-lg"
-                  />
+                  {!imagePreviewFailed ? (
+                    <img
+                      src={imagePreview}
+                      alt="Material Request"
+                      className="w-full h-auto rounded-lg border border-white/10 shadow-lg"
+                      onError={() => setImagePreviewFailed(true)}
+                    />
+                  ) : (
+                    <div className="w-full rounded-lg border border-amber-400/25 bg-amber-500/10 p-4 text-center">
+                      <p className="text-sm text-amber-100 font-medium">Preview unavailable</p>
+                      <p className="text-xs text-amber-200/80 mt-1">
+                        Attachment exists but cannot be rendered inline.
+                      </p>
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-3 rounded-lg">
                     <button
                       type="button"
@@ -980,6 +1009,16 @@ const MaterialRequest = ({ user }) => {
                       />
                     </label>
                   </div>
+                  {imagePreview && (
+                    <a
+                      href={imagePreview}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex mt-3 text-xs text-[#FFBE9B] hover:text-[#FFD7BF] underline"
+                    >
+                      Open attached image
+                    </a>
+                  )}
                   <p className="text-center text-white/40 text-xs mt-3">High-quality image uploaded. Verify contents are readable.</p>
                 </div>
               )}
@@ -1057,6 +1096,7 @@ const MaterialRequest = ({ user }) => {
                 const stage = getRequestStage(request);
                 const statusMeta = STATUS_META[stage] || STATUS_META.draft;
                 const rejectedByStudioHead = isStudioHeadRejected(request);
+                const requestImageUrl = normalizeRequestImageUrl(request.request_image);
                 const canSubmit = request.status === 'draft' || rejectedByStudioHead;
                 const canEdit = request.status === 'draft' || rejectedByStudioHead;
                 const canDelete = request.status === 'draft';
@@ -1090,7 +1130,6 @@ const MaterialRequest = ({ user }) => {
                       <p className="text-white/45 text-xs">Materials</p>
                       <p className="text-white mt-1">
                         {request.item_count || request.items?.length || 0} item(s)
-                        {request.request_image && <span className="ml-2 text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-300 rounded border border-blue-500/30">Has Photo</span>}
                       </p>
                       {Array.isArray(request.items) && request.items.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-2">
@@ -1106,7 +1145,7 @@ const MaterialRequest = ({ user }) => {
                           )}
                         </div>
                       ) : (
-                        request.request_image && (
+                        requestImageUrl && (
                           <div className="mt-2 text-xs text-white/50 italic flex items-center gap-1.5">
                             <ImageIcon className="h-3 w-3" />
                             Photo-based request (no items listed)
@@ -1114,6 +1153,28 @@ const MaterialRequest = ({ user }) => {
                         )
                       )}
                     </div>
+
+                    {requestImageUrl && (
+                      <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
+                        <p className="text-white/45 text-xs">Request Attachment</p>
+                        <a
+                          href={requestImageUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-block group"
+                          title="Open attached request image"
+                        >
+                          <img
+                            src={requestImageUrl}
+                            alt={`${request.project_name || 'Material request'} attachment`}
+                            className="w-24 h-24 object-cover rounded-lg border border-blue-500/30 bg-[#001f35] shadow-sm group-hover:brightness-110 transition"
+                          />
+                        </a>
+                        <p className="text-xs text-blue-200/80 mt-2">
+                          {request.project_name || 'Material request'} attachment
+                        </p>
+                      </div>
+                    )}
 
                     {request.studio_head_comments && (
                       <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3">
@@ -1224,84 +1285,96 @@ const MaterialRequest = ({ user }) => {
       {/* ── Projects Tab ────────────────────────────────────── */}
       {activeTab === 'projects' && (
         <div className="p-6">
-          {/* Projects and Approved Requests by Project */}
-          <div>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-lg font-semibold text-white">All Projects</h2>
-                <p className="text-sm text-white/50 mt-1">Select a project to view its approved material requests.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCreateProjectModal(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-xl text-sm font-medium hover:brightness-95 transition"
-              >
-                <Plus className="h-4 w-4" />
-                New Project
-              </button>
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-lg font-semibold text-white">All Projects</h2>
+              <p className="text-sm text-white/50 mt-1">Select a project to view approved material requests.</p>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowCreateProjectModal(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-xl text-sm font-medium hover:brightness-95 transition"
+            >
+              <Plus className="h-4 w-4" />
+              New Project
+            </button>
+          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Left – project list */}
-            <div className="lg:col-span-1 space-y-3 max-h-[75vh] overflow-y-auto pr-1">
-              {projects.length === 0 && (
-                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-8 text-center">
-                  <FolderOpen className="h-8 w-8 text-white/25 mx-auto mb-3" />
-                  <p className="text-white/60 text-sm">No projects yet. Create one to get started.</p>
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            <div className="lg:col-span-1">
+              <div className={`${cardClass} flex flex-col h-full p-5 space-y-4`}>
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="h-4 w-4 text-[#FF7120]" />
+                  <h2 className="text-lg font-semibold text-white">Projects</h2>
                 </div>
-              )}
-              {projects.map((proj) => (
-                <button
-                  key={proj.id}
-                  type="button"
-                  onClick={() => selectProject(proj)}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${
-                    selectedProjectId === proj.id
-                      ? 'border-[#FF7120]/50 bg-[#FF7120]/10 shadow-[0_0_24px_rgba(255,113,32,0.12)]'
-                      : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]'
-                  }`}
-                >
-                  <p className="text-sm font-semibold text-white truncate">{proj.name}</p>
-                  <div className="mt-2 grid gap-1.5 text-xs text-white/55">
-                    <div className="inline-flex items-center gap-2">
-                      <MapPin className="h-3.5 w-3.5 shrink-0" />
-                      <span className="truncate">{proj.location}</span>
-                    </div>
-                    <div className="inline-flex items-center gap-2">
-                      <Clock3 className="h-3.5 w-3.5 shrink-0" />
-                      <span>Started {new Date(proj.date_started).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                    </div>
+
+                {projects.length === 0 && (
+                  <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/55 text-center">
+                    No projects yet. Create one to get started.
                   </div>
-                  <div className="mt-3 flex items-center gap-3">
-                    <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70 border border-white/10">
-                      {proj.material_request_count || 0} request(s)
-                    </span>
-                    <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-200 border border-emerald-500/20">
-                      {proj.approved_request_count || 0} approved
-                    </span>
+                )}
+
+                {projects.length > 0 && (
+                  <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                    {projects.map((proj) => {
+                      const isSelected = selectedProjectId === proj.id;
+                      return (
+                        <button
+                          key={proj.id}
+                          type="button"
+                          onClick={() => selectProject(proj)}
+                          className={`w-full rounded-2xl border p-4 text-left transition ${
+                            isSelected
+                              ? 'border-[#FF7120]/50 bg-[#FF7120]/10 shadow-[0_0_24px_rgba(255,113,32,0.12)]'
+                              : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]'
+                          }`}
+                        >
+                          <p className="text-sm font-semibold text-white truncate">{proj.name}</p>
+                          <div className="mt-2 grid gap-1.5 text-xs text-white/55">
+                            <div className="inline-flex items-center gap-2">
+                              <MapPin className="h-3.5 w-3.5 shrink-0" />
+                              <span className="truncate">{proj.location}</span>
+                            </div>
+                            <div className="inline-flex items-center gap-2">
+                              <Clock3 className="h-3.5 w-3.5 shrink-0" />
+                              <span>
+                                Started {new Date(proj.date_started).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex items-center gap-3">
+                            <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-white/70 border border-white/10">
+                              {proj.material_request_count || 0} request(s)
+                            </span>
+                            <span className="text-xs px-2 py-1 rounded-full bg-emerald-500/10 text-emerald-200 border border-emerald-500/20">
+                              {proj.approved_request_count || 0} approved
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
                   </div>
-                </button>
-              ))}
+                )}
+              </div>
             </div>
 
-            {/* Right – approved requests for selected project */}
             <div className="lg:col-span-2">
-              <div className={`${cardClass} h-full p-6`}>
+              <div className={`${cardClass} flex flex-col h-full p-6`}>
                 {!selectedProjectId && (
-                  <div className="h-full min-h-[300px] grid place-items-center text-center">
+                  <div className="h-full grid place-items-center text-center py-12">
                     <div>
-                      <Package className="mx-auto h-9 w-9 text-white/25" />
-                      <p className="mt-3 text-white/70">Select a project to view approved material requests.</p>
+                      <FolderOpen className="mx-auto h-12 w-12 text-white/20 mb-4" />
+                      <p className="text-white/60">Select a project to view approved material requests.</p>
                     </div>
                   </div>
                 )}
 
                 {selectedProjectId && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                  <div className="space-y-6">
+                    <div className="flex flex-wrap items-end justify-between gap-4">
                       <div>
-                        <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Approved Requests</p>
-                        <h3 className="mt-1 text-xl font-semibold text-white">
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Project Overview</p>
+                        <h3 className="mt-2 text-2xl font-bold text-white">
                           {projects.find((p) => p.id === selectedProjectId)?.name || 'Project'}
                         </h3>
                       </div>
@@ -1309,6 +1382,16 @@ const MaterialRequest = ({ user }) => {
                         <CheckCircle2 className="h-3.5 w-3.5" />
                         {approvedRequests.length} approved
                       </span>
+                    </div>
+
+                    <div className="rounded-2xl border border-[#FF7120]/25 bg-gradient-to-br from-[#FF7120]/10 to-transparent p-5">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">Total Project Approved Amount</p>
+                      <p className="mt-2 text-3xl font-bold text-white">
+                        ₱{approvedRequests.reduce((sum, req) => {
+                          const requestTotal = (req.items || []).reduce((acc, item) => acc + (Number(item.total) || 0), 0);
+                          return sum + requestTotal;
+                        }, 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      </p>
                     </div>
 
                     {loadingApproved && (
@@ -1323,51 +1406,61 @@ const MaterialRequest = ({ user }) => {
                     )}
 
                     {!loadingApproved && approvedRequests.length > 0 && (
-                      <div className="space-y-3">
-                        {approvedRequests.map((req) => (
-                          <div
-                            key={req.id}
-                            className="rounded-2xl border border-white/10 bg-[#00273C]/45 p-4 space-y-3 cursor-pointer hover:border-white/20 transition"
-                            onClick={() => {
-                              setSelectedRequestForModal(req);
-                              setIsFormModalOpen(true);
-                            }}
-                          >
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                              <div>
-                                <h4 className="text-base font-semibold text-white">{req.project_name}</h4>
-                                <p className="text-xs text-white/50 mt-1">
-                                  Approved {req.ceo_reviewed_at ? new Date(req.ceo_reviewed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'}
-                                </p>
+                      <div className="rounded-xl border border-white/10 bg-white/[0.03] overflow-hidden">
+                        <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-white/10 bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-white/40 font-semibold">
+                          <div className="col-span-1">#</div>
+                          <div className="col-span-4">Requester</div>
+                          <div className="col-span-3">Date of Request</div>
+                          <div className="col-span-2 text-right">Total</div>
+                          <div className="col-span-2 text-center">Form</div>
+                        </div>
+
+                        <div className="max-h-[50vh] overflow-y-auto">
+                          {approvedRequests.map((req, idx) => {
+                            const itemsTotal = (req.items || []).reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+                            return (
+                              <div
+                                key={req.id}
+                                className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-white/5 hover:bg-white/[0.03] transition items-center text-sm"
+                              >
+                                <div className="col-span-1">
+                                  <span className="grid h-6 w-6 place-items-center rounded-md bg-[#FF7120]/15 text-[#FF7120] text-xs font-bold">
+                                    {idx + 1}
+                                  </span>
+                                </div>
+                                <div className="col-span-4 min-w-0">
+                                  <p className="text-white font-medium truncate">{req.created_by_name || req.created_by_email || 'Unknown'}</p>
+                                </div>
+                                <div className="col-span-3 text-white/60">
+                                  {formatDate(req.request_date)}
+                                </div>
+                                <div className="col-span-2 text-right text-white font-medium">
+                                  ₱{itemsTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                                </div>
+                                <div className="col-span-2 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedRequestForModal(req);
+                                      setIsFormModalOpen(true);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-white/15 text-xs text-white/70 hover:bg-white/10 hover:text-white transition"
+                                  >
+                                    <FileText className="h-3 w-3" />
+                                    View Form
+                                  </button>
+                                </div>
                               </div>
-                              <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold bg-emerald-500/10 text-emerald-200 border-emerald-500/20">
-                                Approved
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
-                              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
-                                <p className="text-white/45 text-xs">Priority</p>
-                                <p className="text-white mt-0.5 capitalize">{req.priority}</p>
-                              </div>
-                              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
-                                <p className="text-white/45 text-xs">Items</p>
-                                <p className="text-white mt-0.5">{req.item_count || req.items?.length || 0} item(s)</p>
-                              </div>
-                              <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2">
-                                <p className="text-white/45 text-xs">Requested By</p>
-                                <p className="text-white mt-0.5 truncate">{req.created_by_name || req.created_by_email || '-'}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>
                 )}
               </div>
             </div>
-          </div>
-        </div>
+          </section>
         </div>
       )}
 

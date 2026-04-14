@@ -21,7 +21,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   Input,
   Label,
   Select,
@@ -32,7 +31,6 @@ import {
 } from '../../../components/ui/accounting-ui';
 import {
   Clock,
-  Download,
 } from 'lucide-react';
 
 const timeToMinutes = (timeValue) => {
@@ -79,6 +77,14 @@ export function AttendanceLeave() {
 
   useEffect(() => {
     fetchAttendanceRecords();
+  }, []);
+
+  useEffect(() => {
+    const openExportDialog = () => setIsExportOpen(true);
+    window.addEventListener('open-accounting-attendance-export', openExportDialog);
+    return () => {
+      window.removeEventListener('open-accounting-attendance-export', openExportDialog);
+    };
   }, []);
 
   const getStatusBadge = (status) => {
@@ -216,74 +222,6 @@ export function AttendanceLeave() {
 
   return (
     <div className="space-y-6">
-      {/* Header Actions */}
-      <div className="flex justify-end gap-2">
-        <div className="flex gap-2">
-          <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" className="gap-2">
-                <Download className="w-4 h-4" />
-                Export Report
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Export Attendance Report</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="exportStart">Start Date</Label>
-                    <Input
-                      id="exportStart"
-                      type="date"
-                      value={exportStartDate}
-                      onChange={(e) => setExportStartDate(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="exportEnd">End Date</Label>
-                    <Input
-                      id="exportEnd"
-                      type="date"
-                      value={exportEndDate}
-                      onChange={(e) => setExportEndDate(e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="exportEmployee">Employee</Label>
-                  <Select value={exportEmployee} onValueChange={setExportEmployee}>
-                    <SelectTrigger id="exportEmployee">
-                      <SelectValue placeholder="Select employee" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All employees</SelectItem>
-                      {employeeOptions
-                        .filter((name) => name !== 'all')
-                        .map((name) => (
-                          <SelectItem key={name} value={name}>
-                            {name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setIsExportOpen(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleOpenDTR}>
-                  Print DTR
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
       <div className="space-y-6">
         {/* Recent Attendance */}
         <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
@@ -377,6 +315,63 @@ export function AttendanceLeave() {
           </Card>
 
       </div>
+
+      <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Export Attendance Report</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="exportStart">Start Date</Label>
+                <Input
+                  id="exportStart"
+                  type="date"
+                  value={exportStartDate}
+                  onChange={(e) => setExportStartDate(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="exportEnd">End Date</Label>
+                <Input
+                  id="exportEnd"
+                  type="date"
+                  value={exportEndDate}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="exportEmployee">Employee</Label>
+              <Select value={exportEmployee} onValueChange={setExportEmployee}>
+                <SelectTrigger id="exportEmployee">
+                  <SelectValue placeholder="Select employee" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All employees</SelectItem>
+                  {employeeOptions
+                    .filter((name) => name !== 'all')
+                    .map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsExportOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleOpenDTR}>
+              Print DTR
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* DTR print overlay – covers full screen using the existing PrintAttendance template */}
       {showDTROverlay && (

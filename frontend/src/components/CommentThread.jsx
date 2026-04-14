@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { ChevronDown, ChevronUp, MessageSquare } from 'lucide-react';
 import bimDocumentationService from '../services/bimDocumentationService';
 
 const ROLE_STYLE = {
@@ -143,11 +144,12 @@ const CommentItem = ({ comment, docId, onRefresh }) => {
  *   docId       {number}  – documentation pk
  *   currentUser {object}  – { id, role, ... } (not used for auth, just display)
  */
-const CommentThread = ({ docId }) => {
+const CommentThread = ({ docId, collapsible = false, defaultOpen = true }) => {
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
     const [posting, setPosting] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [isOpen, setIsOpen] = useState(defaultOpen);
 
     const loadComments = useCallback(async () => {
         if (!docId) return;
@@ -173,18 +175,8 @@ const CommentThread = ({ docId }) => {
         setPosting(false);
     };
 
-    return (
+    const threadContent = (
         <div className="space-y-4">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                💬 Discussion Thread
-                {comments.length > 0 && (
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/60">
-                        {comments.length}
-                    </span>
-                )}
-            </h3>
-
-            {/* New comment input */}
             <div className="flex gap-2">
                 <input
                     value={newComment}
@@ -204,7 +196,6 @@ const CommentThread = ({ docId }) => {
                 </button>
             </div>
 
-            {/* Comment list */}
             <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                 {loading && (
                     <p className="text-center text-xs text-white/50 py-4">Loading comments…</p>
@@ -223,6 +214,51 @@ const CommentThread = ({ docId }) => {
                     />
                 ))}
             </div>
+        </div>
+    );
+
+    if (collapsible) {
+        return (
+            <div className="space-y-3">
+                <button
+                    type="button"
+                    onClick={() => setIsOpen((prev) => !prev)}
+                    className="flex items-center gap-2 text-sm font-semibold text-white/70 hover:text-white transition-colors group"
+                >
+                    <MessageSquare className="h-4 w-4 text-[#FF7120]" />
+                    <span>Discussion Thread</span>
+                    {comments.length > 0 && (
+                        <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-white/60">
+                            {comments.length}
+                        </span>
+                    )}
+                    {isOpen ? (
+                        <ChevronUp className="h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity ml-1" />
+                    ) : (
+                        <ChevronDown className="h-4 w-4 opacity-50 group-hover:opacity-100 transition-opacity ml-1" />
+                    )}
+                </button>
+
+                {isOpen && (
+                    <div className="animate-in fade-in slide-in-from-top-2 duration-300 pt-2 border-t border-white/5">
+                        {threadContent}
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                💬 Discussion Thread
+                {comments.length > 0 && (
+                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/60">
+                        {comments.length}
+                    </span>
+                )}
+            </h3>
+            {threadContent}
         </div>
     );
 };

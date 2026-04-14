@@ -10,6 +10,11 @@ const getTodayDate = () => {
   return new Date(now.getTime() - offsetMs).toISOString().split('T')[0];
 };
 
+const formatJobPosition = (value) => {
+  if (!value) return '';
+  return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
 const TIME_SLOTS = [
   { value: '19:00', label: '7:00 PM' },
   { value: '20:00', label: '8:00 PM' },
@@ -81,7 +86,7 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
         setForm(prev => ({
           ...prev,
           employee_name: data.full_name || `${data.first_name} ${data.last_name}`.trim() || prev.employee_name,
-          job_position: data.role_name || data.role || prev.job_position,
+          job_position: formatJobPosition(data.role_name || data.role || prev.job_position),
           employee_signature: data.signature_image || ''
         }));
       } catch (err) {

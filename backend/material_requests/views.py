@@ -1,4 +1,6 @@
 import uuid
+import json
+from decimal import Decimal, InvalidOperation
 from django.conf import settings
 from supabase import create_client, Client
 
@@ -16,7 +18,6 @@ from .serializers import (
     MaterialRequestCommentSerializer,
     ProjectSerializer,
 )
-from bim_documentation.tasks import upload_material_request_file_async
 
 
 def _notify_ceo_material_request_forwarded(material_request, actor):
@@ -83,6 +84,25 @@ def _notify_accounting_material_request_ceo_approved(material_request, actor):
                 'It is now ready for Accounting processing.'
             ),
         )
+
+
+def _notify_material_request_rejected(material_request, actor):
+    """Notify the original requester when a material request is rejected."""
+    requester = getattr(material_request, 'created_by', None)
+    if not requester or not requester.is_active or requester.id == actor.id:
+        return
+
+    decision_role = 'Studio Head' if actor.role == 'studio_head' else 'CEO'
+    NotificationService.create_notification(
+        recipient=requester,
+        actor=actor,
+        notif_type='matreq_rejected',
+        title='Material Request Rejected',
+        message=(
+            f'Your material request "{material_request.project_name}" was rejected by {decision_role}. '
+            'Please review the comments and update your request if needed.'
+        ),
+    )
 
 
 def upload_matreq_img_to_supabase(file_obj, user_id):
@@ -212,38 +232,23 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             )
 
         data = request.data.copy()
-        upload_task_id = None
-        
+
         request_image_file = request.FILES.get('request_image')
         if request_image_file:
-            if 'request_image' in data:
-                # DRF throws an error if we pass a file payload to a URLField, so we remove the file object
-                if hasattr(data, 'pop'):
-                    data.pop('request_image')
-            # Set placeholder - will be updated by async task
-            data['request_image'] = ''
+            if 'request_image' in data and hasattr(data, 'pop'):
+                # URLField expects a URL string, not file payload.
+                data.pop('request_image')
+            try:
+                public_url = upload_matreq_img_to_supabase(request_image_file, request.user.id)
+                if public_url:
+                    data['request_image'] = public_url
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        
-        # Queue async file upload after DB save
-        if request_image_file:
-            file_path = f"{request.user.id}/matreq_{uuid.uuid4().hex}.{request_image_file.name.split('.')[-1]}"
-            task = upload_material_request_file_async.delay(
-                file_path=file_path,
-                file_content_path=request_image_file,
-                request_id=serializer.instance.id,
-                user_id=request.user.id
-            )
-            upload_task_id = task.id
-        
-        response_data = serializer.data
-        if upload_task_id:
-            response_data['upload_task_id'] = upload_task_id
-            response_data['message'] = 'Material request created. Image uploading in background...'
-        
-        return Response(response_data, status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         material_request = self.get_object()
@@ -394,6 +399,10 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 )
 
             material_request.reject(user, comments, is_studio_head=True)
+            try:
+                _notify_material_request_rejected(material_request, user)
+            except Exception as exc:
+                print(f"⚠️ Material request rejection notification failed for request_id={material_request.id}: {exc}")
             return Response(
                 {'message': 'Material request rejected.'},
                 status=status.HTTP_200_OK,
@@ -430,6 +439,10 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 )
 
             material_request.reject(user, comments, is_studio_head=False)
+            try:
+                _notify_material_request_rejected(material_request, user)
+            except Exception as exc:
+                print(f"⚠️ Material request rejection notification failed for request_id={material_request.id}: {exc}")
             return Response(
                 {'message': 'Material request rejected.'},
                 status=status.HTTP_200_OK,
@@ -466,13 +479,89 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            from decimal import Decimal
             budget_val = Decimal(str(budget_allocated))
-        except Exception:
+        except (InvalidOperation, TypeError, ValueError):
             return Response(
                 {'error': 'Invalid budget amount.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        item_discounts_raw = request.data.get('item_discounts', [])
+        if isinstance(item_discounts_raw, str):
+            try:
+                item_discounts_raw = json.loads(item_discounts_raw)
+            except (TypeError, ValueError):
+                return Response(
+                    {'error': 'Invalid item_discounts payload.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if item_discounts_raw is None:
+            item_discounts_raw = []
+
+        if not isinstance(item_discounts_raw, list):
+            return Response(
+                {'error': 'item_discounts must be a list.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        request_items = list(material_request.items.all())
+        request_items_by_id = {item.id: item for item in request_items}
+        updated_items_count = 0
+        total_discount_value = Decimal('0.00')
+
+        for entry in item_discounts_raw:
+            if not isinstance(entry, dict):
+                return Response(
+                    {'error': 'Each item_discounts entry must be an object.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            item_id_raw = entry.get('id')
+            try:
+                item_id = int(item_id_raw)
+            except (TypeError, ValueError):
+                return Response(
+                    {'error': f'Invalid material item id: {item_id_raw}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if item_id not in request_items_by_id:
+                return Response(
+                    {'error': f'Invalid material item id: {item_id}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            try:
+                discount_val = Decimal(str(entry.get('discount', '0')))
+            except (InvalidOperation, TypeError, ValueError):
+                return Response(
+                    {'error': f'Invalid discount value for item id {item_id}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if discount_val < 0:
+                return Response(
+                    {'error': f'Discount cannot be negative for item id {item_id}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            item = request_items_by_id[item_id]
+            gross_total = item.quantity * item.price
+            if discount_val > gross_total:
+                return Response(
+                    {'error': f'Discount cannot exceed gross total for "{item.name}".'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            new_total = gross_total - discount_val
+            if item.discount != discount_val or item.total != new_total:
+                item.discount = discount_val
+                item.total = new_total
+                item.save(update_fields=['discount', 'total'])
+                updated_items_count += 1
+
+            total_discount_value += discount_val
 
         from django.utils import timezone
 
@@ -489,7 +578,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         material_request.accounting_notes = accounting_notes
         material_request.accounting_status = 'funds_released'
         material_request.fund_release_date = timezone.now()
-        
+
         update_fields = [
             'budget_allocated',
             'accounting_notes',
@@ -499,14 +588,24 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         ]
         if material_request.accounting_receipt:
             update_fields.append('accounting_receipt')
-            
+
         material_request.save(update_fields=update_fields)
 
         # Create system comment for audit trail
+        discount_note = (
+            f" Item discounts updated: {updated_items_count} item(s), "
+            f"total discount ₱{total_discount_value:,.2f}."
+            if item_discounts_raw else ""
+        )
         MaterialRequestComment.objects.create(
             material_request=material_request,
             author=request.user,
-            content=f"Accounting Decision: Funds Released (₱{budget_val:,.2f}). Note: {accounting_notes}" if accounting_notes else f"Accounting Decision: Funds Released (₱{budget_val:,.2f}).",
+            content=(
+                f"Accounting Decision: Funds Released (₱{budget_val:,.2f})."
+                f"{discount_note} Note: {accounting_notes}"
+            ) if accounting_notes else (
+                f"Accounting Decision: Funds Released (₱{budget_val:,.2f}).{discount_note}"
+            ),
             is_system_comment=True
         )
 
