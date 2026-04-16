@@ -268,6 +268,43 @@ const bimDocumentationService = {
       };
     }
   },
+
+  /**
+   * Edit a comment
+   * @param {number} docId - Documentation ID
+   * @param {number} commentId - Comment ID
+   * @param {string} content - Updated comment text
+   * @returns {Promise<object>}
+   */
+  editComment: async (docId, commentId, content) => {
+    try {
+      const response = await api.patch(`/bim-docs/${docId}/comments/${commentId}/`, { content });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: bimDocumentationService._extractError(error, 'Failed to edit comment'),
+      };
+    }
+  },
+
+  /**
+   * Delete a comment
+   * @param {number} docId - Documentation ID
+   * @param {number} commentId - Comment ID
+   * @returns {Promise<object>}
+   */
+  deleteComment: async (docId, commentId) => {
+    try {
+      const response = await api.delete(`/bim-docs/${docId}/comments/${commentId}/`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: bimDocumentationService._extractError(error, 'Failed to delete comment'),
+      };
+    }
+  },
 };
 
 export default bimDocumentationService;

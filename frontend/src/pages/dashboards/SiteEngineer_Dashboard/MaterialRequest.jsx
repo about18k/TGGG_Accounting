@@ -133,6 +133,7 @@ const MaterialRequest = ({ user }) => {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState(null);
   const [imagePreviewFailed, setImagePreviewFailed] = useState(false);
+  const [deleteTargetRequest, setDeleteTargetRequest] = useState(null);
 
   // ── Project state ────────────────────────────────────────
   const [projects, setProjects] = useState([]);
@@ -666,11 +667,6 @@ const MaterialRequest = ({ user }) => {
   };
 
   const deleteDraft = async (requestId) => {
-    const confirmed = window.confirm('Delete this draft material request?');
-    if (!confirmed) {
-      return;
-    }
-
     setActionRequestId(requestId);
     const result = await materialRequestService.deleteMaterialRequest(requestId);
 
@@ -682,6 +678,21 @@ const MaterialRequest = ({ user }) => {
     }
 
     setActionRequestId(null);
+  };
+
+  const openDeleteDraftConfirm = (request) => {
+    setDeleteTargetRequest(request || null);
+  };
+
+  const closeDeleteDraftConfirm = () => {
+    if (actionRequestId) return;
+    setDeleteTargetRequest(null);
+  };
+
+  const confirmDeleteDraft = async () => {
+    if (!deleteTargetRequest?.id) return;
+    await deleteDraft(deleteTargetRequest.id);
+    setDeleteTargetRequest(null);
   };
 
   return (
@@ -1225,7 +1236,7 @@ const MaterialRequest = ({ user }) => {
                       {canDelete && (
                         <button
                           type="button"
-                          onClick={() => deleteDraft(request.id)}
+                          onClick={() => openDeleteDraftConfirm(request)}
                           disabled={actionRequestId === request.id}
                           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-400/35 text-red-200 text-sm font-medium hover:bg-red-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
@@ -1266,7 +1277,7 @@ const MaterialRequest = ({ user }) => {
                     </div>
 
                     <div className="border-t border-white/10 pt-4">
-                      <MaterialRequestCommentThread requestId={request.id} />
+                      <MaterialRequestCommentThread requestId={request.id} currentUser={user} />
                     </div>
                   </div>
                 );
@@ -1281,6 +1292,43 @@ const MaterialRequest = ({ user }) => {
         request={selectedRequestForModal}
         userRole={user?.role}
       />
+      {deleteTargetRequest && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-2xl border border-red-400/25 bg-[#001f35] shadow-2xl p-6">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-full bg-red-500/15 border border-red-400/35 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle className="h-5 w-5 text-red-300" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-lg font-semibold text-white">Delete Draft Request?</h3>
+                <p className="text-sm text-white/70 mt-1">
+                  This will permanently delete
+                  <span className="text-white font-medium"> {deleteTargetRequest.project_name || 'this draft request'}</span>.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteDraftConfirm}
+                disabled={Boolean(actionRequestId)}
+                className="px-4 py-2 rounded-lg border border-white/20 text-white/80 hover:text-white hover:bg-white/10 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteDraft}
+                disabled={Boolean(actionRequestId)}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-red-400/35 bg-red-500/15 text-red-200 hover:bg-red-500/25 transition disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                {actionRequestId ? 'Deleting...' : 'Delete Draft'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Projects Tab ────────────────────────────────────── */}
       {activeTab === 'projects' && (
