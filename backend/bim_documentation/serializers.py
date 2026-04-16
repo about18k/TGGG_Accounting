@@ -168,10 +168,11 @@ class BimDocumentationApprovalSerializer(serializers.Serializer):
 class BimDocumentationCommentReplySerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     author_role = serializers.CharField(source='author.role', read_only=True)
+    author_id = serializers.IntegerField(source='author.id', read_only=True)
 
     class Meta:
         model = BimDocumentationComment
-        fields = ['id', 'content', 'author_name', 'author_role', 'is_system_comment', 'created_at']
+        fields = ['id', 'content', 'author_id', 'author_name', 'author_role', 'is_system_comment', 'created_at', 'updated_at']
 
     def get_author_name(self, obj):
         name = obj.author.get_full_name()
@@ -181,11 +182,12 @@ class BimDocumentationCommentReplySerializer(serializers.ModelSerializer):
 class BimDocumentationCommentSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     author_role = serializers.CharField(source='author.role', read_only=True)
+    author_id = serializers.IntegerField(source='author.id', read_only=True)
     replies = BimDocumentationCommentReplySerializer(many=True, read_only=True)
 
     class Meta:
         model = BimDocumentationComment
-        fields = ['id', 'content', 'author_name', 'author_role', 'is_system_comment', 'parent', 'replies', 'created_at']
+        fields = ['id', 'content', 'author_id', 'author_name', 'author_role', 'is_system_comment', 'parent', 'replies', 'created_at', 'updated_at']
 
     def get_author_name(self, obj):
         name = obj.author.get_full_name()

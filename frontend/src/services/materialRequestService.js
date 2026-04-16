@@ -145,6 +145,30 @@ const materialRequestService = {
     }
   },
 
+  editComment: async (requestId, commentId, content) => {
+    try {
+      const response = await api.patch(`/material-requests/${requestId}/comments/${commentId}/`, { content });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to edit comment'),
+      };
+    }
+  },
+
+  deleteComment: async (requestId, commentId) => {
+    try {
+      const response = await api.delete(`/material-requests/${requestId}/comments/${commentId}/`);
+      return { success: true, data: response.data };
+    } catch (error) {
+      return {
+        success: false,
+        error: getErrorMessage(error, 'Failed to delete comment'),
+      };
+    }
+  },
+
 
 
   // ── Projects ──────────────────────────────────────────────

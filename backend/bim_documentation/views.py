@@ -696,6 +696,72 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         serializer = BimDocumentationCommentSerializer(comment)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=['patch', 'delete'], url_path='(?P<doc_id>[^/.]+)/comments/(?P<comment_id>[^/.]+)')
+    def comment_detail(self, request, doc_id=None, comment_id=None):
+        """
+        PATCH  /bim-docs/{doc_id}/comments/{comment_id}/ – edit a comment
+        DELETE /bim-docs/{doc_id}/comments/{comment_id}/ – delete a comment
+        """
+        # Get the doc and check permissions
+        try:
+            doc = BimDocumentation.objects.get(id=doc_id)
+        except BimDocumentation.DoesNotExist:
+            return Response(
+                {'error': 'Documentation not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Check if user has permission to view this doc (respects role-based access)
+        queryset = self.get_queryset()
+        if not queryset.filter(id=doc.id).exists():
+            return Response(
+                {'error': 'Documentation not found or access denied'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            comment = BimDocumentationComment.objects.get(id=comment_id, documentation=doc)
+        except BimDocumentationComment.DoesNotExist:
+            return Response(
+                {'error': 'Comment not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Only the author can edit/delete their own comments
+        if comment.author != request.user:
+            return Response(
+                {'error': 'You can only edit or delete your own comments'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        # System comments cannot be edited or deleted
+        if comment.is_system_comment:
+            return Response(
+                {'error': 'System comments cannot be modified'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if request.method == 'PATCH':
+            content = (request.data.get('content') or '').strip()
+            if not content:
+                return Response(
+                    {'error': 'Comment content cannot be empty'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            comment.content = content
+            comment.save(update_fields=['content', 'updated_at'])
+            serializer = BimDocumentationCommentSerializer(comment)
+            return Response(serializer.data)
+
+        elif request.method == 'DELETE':
+            # Delete the comment and all its replies
+            comment.delete()
+            return Response(
+                {'message': 'Comment deleted successfully'},
+                status=status.HTTP_200_OK
+            )
+
     @action(detail=False, methods=['get'])
     def my_documents(self, request):
         """

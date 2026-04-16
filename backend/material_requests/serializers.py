@@ -251,10 +251,11 @@ class MaterialRequestApprovalSerializer(serializers.Serializer):
 class MaterialRequestCommentReplySerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     author_role = serializers.CharField(source='author.role', read_only=True)
+    author_id = serializers.IntegerField(source='author.id', read_only=True)
 
     class Meta:
         model = MaterialRequestComment
-        fields = ['id', 'content', 'author_name', 'author_role', 'is_system_comment', 'created_at']
+        fields = ['id', 'content', 'author_id', 'author_name', 'author_role', 'is_system_comment', 'created_at', 'updated_at']
 
     def get_author_name(self, obj):
         name = obj.author.get_full_name()
@@ -264,11 +265,12 @@ class MaterialRequestCommentReplySerializer(serializers.ModelSerializer):
 class MaterialRequestCommentSerializer(serializers.ModelSerializer):
     author_name = serializers.SerializerMethodField()
     author_role = serializers.CharField(source='author.role', read_only=True)
+    author_id = serializers.IntegerField(source='author.id', read_only=True)
     replies = MaterialRequestCommentReplySerializer(many=True, read_only=True)
 
     class Meta:
         model = MaterialRequestComment
-        fields = ['id', 'content', 'author_name', 'author_role', 'is_system_comment', 'parent', 'replies', 'created_at']
+        fields = ['id', 'content', 'author_id', 'author_name', 'author_role', 'is_system_comment', 'parent', 'replies', 'created_at', 'updated_at']
 
     def get_author_name(self, obj):
         name = obj.author.get_full_name()
