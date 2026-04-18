@@ -59,6 +59,17 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
       return `http://localhost:8000${url.startsWith('/') ? '' : '/'}${url}`;
     };
 
+    let acctSigHtml = '<div style="height:60px"></div>';
+    const sigToCheck = req.management_signature;
+    if (sigToCheck) {
+      const isImageUrl = sigToCheck.startsWith('data:') || sigToCheck.startsWith('http') || sigToCheck.startsWith('/media') || sigToCheck.startsWith('/');
+      if (isImageUrl) {
+        acctSigHtml = `<img src="${fixUrl(sigToCheck)}" alt="Accounting Signature" />`;
+      } else {
+        acctSigHtml = `<div style="font-size:9pt; font-weight:bold; height:60px; display:flex; align-items:center; justify-content:center;">${escapeHtml(sigToCheck)}</div>`;
+      }
+    }
+
     const periodRows = [];
     for (let i = 0; i < 5; i++) {
       const period = periods[i];
@@ -165,8 +176,9 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
               <div class="approval-signatures">
                 <div class="approval-block">
                   <div class="signature-image">
-                    ${req.management_signature ? `<img src="${fixUrl(req.management_signature)}" alt="Accounting Signature" />` : '<div style="height:60px"></div>'}
+                    ${acctSigHtml}
                   </div>
+                  <div class="employee-name">${escapeHtml(req.management_name || '')}</div>
                   <div class="signature-label">Accounting Signature</div>
                 </div>
               </div>

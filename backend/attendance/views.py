@@ -409,6 +409,7 @@ def _serialize_overtime_request(request_obj):
         'employee_signature': request_obj.employee_signature,
         'supervisor_signature': request_obj.supervisor_signature,
         'management_signature': request_obj.management_signature,
+        'management_name': getattr(request_obj, 'management_name', None),
         'supervisor_confirmed': supervisor_confirmed,
         'management_confirmed': management_confirmed,
         'is_fully_approved': fully_approved,
@@ -1082,7 +1083,18 @@ def approve_overtime_request(request, request_id):
         if _has_text(overtime_request.management_signature):
             return Response({'error': 'Management approval is already confirmed.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        overtime_request.management_signature = _approval_signature_for(request.user)
+        provided_sig = request_data.get('management_signature')
+        provided_name = request_data.get('management_name')
+        
+        if provided_sig and isinstance(provided_sig, str) and (provided_sig.startswith('data:') or provided_sig.startswith('http') or provided_sig.startswith('/')):
+            overtime_request.management_signature = provided_sig
+        else:
+            overtime_request.management_signature = _approval_signature_for(request.user)
+            
+        if provided_name:
+            overtime_request.management_name = provided_name
+            fields_to_update.append('management_name')
+            
         fields_to_update.append('management_signature')
 
     is_fully_approved = _is_overtime_fully_approved(overtime_request)

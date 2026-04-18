@@ -172,6 +172,7 @@ class OvertimeRequest(models.Model):
     employee_signature = models.TextField(blank=True, null=True)
     supervisor_signature = models.TextField(blank=True, null=True)
     management_signature = models.TextField(blank=True, null=True)
+    management_name = models.CharField(max_length=255, blank=True, null=True)
     approval_date = models.DateField(blank=True, null=True)
     periods = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

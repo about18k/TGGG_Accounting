@@ -1,8 +1,24 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock3, Search, UserRound } from 'lucide-react';
+import ReactDOM from 'react-dom';
+import { CheckCircle2, Clock3, Search, UserRound, ArrowDownUp } from 'lucide-react';
 import { approveOvertime, getAllOvertime, removeOvertime } from '../../../services/overtimeService';
 import { toast } from 'sonner';
 import { getProfile } from '../../../services/profileService';
+
+const escapeHtml = (value) => {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
+
+const formatJobPosition = (value) => {
+  if (!value) return '';
+  return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+};
 
 const REVIEWER_CONFIG = {
   accounting: {
@@ -70,6 +86,9 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
+  const [filterType, setFilterType] = useState('all');
+  const [sortOrder, setSortOrder] = useState('newest');
+  const [showSortPopover, setShowSortPopover] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
   const [savingId, setSavingId] = useState(null);
   const [removeTarget, setRemoveTarget] = useState(null);
@@ -92,16 +111,32 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
   }, []);
 
   const filteredRequests = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return requests;
+    let result = [...requests];
 
-    return requests.filter((requestItem) => {
-      const employeeName = String(requestItem.full_name || requestItem.employee_name || '').toLowerCase();
-      const department = String(requestItem.department || '').toLowerCase();
-      const explanation = String(requestItem.explanation || '').toLowerCase();
-      return employeeName.includes(term) || department.includes(term) || explanation.includes(term);
+    if (filterType === 'pending') {
+      result = result.filter(r => !hasSignature(r[reviewer.field]));
+    } else if (filterType === 'confirmed') {
+      result = result.filter(r => hasSignature(r[reviewer.field]));
+    }
+
+    const term = query.trim().toLowerCase();
+    if (term) {
+      result = result.filter((requestItem) => {
+        const employeeName = String(requestItem.full_name || requestItem.employee_name || '').toLowerCase();
+        const department = String(requestItem.department || '').toLowerCase();
+        const explanation = String(requestItem.explanation || '').toLowerCase();
+        return employeeName.includes(term) || department.includes(term) || explanation.includes(term);
+      });
+    }
+
+    result.sort((a, b) => {
+      const dateA = new Date(a.date_completed || a.created_at || 0);
+      const dateB = new Date(b.date_completed || b.created_at || 0);
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
     });
-  }, [requests, query]);
+
+    return result;
+  }, [requests, query, filterType, sortOrder, reviewer.field]);
 
   const stats = useMemo(() => {
     const total = filteredRequests.length;
@@ -116,10 +151,152 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
     [filteredRequests, selectedId]
   );
 
+  const printReport = (req, accountingSignatureImage) => {
+    if (!req) return;
+    const periods = Array.isArray(req.periods) ? req.periods : [];
+
+    const fixUrl = (url) => {
+      if (!url) return '';
+      if (url.startsWith('data:') || url.startsWith('http')) return url;
+      return `http://localhost:8000${url.startsWith('/') ? '' : '/'}${url}`;
+    };
+
+    // Use the explicit accounting signature image if provided, otherwise check existing signature URL/text
+    let acctSigHtml = '<div style="height:60px"></div>';
+    const sigToCheck = accountingSignatureImage || req.management_signature;
+    if (sigToCheck) {
+      const isImageUrl = sigToCheck.startsWith('data:') || sigToCheck.startsWith('http') || sigToCheck.startsWith('/media') || sigToCheck.startsWith('/');
+      if (isImageUrl) {
+        acctSigHtml = `<img src="${fixUrl(sigToCheck)}" alt="Accounting Signature" />`;
+      } else {
+        acctSigHtml = `<div style="font-size:9pt; font-weight:bold; height:60px; display:flex; align-items:center; justify-content:center;">${escapeHtml(sigToCheck)}</div>`;
+      }
+    }
+
+    const periodRows = [];
+    for (let i = 0; i < 5; i++) {
+      const period = periods[i];
+      periodRows.push(`
+        <tr>
+          <td class="period-cell">${period ? escapeHtml(period.start_date || '') : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(period.start_time || '') : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(period.end_date || '') : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(period.end_time || '') : ''}</td>
+        </tr>
+      `);
+    }
+
+    const html = `
+      <html>
+        <head>
+          <title>OT Request Form</title>
+          <style>
+            @page { size: A4; margin: 0.5in; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 15px; font-size: 10pt; line-height: 1.3; }
+            .form-container { max-width: 800px; margin: 0 auto; border: 2px solid #000; padding: 0; }
+            .header { display: flex; flex-direction: column; align-items: center; border-bottom: 2px solid #000; padding: 25px 20px; text-align: center; }
+            .logo { max-width: 380px; height: auto; margin-bottom: 15px; display: block; }
+            .form-title { font-size: 14pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+            .section { padding: 10px 15px; border-bottom: 1px solid #000; }
+            .section:last-child { border-bottom: none; }
+            .section-title { font-weight: bold; font-size: 10pt; margin-bottom: 8px; text-transform: uppercase; background: #f0f0f0; padding: 3px 8px; margin: -10px -15px 8px -15px; }
+            .field-row { display: flex; margin-bottom: 7px; align-items: flex-start; }
+            .field-group { flex: 1; display: flex; align-items: baseline; }
+            .field-label { font-weight: bold; min-width: 130px; font-size: 9pt; }
+            .field-value { flex: 1; border-bottom: 1px solid #000; min-height: 15px; padding: 1px 3px; font-size: 9pt; }
+            .periods-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            .periods-table th { background: #e0e0e0; border: 1px solid #000; padding: 5px 3px; font-size: 9pt; font-weight: bold; text-align: center; }
+            .periods-table td.period-cell { border: 1px solid #000; padding: 5px 3px; height: 20px; text-align: center; font-size: 9pt; }
+            .explanation-box { border: 1px solid #000; min-height: 50px; padding: 6px; margin-top: 5px; font-size: 9pt; line-height: 1.3; }
+            .signature-section { display: flex; justify-content: space-between; margin-top: 25px; align-items: flex-end; }
+            .signature-block { width: 45%; text-align: center; display: flex; flex-direction: column; align-items: center; }
+            .signature-block1 { width: 45%; text-align: center; display: flex; flex-direction: column; align-items: center; }
+            .signature-image { width: 100%; height: 60px; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 0px; padding-top: 5px; }
+            .signature-image img { max-width: 100%; max-height: 100%; display: block; margin: 0 auto; }
+            .employee-name { font-weight: bold; font-size: 10pt; margin: 2px 0; text-transform: uppercase; }
+            .signature-label { font-size: 8pt; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; display: block; }
+            .approval-title { font-weight: bold; font-size: 10pt; margin-bottom: 8px; text-align: center; text-transform: uppercase; }
+            .approval-signatures { display: flex; justify-content: space-around; }
+            .approval-block { width: 40%; text-align: center; }
+            .approval-note { font-weight: bold; margin-bottom: 5px; font-size: 9pt; }
+            .total-hours { font-weight: bold; background: #f5f5f5; padding: 5px 10px; display: inline-block; border: 1px solid #000; margin-top: 5px; }
+            @media print { body { padding: 0; } .form-container { border: 2px solid #000; } }
+          </style>
+        </head>
+        <body>
+          <div class="form-container">
+            <div class="header">
+              <img src="/formlogo.png" alt="Company Logo" class="logo" />
+              <div><div class="form-title">OT Request Form</div></div>
+            </div>
+            <div class="section">
+              <div class="section-title">Employee Information</div>
+              <div class="field-row"><div class="field-group"><span class="field-label">Employee Name:</span><span class="field-value">${escapeHtml(req.employee_name || req.full_name || '')}</span></div></div>
+              <div class="field-row">
+                <div class="field-group" style="flex:1; margin-right:20px;"><span class="field-label">Job Position:</span><span class="field-value">${escapeHtml(formatJobPosition(req.job_position || ''))}</span></div>
+                <div class="field-group" style="flex:1;"><span class="field-label">Department:</span><span class="field-value">${escapeHtml(req.department || '')}</span></div>
+              </div>
+              <div class="field-row"><div class="field-group"><span class="field-label">Date of Request:</span><span class="field-value">${escapeHtml(req.date_completed || '')}</span></div></div>
+            </div>
+            <div class="section">
+              <div class="section-title">Overtime Schedule</div>
+              <table class="periods-table">
+                <thead><tr><th style="width:25%;">Start Date</th><th style="width:25%;">Start Time</th><th style="width:25%;">End Date</th><th style="width:25%;">End Time</th></tr></thead>
+                <tbody>${periodRows.join('')}</tbody>
+              </table>
+              <div style="margin-top:15px; text-align:right;"><span class="total-hours">Total Anticipated Hours: ${escapeHtml(req.anticipated_hours || '0')} hours</span></div>
+            </div>
+            <div class="section">
+              <div class="section-title">Reason / Justification for Overtime</div>
+              <div class="explanation-box">${escapeHtml(req.explanation || '')}</div>
+            </div>
+            <div class="section">
+              <div class="section-title">Employee Acknowledgment</div>
+              <div class="signature-section">
+                <div class="signature-block">
+                  <div class="signature-image">
+                    ${req.employee_signature ? `<img src="${fixUrl(req.employee_signature)}" alt="Employee Signature" />` : '<div style="height:60px"></div>'}
+                  </div>
+                  <div class="employee-name">${escapeHtml(req.employee_name || req.full_name || '')}</div>
+                  <div class="signature-label">Employee Signature</div>
+                </div>
+                <div class="signature-block1">
+                  <div style="height:60px; display:flex; align-items:flex-end; justify-content:center; font-weight:bold; font-size:10pt; padding-bottom:2px;">
+                    ${escapeHtml(req.date_completed || '')}
+                  </div>
+                  <div class="signature-label">Date Request Submitted</div>
+                </div>
+              </div>
+            </div>
+            <div class="section">
+              <div class="approval-title">For Official Use Only - Approval</div>
+              <div class="field-row" style="margin-bottom:15px;"><div class="field-group"><span class="field-label">Approval Date:</span><span class="field-value">${escapeHtml(req.approval_date || '')}</span><div class="approval-note" style="margin-left:15px;">Approved</div></div></div>
+              <div class="approval-signatures">
+                <div class="approval-block">
+                  <div class="signature-image">
+                    ${acctSigHtml}
+                  </div>
+                  <div class="employee-name">${escapeHtml(req.management_name || '')}</div>
+                  <div class="signature-label">Accounting Signature</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    return html;
+  };
+
   const onConfirm = async (requestItem) => {
     if (!requestItem || hasSignature(requestItem[reviewer.field]) || isRequestExpired(requestItem)) {
       return;
     }
+
+    // Open print window synchronously (before async) to avoid popup blocker
+    const printWindow = window.open('', '_blank');
 
     setSavingId(requestItem.id);
     setError('');
@@ -131,19 +308,33 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
         toast.error('Signature Missing', {
           description: 'You must set your signature in your Profile before confirming requests.'
         });
+        if (printWindow) printWindow.close();
         setSavingId(null);
         return;
       }
 
-      const payload = { [reviewer.field]: profileData.signature_image };
+      const payload = { 
+        [reviewer.field]: profileData.signature_image,
+        management_name: [profileData.first_name, profileData.last_name].filter(Boolean).join(' ') || profileData.full_name
+      };
 
       const updated = await approveOvertime(requestItem.id, payload);
       setRequests((previous) => previous.map((item) => (item.id === requestItem.id ? updated : item)));
       setSelectedId((previous) => (previous === requestItem.id ? requestItem.id : previous));
       toast.success('Confirmed successfully');
+
+      // Write the print form into the already-opened window with the actual signature image
+      if (printWindow) {
+        const html = printReport(updated, profileData.signature_image);
+        printWindow.document.write(html);
+        printWindow.document.close();
+        // Wait for images to load before printing
+        printWindow.onload = () => printWindow.print();
+      }
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to confirm OT request.');
       toast.error('Confirmation failed');
+      if (printWindow) printWindow.close();
     } finally {
       setSavingId(null);
     }
@@ -209,24 +400,81 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/45" />
-        <input
-          type="text"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search employee, department, or explanation"
-          className="h-10 w-full rounded-xl border border-white/15 bg-[#00273C]/60 pl-10 pr-4 text-sm text-white placeholder:text-white/45 outline-none focus:border-[#FF7120]/70 focus:ring-2 focus:ring-[#FF7120]/25"
-        />
+      <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div className="flex p-1 space-x-1 bg-[#00273C]/60 rounded-xl border border-white/10 w-full sm:w-auto">
+           <button 
+             onClick={() => setFilterType('all')}
+             className={`px-4 py-2 text-sm font-medium rounded-lg transition ${filterType === 'all' ? 'bg-[#FF7120] text-white' : 'text-white/60 hover:text-white'}`}
+           >
+             All
+           </button>
+           <button 
+             onClick={() => setFilterType('pending')}
+             className={`px-4 py-2 text-sm font-medium rounded-lg transition ${filterType === 'pending' ? 'bg-[#FF7120] text-white' : 'text-white/60 hover:text-white'}`}
+           >
+             Pending
+           </button>
+           <button 
+             onClick={() => setFilterType('confirmed')}
+             className={`px-4 py-2 text-sm font-medium rounded-lg transition ${filterType === 'confirmed' ? 'bg-[#FF7120] text-white' : 'text-white/60 hover:text-white'}`}
+           >
+             Confirmed
+           </button>
+        </div>
+
+        <div className="flex gap-2 w-full sm:w-auto mt-2 sm:mt-0 relative">
+          <div className="relative flex-1 sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/45" />
+            <input
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search..."
+              className="h-10 w-full rounded-xl border border-white/15 bg-[#00273C]/60 pl-10 pr-4 text-sm text-white placeholder:text-white/45 outline-none focus:border-[#FF7120]/70 focus:ring-2 focus:ring-[#FF7120]/25"
+            />
+          </div>
+          
+          <div>
+            <button
+              onClick={() => setShowSortPopover(!showSortPopover)}
+              className="h-10 px-4 rounded-xl border border-white/15 bg-[#00273C]/60 text-white hover:border-[#FF7120]/50 transition flex items-center gap-2"
+            >
+              <ArrowDownUp className="h-4 w-4" />
+              <span className="hidden sm:inline text-sm">Sort</span>
+            </button>
+            {showSortPopover && (
+              <>
+                <div 
+                  className="fixed inset-0 z-10" 
+                  onClick={() => setShowSortPopover(false)}
+                />
+                <div className="absolute right-0 mt-2 w-48 bg-[#001f35] border border-white/10 rounded-xl shadow-xl z-20 py-2">
+                  <button
+                    onClick={() => { setSortOrder('newest'); setShowSortPopover(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition border-b border-white/5 ${sortOrder === 'newest' ? 'text-[#FF9A5A]' : 'text-white/80'}`}
+                  >
+                    Newest to Oldest
+                  </button>
+                  <button
+                    onClick={() => { setSortOrder('oldest'); setShowSortPopover(false); }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-white/5 transition ${sortOrder === 'oldest' ? 'text-[#FF9A5A]' : 'text-white/80'}`}
+                  >
+                    Oldest to Newest
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {error ? (
         <div className="rounded-xl border border-red-400/30 bg-red-500/10 text-red-200 px-4 py-3 text-sm">{error}</div>
       ) : null}
 
-      <div className="overflow-x-auto rounded-xl border border-white/10">
+      <div className="overflow-x-auto overflow-y-auto max-h-[500px] rounded-xl border border-white/10">
         <table className="w-full min-w-[920px] text-sm">
-          <thead className="bg-[#00273C]/70 text-white/70">
+          <thead className="bg-[#00273C]/70 text-white/70 sticky top-0 z-10">
             <tr>
               <th className="text-left font-medium px-4 py-3">Employee</th>
               <th className="text-left font-medium px-4 py-3">Department</th>
@@ -254,8 +502,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                 return (
                   <tr
                     key={requestItem.id}
-                    className="border-t border-white/5 hover:bg-white/[0.03] cursor-pointer"
-                    onClick={() => setSelectedId(requestItem.id)}
+                    className="border-t border-white/5 hover:bg-white/[0.03]"
                   >
                     <td className="px-4 py-3 text-white">
                       <div className="font-medium">{requestItem.full_name || requestItem.employee_name || '-'}</div>
@@ -282,32 +529,45 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="inline-flex items-center gap-2">
+                        {alreadyConfirmed ? (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              const printWindow = window.open('', '_blank');
+                              if (printWindow) {
+                                const html = printReport(requestItem, null);
+                                printWindow.document.write(html);
+                                printWindow.document.close();
+                                printWindow.onload = () => printWindow.print();
+                              }
+                            }}
+                            className="h-9 px-3 rounded-lg text-xs font-semibold transition border border-gray-400/40 text-gray-200 hover:bg-gray-500/15"
+                          >
+                            Print
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={savingId === requestItem.id}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onRemove(requestItem);
+                            }}
+                            className={`h-9 px-3 rounded-lg text-xs font-semibold transition border border-red-400/40 text-red-200 hover:bg-red-500/15 ${savingId === requestItem.id ? 'opacity-70 cursor-wait' : ''}`}
+                          >
+                            {savingId === requestItem.id ? 'Saving...' : 'Remove'}
+                          </button>
+                        )}
                         <button
                           type="button"
-                          disabled={alreadyConfirmed || savingId === requestItem.id}
                           onClick={(event) => {
                             event.stopPropagation();
-                            onRemove(requestItem);
+                            setSelectedId(requestItem.id);
                           }}
-                          className={`h-9 px-3 rounded-lg text-xs font-semibold transition ${alreadyConfirmed
-                            ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                            : 'border border-red-400/40 text-red-200 hover:bg-red-500/15'} ${savingId === requestItem.id ? 'opacity-70 cursor-wait' : ''}`}
+                          className="h-9 px-3 rounded-lg text-xs font-semibold transition bg-[#FF7120] text-white hover:bg-[#ff8a3a]"
                         >
-                          {savingId === requestItem.id ? 'Saving...' : 'Remove'}
-                        </button>
-                        <button
-                          type="button"
-                          disabled={alreadyConfirmed || isExpired || savingId === requestItem.id}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onConfirm(requestItem);
-                          }}
-                          className={`h-9 px-3 rounded-lg text-xs font-semibold transition ${(alreadyConfirmed || isExpired)
-                            ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                            : 'bg-[#FF7120] text-white hover:bg-[#ff8a3a]'} ${savingId === requestItem.id ? 'opacity-70 cursor-wait' : ''}`}
-                          title={isExpired ? 'Expired OT requests cannot be confirmed.' : undefined}
-                        >
-                          {savingId === requestItem.id ? 'Saving...' : alreadyConfirmed ? 'Confirmed' : reviewer.actionLabel}
+                          View
                         </button>
                       </div>
                     </td>
@@ -319,69 +579,187 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
         </table>
       </div>
 
-      {selectedRequest ? (
-        <div className="rounded-xl border border-white/10 bg-[#00273C]/60 p-4 space-y-3">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-white font-semibold">Request Details</h3>
-              <p className="text-xs text-white/60 mt-1">{selectedRequest.full_name || selectedRequest.employee_name || '-'} | {selectedRequest.department || '-'}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSelectedId(null)}
-              className="h-8 px-3 rounded-lg border border-white/15 text-white/70 hover:text-white hover:bg-white/5 transition"
-            >
-              Close
-            </button>
-          </div>
+      {selectedRequest ? ReactDOM.createPortal(
+        <div
+          className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm overflow-y-auto scroll-smooth"
+          onClick={() => setSelectedId(null)}
+        >
+          <div
+            className="flex items-start justify-center p-4 min-h-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-white text-black w-full max-w-[900px] my-8 shadow-2xl rounded-xl flex flex-col">
+              {/* Header bar */}
+              <div className="flex items-center justify-between p-4 border-b border-gray-100">
+                <div className="flex items-center gap-2" />
+                <div className="flex items-center gap-3">
+                  {!hasSignature(selectedRequest[reviewer.field]) && !isRequestExpired(selectedRequest) && (
+                    <button
+                      type="button"
+                      disabled={savingId === selectedRequest.id}
+                      onClick={() => onConfirm(selectedRequest)}
+                      className={`inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-lg font-semibold hover:brightness-95 transition ${savingId === selectedRequest.id ? 'opacity-70 cursor-wait' : ''}`}
+                    >
+                      {savingId === selectedRequest.id ? 'Confirming...' : 'Confirm'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setSelectedId(null)}
+                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition"
+                  >
+                    <span className="text-xl leading-none">×</span>
+                  </button>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="rounded-lg border border-white/10 bg-[#001f35]/60 p-3">
-              <p className="text-xs text-white/45 uppercase tracking-wide">Explanation</p>
-              <p className="text-sm text-white/85 mt-2 whitespace-pre-wrap">{selectedRequest.explanation || '-'}</p>
-            </div>
-            <div className="rounded-lg border border-white/10 bg-[#001f35]/60 p-3">
-              <p className="text-xs text-white/45 uppercase tracking-wide">Approvals</p>
-              <div className="mt-2 space-y-2 text-sm">
-                <p className="text-white/85"><span className="text-white/55">Accounting:</span> {hasSignature(selectedRequest.management_signature) ? 'Confirmed' : 'Pending'}</p>
-                <p className="text-white/85"><span className="text-white/55">OT Attendance:</span> {selectedRequest.is_completed ? 'Completed' : 'Not completed yet'}</p>
-                <p className="text-white/85"><span className="text-white/55">Approval Date:</span> {selectedRequest.approval_date || '-'}</p>
-              </div>
-            </div>
-          </div>
+              {/* Form content */}
+              <div className="px-10 pb-10 pt-0 flex-1 flex flex-col">
+                {/* Company Logo */}
+                <div className="flex flex-col items-center justify-center mb-0">
+                  <img src="/formlogo.png" alt="Triple G Logo" className="h-24 w-auto object-contain mb-0" />
+                  <h2 className="text-2xl font-black text-center border-b-2 border-black pb-0.5 tracking-[0.25em] uppercase">OT REQUEST FORM</h2>
+                </div>
 
-          <div className="rounded-lg border border-white/10 bg-[#001f35]/60 p-3">
-            <p className="text-xs text-white/45 uppercase tracking-wide">Overtime Periods</p>
-            {Array.isArray(selectedRequest.periods) && selectedRequest.periods.length > 0 ? (
-              <div className="mt-2 overflow-x-auto">
-                <table className="w-full min-w-[620px] text-sm">
-                  <thead className="text-white/60">
-                    <tr>
-                      <th className="text-left font-medium py-2 pr-4">Start Date</th>
-                      <th className="text-left font-medium py-2 pr-4">Start Time</th>
-                      <th className="text-left font-medium py-2 pr-4">End Date</th>
-                      <th className="text-left font-medium py-2">End Time</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedRequest.periods.map((period, index) => (
-                      <tr key={`${selectedRequest.id}-period-${index}`} className="border-t border-white/5">
-                        <td className="py-2 pr-4 text-white/85">{period?.start_date || '-'}</td>
-                        <td className="py-2 pr-4 text-white/85">{period?.start_time || '-'}</td>
-                        <td className="py-2 pr-4 text-white/85">{period?.end_date || '-'}</td>
-                        <td className="py-2 text-white/85">{period?.end_time || '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                {/* Employee Information */}
+                <div className="mt-4 border-2 border-black">
+                  <div className="bg-gray-100 px-3 py-1 font-bold text-[10pt] uppercase">Employee Information</div>
+                  <div className="px-4 py-2 space-y-1.5 text-[9pt]">
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-bold min-w-[130px]">Employee Name:</span>
+                      <span className="flex-1 border-b border-black min-h-[15px] px-1">{selectedRequest.employee_name || selectedRequest.full_name || ''}</span>
+                    </div>
+                    <div className="flex items-baseline gap-4">
+                      <div className="flex items-baseline gap-2 flex-1">
+                        <span className="font-bold min-w-[130px]">Job Position:</span>
+                        <span className="flex-1 border-b border-black min-h-[15px] px-1">{formatJobPosition(selectedRequest.job_position || '')}</span>
+                      </div>
+                      <div className="flex items-baseline gap-2 flex-1">
+                        <span className="font-bold min-w-[100px]">Department:</span>
+                        <span className="flex-1 border-b border-black min-h-[15px] px-1">{selectedRequest.department || ''}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-bold min-w-[130px]">Date of Request:</span>
+                      <span className="flex-1 border-b border-black min-h-[15px] px-1">{selectedRequest.date_completed || ''}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Overtime Schedule */}
+                <div className="border-x-2 border-b-2 border-black">
+                  <div className="bg-gray-100 px-3 py-1 font-bold text-[10pt] uppercase">Overtime Schedule</div>
+                  <div className="px-4 py-2">
+                    <table className="w-full border-collapse text-[9pt]">
+                      <thead>
+                        <tr>
+                          <th className="bg-gray-200 border border-black px-1 py-1 text-center font-bold w-1/4">Start Date</th>
+                          <th className="bg-gray-200 border border-black px-1 py-1 text-center font-bold w-1/4">Start Time</th>
+                          <th className="bg-gray-200 border border-black px-1 py-1 text-center font-bold w-1/4">End Date</th>
+                          <th className="bg-gray-200 border border-black px-1 py-1 text-center font-bold w-1/4">End Time</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(() => {
+                          const periods = Array.isArray(selectedRequest.periods) ? selectedRequest.periods : [];
+                          const rows = [];
+                          for (let i = 0; i < 5; i++) {
+                            const p = periods[i];
+                            rows.push(
+                              <tr key={i}>
+                                <td className="border border-black px-1 py-1 text-center h-[20px]">{p?.start_date || ''}</td>
+                                <td className="border border-black px-1 py-1 text-center h-[20px]">{p?.start_time || ''}</td>
+                                <td className="border border-black px-1 py-1 text-center h-[20px]">{p?.end_date || ''}</td>
+                                <td className="border border-black px-1 py-1 text-center h-[20px]">{p?.end_time || ''}</td>
+                              </tr>
+                            );
+                          }
+                          return rows;
+                        })()}
+                      </tbody>
+                    </table>
+                    <div className="mt-3 text-right">
+                      <span className="font-bold bg-gray-50 px-2.5 py-1 border border-black text-[9pt] inline-block">
+                        Total Anticipated Hours: {selectedRequest.anticipated_hours || '0'} hours
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reason / Justification */}
+                <div className="border-x-2 border-b-2 border-black">
+                  <div className="bg-gray-100 px-3 py-1 font-bold text-[10pt] uppercase">Reason / Justification for Overtime</div>
+                  <div className="px-4 py-2">
+                    <div className="border border-black min-h-[50px] p-1.5 text-[9pt] leading-snug whitespace-pre-wrap">
+                      {selectedRequest.explanation || ''}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Employee Acknowledgment */}
+                <div className="border-x-2 border-b-2 border-black">
+                  <div className="bg-gray-100 px-3 py-1 font-bold text-[10pt] uppercase">Employee Acknowledgment</div>
+                  <div className="px-4 py-4">
+                    <div className="flex justify-between items-end mt-4">
+                      <div className="w-[45%] text-center flex flex-col items-center">
+                        <div className="w-full h-[60px] flex items-center justify-center">
+                          {selectedRequest.employee_signature ? (
+                            <img src={(() => {
+                              const url = selectedRequest.employee_signature;
+                              if (!url) return '';
+                              if (url.startsWith('data:') || url.startsWith('http')) return url;
+                              return `http://localhost:8000${url.startsWith('/') ? '' : '/'}${url}`;
+                            })()} alt="Employee Signature" className="max-w-full max-h-full object-contain" />
+                          ) : <div className="h-[60px]" />}
+                        </div>
+                        <div className="font-bold text-[10pt] uppercase mt-0.5">{selectedRequest.employee_name || selectedRequest.full_name || ''}</div>
+                        <div className="text-[8pt] font-bold border-t border-black pt-0.5">Employee Signature</div>
+                      </div>
+                      <div className="w-[45%] text-center flex flex-col items-center">
+                        <div className="h-[60px] flex items-end justify-center font-bold text-[10pt] pb-0.5">
+                          {selectedRequest.date_completed || ''}
+                        </div>
+                        <div className="text-[8pt] font-bold border-t border-black pt-0.5">Date Request Submitted</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Official Approval */}
+                <div className="border-x-2 border-b-2 border-black">
+                  <div className="px-4 py-3">
+                    <div className="font-bold text-[10pt] text-center uppercase mb-2">For Official Use Only - Approval</div>
+                    <div className="flex items-baseline gap-2 mb-4 text-[9pt]">
+                      <span className="font-bold min-w-[130px]">Approval Date:</span>
+                      <span className="flex-1 border-b border-black min-h-[15px] px-1">{selectedRequest.approval_date || ''}</span>
+                      <span className="font-bold ml-4">Approved</span>
+                    </div>
+                    <div className="flex justify-center">
+                      <div className="w-[40%] text-center">
+                        <div className="w-full h-[60px] flex items-center justify-center">
+                          {(() => {
+                            const sig = selectedRequest.management_signature;
+                            if (!sig) return <div className="h-[60px]" />;
+                            // Check if it's an actual image URL/data URI
+                            const isImageUrl = sig.startsWith('data:') || sig.startsWith('http') || sig.startsWith('/media') || sig.startsWith('/');
+                            if (isImageUrl) {
+                              const url = sig.startsWith('data:') || sig.startsWith('http') ? sig : `http://localhost:8000${sig.startsWith('/') ? '' : '/'}${sig}`;
+                              return <img src={url} alt="Accounting Signature" className="max-w-full max-h-full object-contain" />;
+                            }
+                            // It's just text (e.g., "Name (date)"), show as text
+                            return <div className="text-[9pt] font-bold">{sig}</div>;
+                          })()}
+                        </div>
+                        <div className="font-bold text-[10pt] uppercase mt-0.5">{selectedRequest.management_name || ''}</div>
+                        <div className="text-[8pt] font-bold border-t border-black pt-0.5">Accounting Signature</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            ) : (
-              <div className="mt-2 text-sm text-white/65 inline-flex items-center gap-2">
-                <UserRound className="h-4 w-4" /> No overtime period rows submitted.
-              </div>
-            )}
+            </div>
           </div>
-        </div>
+        </div>,
+        document.body
       ) : null}
 
       {removeTarget ? (
