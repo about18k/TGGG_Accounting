@@ -9,6 +9,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import OperationalError
+from django.core.cache import cache
+from django.conf import settings
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -352,12 +354,26 @@ def department_task_abandon(request, task_id):
 @permission_classes([IsAuthenticated])
 def notifications_list(request):
     """List current user's notifications."""
+    cache_enabled = getattr(settings, 'ENABLE_API_RESPONSE_CACHE', True)
+    cache_key = f"todos:notifications:user:{request.user.id}"
+    if cache_enabled:
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            response = Response(cached_payload)
+            response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+            return response
+
     try:
         notifications = TodoNotification.objects.filter(
             recipient=request.user
         ).select_related('actor')[:50]
         serializer = TodoNotificationSerializer(notifications, many=True)
-        return Response(serializer.data)
+        payload = serializer.data
+        if cache_enabled:
+            cache.set(cache_key, payload, timeout=settings.API_CACHE_TTL_SHORT)
+        response = Response(payload)
+        response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+        return response
     except OperationalError as exc:
         logger.warning('Notification list unavailable due to DB connectivity: %s', exc)
         return Response(
@@ -374,6 +390,7 @@ def notification_mark_read(request, notif_id):
         notif = get_object_or_404(TodoNotification, id=notif_id, recipient=request.user)
         notif.is_read = True
         notif.save()
+        cache.delete(f"todos:notifications:user:{request.user.id}")
         return Response({'status': 'ok'})
     except OperationalError as exc:
         logger.warning('Notification mark-read unavailable due to DB connectivity: %s', exc)
@@ -389,6 +406,7 @@ def notifications_mark_all_read(request):
     """Mark all notifications as read."""
     try:
         TodoNotification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+        cache.delete(f"todos:notifications:user:{request.user.id}")
         return Response({'status': 'ok'})
     except OperationalError as exc:
         logger.warning('Notification mark-all-read unavailable due to DB connectivity: %s', exc)

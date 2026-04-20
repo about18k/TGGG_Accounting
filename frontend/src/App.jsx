@@ -6,8 +6,11 @@ import { Toaster } from 'sonner';
 import { isTokenExpired, getPageFromPath, getDefaultPage } from './utils/authUtils';
 import './services/api'; // registers shared axios instance + interceptors
 import Login from './pages/Login';
-import { renderDashboard } from './routes/routeConfig';
+import { preloadDashboardAssets, renderDashboard } from './routes/routeConfig';
 import * as notifService from './services/notificationService';
+import { getMyAttendance, getTodayAttendance } from './services/attendanceService';
+import { getMyOvertime } from './services/overtimeService';
+import { getDepartmentTasks, getTodos } from './services/todoService';
 import { configureToastConsistency } from './utils/toastUtils';
 
 // AdminDashboard removed. Use StudioHeadDashboard instead.
@@ -104,6 +107,59 @@ export default function App() {
     const pageFromPath = getPageFromPath(location.pathname);
     setCurrentPage((prev) => (prev === pageFromPath ? prev : pageFromPath));
   }, [location.pathname]);
+
+  // Warm likely-next chunks/data during idle time so subsequent page switches are faster.
+  useEffect(() => {
+    if (!user || !location.pathname.startsWith('/dashboard')) {
+      return;
+    }
+
+    const scheduleIdle = window.requestIdleCallback
+      ? window.requestIdleCallback.bind(window)
+      : (cb) => setTimeout(cb, 180);
+    const cancelIdle = window.cancelIdleCallback
+      ? window.cancelIdleCallback.bind(window)
+      : clearTimeout;
+
+    const idleHandle = scheduleIdle(() => {
+      preloadDashboardAssets({
+        role: user.role,
+        departmentName: user.department_name,
+        currentPage,
+      });
+
+      const warmups = [
+        getMyAttendance(),
+        getTodayAttendance(),
+        notifService.getNotifications(),
+      ];
+
+      // Only prefetch todo/overtime when not already on their pages.
+      if (currentPage !== 'todo') {
+        warmups.push(getTodos('personal'));
+      }
+      if (currentPage !== 'overtime') {
+        warmups.push(getMyOvertime());
+      }
+
+      const normalizedRole = String(user.role || '').toLowerCase();
+      const normalizedDepartment = String(user.department_name || '').toLowerCase();
+      const isAccountingContext = normalizedRole === 'accounting' || (
+        normalizedRole === 'employee' &&
+        (normalizedDepartment === 'accounting department' || normalizedDepartment === 'accounting')
+      );
+
+      if (isAccountingContext) {
+        warmups.push(getDepartmentTasks());
+      }
+
+      Promise.allSettled(warmups);
+    });
+
+    return () => {
+      cancelIdle(idleHandle);
+    };
+  }, [user?.id, user?.role, user?.department_name, currentPage, location.pathname]);
 
   const handleLoginSuccess = (userData) => {
     setUser(userData);

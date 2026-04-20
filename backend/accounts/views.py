@@ -1,8 +1,10 @@
 import threading
 import uuid
+import hashlib
 
 from django.conf import settings
 from django.contrib.auth import authenticate
+from django.core.cache import cache
 from django.core.mail import send_mail
 from django.db import transaction
 from django.db.models import Q
@@ -442,6 +444,26 @@ def _can_view_user_directory(user):
     return user.is_staff or user.is_superuser or normalized_role in APPROVER_ROLES.union(EXECUTIVE_VIEW_ROLES)
 
 
+ACCOUNTING_EMPLOYEES_CACHE_VERSION_KEY = 'accounts:accounting-employees:version'
+
+
+def _get_accounting_employees_cache_version():
+    version = cache.get(ACCOUNTING_EMPLOYEES_CACHE_VERSION_KEY)
+    if version is None:
+        cache.set(ACCOUNTING_EMPLOYEES_CACHE_VERSION_KEY, 1, timeout=None)
+        return 1
+    return version
+
+
+def _bump_accounting_employees_cache_version():
+    created = cache.add(ACCOUNTING_EMPLOYEES_CACHE_VERSION_KEY, 1, timeout=None)
+    if not created:
+        try:
+            cache.incr(ACCOUNTING_EMPLOYEES_CACHE_VERSION_KEY)
+        except ValueError:
+            cache.set(ACCOUNTING_EMPLOYEES_CACHE_VERSION_KEY, 1, timeout=None)
+
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def pending_users(request):
@@ -493,6 +515,7 @@ def approve_user(request):
     user.permissions = permissions
     user.is_active = True
     user.save()
+    _bump_accounting_employees_cache_version()
 
     # Send the approval email in the background so this response returns immediately.
     threading.Thread(target=_send_approval_email_async, args=(user.id,), daemon=True).start()
@@ -597,6 +620,7 @@ def list_users(request):
         date_hired=hired_date_value,
         is_active=normalized_is_active,
     )
+    _bump_accounting_employees_cache_version()
 
     return Response(
         {
@@ -622,6 +646,7 @@ def manage_user(request, user_id):
         if request.user.id == user.id:
             return Response({'error': 'You cannot delete your own account.'}, status=status.HTTP_400_BAD_REQUEST)
         user.delete()
+        _bump_accounting_employees_cache_version()
         return Response({'success': True})
 
     # PATCH update
@@ -685,6 +710,7 @@ def manage_user(request, user_id):
         return Response({'error': 'No valid fields to update'}, status=status.HTTP_400_BAD_REQUEST)
 
     user.save()
+    _bump_accounting_employees_cache_version()
     return Response({
         'success': True,
         'user': CustomUserSerializer(user).data,
@@ -701,12 +727,36 @@ def accounting_employees(request):
     from payroll.models import SalaryStructure
 
     if request.method == 'GET':
+        cache_enabled = getattr(settings, 'ENABLE_API_RESPONSE_CACHE', True)
+        cache_hash = hashlib.md5(request.get_full_path().encode('utf-8')).hexdigest()
+        cache_version = _get_accounting_employees_cache_version() if cache_enabled else 0
+        cache_key = f"accounts:accounting-employees:v{cache_version}:user:{request.user.id}:{cache_hash}"
+        if cache_enabled:
+            cached_payload = cache.get(cache_key)
+            if cached_payload is not None:
+                response = Response(cached_payload, status=status.HTTP_200_OK)
+                response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+                return response
+
         # Approved/verified users are represented by is_active=True in this project.
         active_only = request.query_params.get('active_only', 'true').lower() != 'false'
         requested_role = (request.query_params.get('role') or '').strip().lower()
         requested_department = (request.query_params.get('department') or '').strip()
 
         users_qs = CustomUser.objects.select_related('department', 'salary_structure').order_by('last_name', 'first_name')
+        users_qs = users_qs.only(
+            'id',
+            'first_name',
+            'last_name',
+            'email',
+            'phone_number',
+            'department__name',
+            'role',
+            'is_active',
+            'date_hired',
+            'profile_picture',
+            'salary_structure__base_salary',
+        )
         if active_only:
             users_qs = users_qs.filter(is_active=True)
         if requested_department:
@@ -742,7 +792,11 @@ def accounting_employees(request):
                 'manager': 'N/A',
                 'skills': [],
             })
-        return Response(data, status=status.HTTP_200_OK)
+        if cache_enabled:
+            cache.set(cache_key, data, timeout=settings.API_CACHE_TTL_SHORT)
+        response = Response(data, status=status.HTTP_200_OK)
+        response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+        return response
 
     elif request.method == 'POST':
         # Create a new employee
@@ -859,6 +913,8 @@ Triple G Admin
             except Exception as e:
                 print(f"⚠️ Accounting pending-account notification failed for user_id={user.id}: {e}")
 
+            _bump_accounting_employees_cache_version()
+
             return Response({
                 'success': True,
                 'email_sent': email_sent,
@@ -885,6 +941,7 @@ def accounting_employee_detail(request, user_id):
         if request.user.id == user.id:
             return Response({'error': 'Cannot delete your own account'}, status=status.HTTP_400_BAD_REQUEST)
         user.delete()
+        _bump_accounting_employees_cache_version()
         return Response({'success': True})
         
     elif request.method == 'PATCH':
@@ -959,6 +1016,7 @@ def accounting_employee_detail(request, user_id):
                     if not created:
                         salary_obj.base_salary = float(salary_amount)
                         salary_obj.save()
+            _bump_accounting_employees_cache_version()
             return Response({'success': True, 'message': 'Employee updated successfully'}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

@@ -1,11 +1,13 @@
 from django.test import TestCase
 from django.db import OperationalError
+from django.core.cache import cache
+from django.test.utils import override_settings
 from rest_framework.test import APIRequestFactory, force_authenticate
 from rest_framework import status
 from unittest.mock import patch
 
 from accounts.models import CustomUser
-from todos.models import TaskGroup, TaskGroupMember, Todo
+from todos.models import TaskGroup, TaskGroupMember, Todo, TodoNotification
 from todos.views import (
     groups_list_create,
     todo_detail,
@@ -352,3 +354,51 @@ class NotificationEndpointResilienceTest(TodoTestMixin, TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
         self.assertIn('temporarily unavailable', response.data['error'].lower())
+
+
+class NotificationCacheLifecycleTests(TodoTestMixin, TestCase):
+    def setUp(self):
+        self.factory = APIRequestFactory()
+        self.user = self.create_user('cache-notif-user@test.com')
+        self.actor = self.create_user('cache-notif-actor@test.com')
+
+    @override_settings(ENABLE_API_RESPONSE_CACHE=True)
+    def test_notifications_list_populates_cache(self):
+        cache.clear()
+        TodoNotification.objects.create(
+            recipient=self.user,
+            actor=self.actor,
+            type='task_assigned',
+            title='Task Assigned',
+            message='You have a new task.',
+        )
+
+        request = self.factory.get('/api/notifications')
+        force_authenticate(request, user=self.user)
+
+        response = notifications_list(request)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        cache_key = f'todos:notifications:user:{self.user.id}'
+        self.assertIsNotNone(cache.get(cache_key))
+
+    @override_settings(ENABLE_API_RESPONSE_CACHE=True)
+    def test_mark_read_clears_cached_notifications(self):
+        cache.clear()
+        notif = TodoNotification.objects.create(
+            recipient=self.user,
+            actor=self.actor,
+            type='task_assigned',
+            title='Task Assigned',
+            message='You have a new task.',
+        )
+
+        cache_key = f'todos:notifications:user:{self.user.id}'
+        cache.set(cache_key, [{'id': notif.id}], timeout=60)
+
+        request = self.factory.post(f'/api/notifications/{notif.id}/read/')
+        force_authenticate(request, user=self.user)
+
+        response = notification_mark_read(request, notif_id=str(notif.id))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIsNone(cache.get(cache_key))

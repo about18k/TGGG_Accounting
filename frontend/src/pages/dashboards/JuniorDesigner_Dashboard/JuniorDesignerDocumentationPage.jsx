@@ -73,7 +73,11 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
     };
 
     const isForwardedToCeo = (doc) => {
-        return doc?.status === 'pending_review' && !!doc?.reviewed_by_studio_head;
+        return doc?.status === 'pending_ceo_review' && !!doc?.reviewed_by_studio_head;
+    };
+
+    const isBimRejected = (doc) => {
+        return doc?.status === 'rejected' && !!doc?.reviewed_by_bim && !doc?.reviewed_by_studio_head && !doc?.reviewed_by_ceo;
     };
 
     const isStudioHeadRejected = (doc) => {
@@ -99,10 +103,10 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
         setImageFiles([]);
         setExistingEditFiles(Array.isArray(doc.files) ? doc.files : []);
         setEditingDocId(doc.id);
-        setEditingRejectedDoc(isStudioHeadRejected(doc));
+        setEditingRejectedDoc(isBimRejected(doc) || isStudioHeadRejected(doc));
         setActiveTab('create');
         
-        const message = isStudioHeadRejected(doc)
+        const message = (isBimRejected(doc) || isStudioHeadRejected(doc))
             ? 'Editing rejected documentation. Save your changes, then resubmit for review.'
             : 'Editing draft documentation.';
         toast.info('Editing Mode', { description: message });
@@ -116,7 +120,9 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
         switch (doc?.status) {
             case 'draft':
                 return 'neutral';
-            case 'pending_review':
+            case 'pending_bim_review':
+            case 'pending_studio_head_review':
+            case 'pending_ceo_review':
                 return 'pending';
             case 'approved':
                 return 'approved';
@@ -128,13 +134,18 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
     };
 
     const getStatusLabel = (doc) => {
+        if (doc?.status === 'pending_bim_review') {
+            return 'Awaiting BIM Review';
+        }
+        if (doc?.status === 'pending_studio_head_review') {
+            return 'Awaiting Studio Head Review';
+        }
         if (isForwardedToCeo(doc)) {
-            return 'Forwarded to the CEO';
+            return 'Awaiting CEO Final Review';
         }
 
         const labels = {
             draft: 'Draft',
-            pending_review: 'Pending Review',
             approved: 'Approved',
             rejected: 'Rejected',
         };
@@ -211,9 +222,9 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
         setLoading(true);
         const result = await bimDocumentationService.submitForReview(doc.id);
         if (result.success) {
-            const msg = isStudioHeadRejected(doc)
-                ? 'Documentation resubmitted for Studio Head review!'
-                : 'Documentation submitted for Studio Head review!';
+            const msg = (isBimRejected(doc) || isStudioHeadRejected(doc))
+                ? 'Documentation resubmitted for BIM review!'
+                : 'Documentation submitted for BIM review!';
             toast.success('Submission Successful', { description: msg });
             fetchDocumentations();
         } else {
@@ -394,15 +405,15 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                     </h2>
                                     <p className="text-white/60 text-sm mt-1">
                                         {editingRejectedDoc
-                                            ? 'This submission was rejected by Studio Head. Update details, then resubmit from Manage Documentation.'
-                                            : 'Create design documentation and submit for Studio Head review, then CEO approval.'}
+                                            ? 'This submission was rejected. Update details, then resubmit from Manage Documentation.'
+                                            : 'Create design documentation and submit for BIM review, then Studio Head and CEO approval.'}
                                     </p>
                                 </div>
                                 <form onSubmit={saveDocumentation} className="p-6 space-y-5">
                                     {editingDocId && (
                                         <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
                                             <p className="text-sm font-semibold text-cyan-100">
-                                                {editingRejectedDoc ? 'Revising Studio Head-rejected documentation' : 'Editing draft documentation'}
+                                                {editingRejectedDoc ? 'Revising rejected documentation' : 'Editing draft documentation'}
                                             </p>
                                             <p className="text-xs text-cyan-200/80 mt-1">
                                                 Save your changes, then submit from Manage Documentation.
@@ -650,9 +661,10 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                             {savedDocs.map((doc) => {
                                                 const files = doc.files || [];
                                                 const previewableImages = files.filter((file) => (file.is_image || file.file_type === 'image') && file.file_url);
+                                                const rejectedByBim = isBimRejected(doc);
                                                 const rejectedByStudioHead = isStudioHeadRejected(doc);
-                                                const canSubmitForReview = doc.status === 'draft' || rejectedByStudioHead;
-                                                const canEdit = doc.status === 'draft' || rejectedByStudioHead;
+                                                const canSubmitForReview = doc.status === 'draft' || rejectedByBim || rejectedByStudioHead;
+                                                const canEdit = doc.status === 'draft' || rejectedByBim || rejectedByStudioHead;
 
                                                 return (
                                                     <div key={doc.id} className="rounded-xl border border-white/10 bg-[#00273C]/40 p-5 space-y-4 hover:border-white/20 transition">
@@ -723,7 +735,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                                                         disabled={loading}
                                                                         className="px-4 rounded-lg border border-cyan-400/35 text-cyan-200 text-xs font-semibold py-2 hover:bg-cyan-500/10 transition disabled:opacity-50"
                                                                     >
-                                                                        {rejectedByStudioHead ? 'Edit Rejected' : 'Edit Draft'}
+                                                                        {(rejectedByBim || rejectedByStudioHead) ? 'Edit Rejected' : 'Edit Draft'}
                                                                     </button>
                                                                 )}
                                                                 {canSubmitForReview && (
@@ -732,7 +744,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                                                         disabled={loading}
                                                                         className="flex-1 rounded-lg bg-emerald-600/20 text-emerald-300 text-xs font-semibold py-2 hover:bg-emerald-600/30 transition disabled:opacity-50"
                                                                     >
-                                                                        {rejectedByStudioHead ? 'Resubmit for Review' : 'Submit for Review'}
+                                                                        {(rejectedByBim || rejectedByStudioHead) ? 'Resubmit for Review' : 'Submit for Review'}
                                                                     </button>
                                                                 )}
                                                                 {doc.status === 'draft' && (
@@ -747,13 +759,19 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                                             </div>
                                                         )}
 
-                                                        {doc.status === 'pending_review' && !doc.reviewed_by_studio_head && (
+                                                        {doc.status === 'pending_bim_review' && (
+                                                            <div className="pt-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                                                                <p className="text-xs text-blue-300">Awaiting BIM review...</p>
+                                                            </div>
+                                                        )}
+
+                                                        {doc.status === 'pending_studio_head_review' && (
                                                             <div className="pt-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
                                                                 <p className="text-xs text-blue-300">Awaiting Studio Head review...</p>
                                                             </div>
                                                         )}
 
-                                                        {doc.status === 'pending_review' && doc.reviewed_by_studio_head && (
+                                                        {doc.status === 'pending_ceo_review' && (
                                                             <div className="pt-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
                                                                 <p className="text-xs text-green-300">Forwarded to the CEO</p>
                                                             </div>
@@ -768,12 +786,12 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                                         {doc.status === 'rejected' && (
                                                             <div className="pt-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
                                                                 <p className="text-xs text-red-300">
-                                                                    {rejectedByStudioHead
-                                                                        ? 'Rejected by Studio Head. Please revise and resubmit.'
+                                                                    {(rejectedByBim || rejectedByStudioHead)
+                                                                        ? `Rejected by ${rejectedByBim ? 'BIM Specialist' : 'Studio Head'}. Please revise and resubmit.`
                                                                         : 'Rejected at final review.'}
                                                                 </p>
-                                                                {(doc.studio_head_comments || doc.ceo_comments) && (
-                                                                    <p className="text-xs text-red-300/80 mt-1 line-clamp-2">{doc.ceo_comments || doc.studio_head_comments}</p>
+                                                                {(doc.bim_comments || doc.studio_head_comments || doc.ceo_comments) && (
+                                                                    <p className="text-xs text-red-300/80 mt-1 line-clamp-2">{doc.ceo_comments || doc.studio_head_comments || doc.bim_comments}</p>
                                                                 )}
                                                             </div>
                                                         )}

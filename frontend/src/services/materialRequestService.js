@@ -1,4 +1,17 @@
 import api from './api';
+import {
+  buildRequestCacheKey,
+  invalidateRequestCache,
+  withRequestCache,
+} from './requestCache';
+
+const MATERIAL_REQUEST_CACHE_PREFIX = {
+  requests: 'material-requests:list',
+  comments: 'material-requests:comments',
+  projects: 'material-requests:projects',
+  projectApproved: 'material-requests:project-approved',
+  recentApproved: 'material-requests:recent-approved',
+};
 
 const getErrorMessage = (error, fallbackMessage) => {
   const responseData = error?.response?.data;
@@ -33,8 +46,15 @@ const getErrorMessage = (error, fallbackMessage) => {
 const materialRequestService = {
   getMaterialRequests: async (params = {}) => {
     try {
-      const response = await api.get('/material-requests/', { params });
-      return { success: true, data: response.data };
+      const data = await withRequestCache({
+        key: buildRequestCacheKey(MATERIAL_REQUEST_CACHE_PREFIX.requests, params),
+        ttlMs: 15000,
+        request: async () => {
+          const response = await api.get('/material-requests/', { params });
+          return response.data;
+        },
+      });
+      return { success: true, data };
     } catch (error) {
       return {
         success: false,
@@ -46,6 +66,8 @@ const materialRequestService = {
   createMaterialRequest: async (payload) => {
     try {
       const response = await api.post('/material-requests/', payload);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.requests);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.recentApproved);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -58,6 +80,9 @@ const materialRequestService = {
   updateMaterialRequest: async (id, payload) => {
     try {
       const response = await api.patch(`/material-requests/${id}/`, payload);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.requests);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.recentApproved);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projectApproved);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -70,6 +95,9 @@ const materialRequestService = {
   deleteMaterialRequest: async (id) => {
     try {
       await api.delete(`/material-requests/${id}/`);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.requests);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.recentApproved);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projectApproved);
       return { success: true };
     } catch (error) {
       return {
@@ -82,6 +110,9 @@ const materialRequestService = {
   submitMaterialRequest: async (id) => {
     try {
       const response = await api.post(`/material-requests/${id}/submit/`, {});
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.requests);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.recentApproved);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projectApproved);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -97,6 +128,9 @@ const materialRequestService = {
         action,
         comments,
       });
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.requests);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.recentApproved);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projectApproved);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -109,6 +143,9 @@ const materialRequestService = {
   allocateFunds: async (id, payload) => {
     try {
       const response = await api.patch(`/material-requests/${id}/allocate_funds/`, payload);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.requests);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.recentApproved);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projectApproved);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -120,8 +157,15 @@ const materialRequestService = {
   
   getComments: async (id) => {
     try {
-      const response = await api.get(`/material-requests/${id}/comments/`);
-      return { success: true, data: response.data };
+      const data = await withRequestCache({
+        key: `${MATERIAL_REQUEST_CACHE_PREFIX.comments}:${id}`,
+        ttlMs: 10000,
+        request: async () => {
+          const response = await api.get(`/material-requests/${id}/comments/`);
+          return response.data;
+        },
+      });
+      return { success: true, data };
     } catch (error) {
       return {
         success: false,
@@ -136,6 +180,8 @@ const materialRequestService = {
         content,
         parent_id: parentId,
       });
+      invalidateRequestCache(`${MATERIAL_REQUEST_CACHE_PREFIX.comments}:${requestId}`, { exact: true });
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.requests);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -148,6 +194,8 @@ const materialRequestService = {
   editComment: async (requestId, commentId, content) => {
     try {
       const response = await api.patch(`/material-requests/${requestId}/comments/${commentId}/`, { content });
+      invalidateRequestCache(`${MATERIAL_REQUEST_CACHE_PREFIX.comments}:${requestId}`, { exact: true });
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.requests);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -160,6 +208,8 @@ const materialRequestService = {
   deleteComment: async (requestId, commentId) => {
     try {
       const response = await api.delete(`/material-requests/${requestId}/comments/${commentId}/`);
+      invalidateRequestCache(`${MATERIAL_REQUEST_CACHE_PREFIX.comments}:${requestId}`, { exact: true });
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.requests);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -174,8 +224,15 @@ const materialRequestService = {
   // ── Projects ──────────────────────────────────────────────
   getProjects: async () => {
     try {
-      const response = await api.get('/material-requests/projects/');
-      return { success: true, data: response.data };
+      const data = await withRequestCache({
+        key: MATERIAL_REQUEST_CACHE_PREFIX.projects,
+        ttlMs: 60000,
+        request: async () => {
+          const response = await api.get('/material-requests/projects/');
+          return response.data;
+        },
+      });
+      return { success: true, data };
     } catch (error) {
       return {
         success: false,
@@ -187,6 +244,9 @@ const materialRequestService = {
   createProject: async (payload) => {
     try {
       const response = await api.post('/material-requests/projects/', payload);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projects);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projectApproved);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.recentApproved);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -199,6 +259,9 @@ const materialRequestService = {
   updateProject: async (id, payload) => {
     try {
       const response = await api.patch(`/material-requests/projects/${id}/`, payload);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projects);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projectApproved);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.recentApproved);
       return { success: true, data: response.data };
     } catch (error) {
       return {
@@ -211,6 +274,9 @@ const materialRequestService = {
   deleteProject: async (id) => {
     try {
       await api.delete(`/material-requests/projects/${id}/`);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projects);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.projectApproved);
+      invalidateRequestCache(MATERIAL_REQUEST_CACHE_PREFIX.recentApproved);
       return { success: true };
     } catch (error) {
       return {
@@ -222,8 +288,15 @@ const materialRequestService = {
 
   getProjectApprovedRequests: async (projectId) => {
     try {
-      const response = await api.get(`/material-requests/projects/${projectId}/approved-requests/`);
-      return { success: true, data: response.data };
+      const data = await withRequestCache({
+        key: `${MATERIAL_REQUEST_CACHE_PREFIX.projectApproved}:${projectId}`,
+        ttlMs: 20000,
+        request: async () => {
+          const response = await api.get(`/material-requests/projects/${projectId}/approved-requests/`);
+          return response.data;
+        },
+      });
+      return { success: true, data };
     } catch (error) {
       return {
         success: false,
@@ -234,8 +307,15 @@ const materialRequestService = {
 
   getRecentApprovedRequests: async () => {
     try {
-      const response = await api.get('/material-requests/projects/recent-approved-requests/');
-      return { success: true, data: response.data };
+      const data = await withRequestCache({
+        key: MATERIAL_REQUEST_CACHE_PREFIX.recentApproved,
+        ttlMs: 20000,
+        request: async () => {
+          const response = await api.get('/material-requests/projects/recent-approved-requests/');
+          return response.data;
+        },
+      });
+      return { success: true, data };
     } catch (error) {
       return {
         success: false,

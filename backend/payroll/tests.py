@@ -1,7 +1,10 @@
+import hashlib
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
+from django.test.utils import override_settings
+from django.core.cache import cache
 from rest_framework.test import APIClient
 
 from todos.models import TodoNotification
@@ -199,3 +202,116 @@ class PayrollNotificationTests(TestCase):
 		)
 		self.assertIsNotNone(notification)
 		self.assertIn('emailed', notification.message.lower())
+
+
+class PayrollCacheBehaviorTests(TestCase):
+	def setUp(self):
+		self.client = APIClient()
+		user_model = get_user_model()
+
+		self.accounting_user = user_model.objects.create_user(
+			username='cachemanager01',
+			email='cache-manager@example.com',
+			password='test-password',
+			role='accounting',
+			first_name='Cache',
+			last_name='Manager',
+			is_active=True,
+		)
+		self.employee = user_model.objects.create_user(
+			username='cacheemployee01',
+			email='cache-employee@example.com',
+			password='test-password',
+			role='intern',
+			first_name='Cache',
+			last_name='Employee',
+			is_active=True,
+		)
+
+	def _authenticate(self, user):
+		self.client.force_authenticate(user=user)
+
+	@override_settings(ENABLE_API_RESPONSE_CACHE=True)
+	def test_recent_payroll_records_populates_cache(self):
+		cache.clear()
+		self._authenticate(self.accounting_user)
+
+		PaySlip.objects.create(
+			employee=self.employee,
+			period_start='2026-01-01',
+			period_end='2026-01-31',
+			base_salary='50000.00',
+			allowances_total='0.00',
+			overtime_amount='0.00',
+			bonus='0.00',
+			gross_salary='50000.00',
+			tax='0.00',
+			deductions_total='0.00',
+			net_salary='50000.00',
+			working_days=22,
+			days_present=22,
+			days_absent=0,
+			days_on_leave=0,
+		)
+
+		response = self.client.get('/api/payroll/recent/')
+		self.assertEqual(response.status_code, 200)
+		self.assertIn('private', response.get('Cache-Control', ''))
+
+		cache_hash = hashlib.md5('/api/payroll/recent/'.encode('utf-8')).hexdigest()
+		cache_key = f'payroll:recent:v1:user:{self.accounting_user.id}:{cache_hash}'
+		self.assertIsNotNone(cache.get(cache_key))
+
+	@override_settings(ENABLE_API_RESPONSE_CACHE=True)
+	def test_payroll_employees_returns_200(self):
+		cache.clear()
+		self._authenticate(self.accounting_user)
+
+		response = self.client.get('/api/payroll/employees/')
+		self.assertEqual(response.status_code, 200)
+		self.assertIsInstance(response.data, list)
+
+	@override_settings(ENABLE_API_RESPONSE_CACHE=True)
+	def test_allowance_eligibility_post_bumps_cache_version(self):
+		cache.clear()
+		cache.set('payroll:cache-version', 1, timeout=None)
+		self._authenticate(self.accounting_user)
+
+		response = self.client.post(
+			'/api/payroll/allowance-eligibility/',
+			{'employee_ids': [str(self.employee.id)]},
+			format='json',
+		)
+
+		self.assertEqual(response.status_code, 200)
+		self.assertEqual(cache.get('payroll:cache-version'), 2)
+
+	@override_settings(ENABLE_API_RESPONSE_CACHE=False)
+	def test_recent_payroll_records_does_not_populate_cache_when_disabled(self):
+		cache.clear()
+		self._authenticate(self.accounting_user)
+
+		PaySlip.objects.create(
+			employee=self.employee,
+			period_start='2026-02-01',
+			period_end='2026-02-28',
+			base_salary='50000.00',
+			allowances_total='0.00',
+			overtime_amount='0.00',
+			bonus='0.00',
+			gross_salary='50000.00',
+			tax='0.00',
+			deductions_total='0.00',
+			net_salary='50000.00',
+			working_days=20,
+			days_present=20,
+			days_absent=0,
+			days_on_leave=0,
+		)
+
+		response = self.client.get('/api/payroll/recent/')
+		self.assertEqual(response.status_code, 200)
+
+		cache_hash = hashlib.md5('/api/payroll/recent/'.encode('utf-8')).hexdigest()
+		cache_key = f'payroll:recent:v0:user:{self.accounting_user.id}:{cache_hash}'
+		self.assertIsNone(cache.get(cache_key))

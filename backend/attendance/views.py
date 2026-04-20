@@ -1,7 +1,11 @@
 from datetime import date, time, timedelta
 from decimal import Decimal, InvalidOperation
+import hashlib
 
+from django.conf import settings
+from django.core.cache import cache
 from django.db import transaction
+from django.db.models import Prefetch
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -57,6 +61,10 @@ EVENT_TYPE_ALIASES = {
 
 AUTO_PM_TIMEOUT_TIME = time(17, 30)
 AUTO_PM_TIMEOUT_NOTE = 'System auto timeout: PM OUT recorded at 5:30 PM because no manual clock out was submitted.'
+ATTENDANCE_LOGS_PREFETCH = Prefetch(
+    'logs',
+    queryset=TimeLog.objects.only('attendance_id', 'timestamp', 'location').order_by('-timestamp'),
+)
 
 @api_view(['GET'])
 def attendance_overview(request):
@@ -299,8 +307,9 @@ def _serialize_leave(leave):
 
 def _serialize_attendance(record):
     employee = record.employee
-    # Use prefetched logs instead of querying DB (avoid N+1)
-    latest_log = max(record.logs.all(), key=lambda log: log.timestamp, default=None) if record.logs.exists() else None
+    # Use prefetched logs only once to avoid repeated related-manager operations per record.
+    logs = list(record.logs.all())
+    latest_log = logs[0] if logs else None
     
     # Get attachment URL and filename from the first file in work_doc_file_paths
     attachment_url = None
@@ -482,7 +491,7 @@ def my_attendance_records(request):
         Attendance.objects
         .filter(employee=request.user)
         .select_related('employee', 'employee__department')
-        .prefetch_related('logs')
+        .prefetch_related(ATTENDANCE_LOGS_PREFETCH)
         .order_by('-date', '-created_at')
     )
     return Response([_serialize_attendance(record) for record in records])
@@ -494,15 +503,30 @@ def all_attendance_records(request):
     if not _can_view_all_attendance(request.user):
         return Response({'error': 'Not authorized to view all attendance records.'}, status=status.HTTP_403_FORBIDDEN)
 
+    cache_enabled = getattr(settings, 'ENABLE_API_RESPONSE_CACHE', True)
+    cache_hash = hashlib.md5(request.get_full_path().encode('utf-8')).hexdigest()
+    cache_key = f"attendance:all:user:{request.user.id}:{cache_hash}"
+    if cache_enabled:
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            response = Response(cached_payload)
+            response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+            return response
+
     _auto_timeout_open_afternoon_sessions()
 
     records = (
         Attendance.objects
         .select_related('employee', 'employee__department')
-        .prefetch_related('logs')
+        .prefetch_related(ATTENDANCE_LOGS_PREFETCH)
         .order_by('-date', '-created_at')
     )
-    return Response([_serialize_attendance(record) for record in records])
+    payload = [_serialize_attendance(record) for record in records]
+    if cache_enabled:
+        cache.set(cache_key, payload, timeout=settings.API_CACHE_TTL_SHORT)
+    response = Response(payload)
+    response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+    return response
 
 
 @api_view(['GET'])
@@ -516,7 +540,7 @@ def my_attendance_today(request):
     open_record = (
         Attendance.objects
         .select_related('employee', 'employee__department')
-        .prefetch_related('logs')
+        .prefetch_related(ATTENDANCE_LOGS_PREFETCH)
         .filter(employee=request.user, date=today, time_in__isnull=False, time_out__isnull=True)
         .first()
     )

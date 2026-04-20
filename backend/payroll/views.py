@@ -1,10 +1,13 @@
 import json
+import hashlib
 from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.db import IntegrityError, transaction
 from django.http import HttpResponse
 from django.utils import timezone
+from django.core.cache import cache
+from django.conf import settings
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -27,6 +30,25 @@ PAYROLL_VIEW_ROLES = {
     'ceo',
     'president',
 }
+
+PAYROLL_CACHE_VERSION_KEY = 'payroll:cache-version'
+
+
+def _get_payroll_cache_version():
+    version = cache.get(PAYROLL_CACHE_VERSION_KEY)
+    if version is None:
+        cache.set(PAYROLL_CACHE_VERSION_KEY, 1, timeout=None)
+        return 1
+    return version
+
+
+def _bump_payroll_cache_version():
+    created = cache.add(PAYROLL_CACHE_VERSION_KEY, 1, timeout=None)
+    if not created:
+        try:
+            cache.incr(PAYROLL_CACHE_VERSION_KEY)
+        except ValueError:
+            cache.set(PAYROLL_CACHE_VERSION_KEY, 1, timeout=None)
 
 
 def _can_manage_payroll(user):
@@ -259,9 +281,25 @@ def payroll_employees(request):
     if not _can_view_payroll(request.user):
         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
+    cache_enabled = getattr(settings, 'ENABLE_API_RESPONSE_CACHE', True)
+    cache_version = _get_payroll_cache_version() if cache_enabled else 0
+    cache_hash = hashlib.md5(request.get_full_path().encode('utf-8')).hexdigest()
+    cache_key = f"payroll:employees:v{cache_version}:user:{request.user.id}:{cache_hash}"
+    if cache_enabled:
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            response = Response(cached_payload)
+            response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+            return response
+
     users = (
         CustomUser.objects
-        .select_related('department', 'salary_structure')
+        .select_related('salary_structure')
+        .only(
+            'id', 'employee_id', 'first_name', 'last_name', 'email', 'role',
+            'profile_picture', 'signature_image', 'payroll_allowance_eligible',
+            'salary_structure__base_salary', 'salary_structure__frequency',
+        )
         .filter(is_active=True)
         .order_by('last_name', 'first_name', 'email')
     )
@@ -292,7 +330,11 @@ def payroll_employees(request):
             'salary': str(salary_structure.base_salary) if salary_structure else None,
         })
 
-    return Response(data)
+    if cache_enabled:
+        cache.set(cache_key, data, timeout=settings.API_CACHE_TTL_SHORT)
+    response = Response(data)
+    response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+    return response
 
 
 @api_view(['GET', 'POST'])
@@ -305,6 +347,7 @@ def payroll_allowance_eligibility(request):
     employees_qs = (
         CustomUser.objects
         .filter(is_active=True)
+        .only('id', 'first_name', 'last_name', 'email', 'role', 'payroll_allowance_eligible')
         .order_by('last_name', 'first_name', 'email')
     )
 
@@ -333,6 +376,8 @@ def payroll_allowance_eligibility(request):
                 user.payroll_allowance_eligible = next_value
                 user.save(update_fields=['payroll_allowance_eligible'])
 
+    _bump_payroll_cache_version()
+
     return Response({
         'success': True,
         'message': 'Payroll allowance eligibility updated.',
@@ -344,6 +389,17 @@ def payroll_allowance_eligibility(request):
 def attendance_summary(request):
     if not _can_manage_payroll(request.user):
         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
+
+    cache_enabled = getattr(settings, 'ENABLE_API_RESPONSE_CACHE', True)
+    cache_version = _get_payroll_cache_version() if cache_enabled else 0
+    cache_hash = hashlib.md5(request.get_full_path().encode('utf-8')).hexdigest()
+    cache_key = f"payroll:attendance-summary:v{cache_version}:user:{request.user.id}:{cache_hash}"
+    if cache_enabled:
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            response = Response(cached_payload)
+            response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+            return response
 
     employee_id = request.query_params.get('employee_id')
     period_start_raw = request.query_params.get('start_date')
@@ -366,7 +422,12 @@ def attendance_summary(request):
     if period_end < period_start:
         return Response({'error': 'end_date cannot be earlier than start_date.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    return Response(_attendance_summary(employee, period_start, period_end))
+    payload = _attendance_summary(employee, period_start, period_end)
+    if cache_enabled:
+        cache.set(cache_key, payload, timeout=settings.API_CACHE_TTL_SHORT)
+    response = Response(payload)
+    response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+    return response
 
 
 @api_view(['POST'])
@@ -709,6 +770,7 @@ def process_payroll(request):
             'recipient': email_result.get('recipient') if email_result else employee.email,
         },
     }
+    _bump_payroll_cache_version()
     return Response(response_data, status=status.HTTP_201_CREATED)
 
 
@@ -780,6 +842,19 @@ def recent_payroll_records(request):
     if not _can_view_payroll(request.user):
         return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
 
+    cache_enabled = getattr(settings, 'ENABLE_API_RESPONSE_CACHE', True)
+    cache_version = _get_payroll_cache_version() if cache_enabled else 0
+
+    # Cache by user + full query string to prevent cross-user leakage.
+    cache_hash = hashlib.md5(request.get_full_path().encode('utf-8')).hexdigest()
+    cache_key = f"payroll:recent:v{cache_version}:user:{request.user.id}:{cache_hash}"
+    if cache_enabled:
+        cached_payload = cache.get(cache_key)
+        if cached_payload is not None:
+            response = Response(cached_payload)
+            response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+            return response
+
     created_on_raw = request.query_params.get('created_on')
     created_from_raw = request.query_params.get('created_from')
     created_to_raw = request.query_params.get('created_to')
@@ -831,7 +906,12 @@ def recent_payroll_records(request):
             return Response({'error': 'limit must be between 1 and 1000.'}, status=status.HTTP_400_BAD_REQUEST)
 
     records = records[:limit]
-    return Response([_serialize_payslip(record) for record in records])
+    payload = [_serialize_payslip(record) for record in records]
+    if cache_enabled:
+        cache.set(cache_key, payload, timeout=settings.API_CACHE_TTL_SHORT)
+    response = Response(payload)
+    response['Cache-Control'] = f"private, max-age={settings.API_CACHE_TTL_SHORT}"
+    return response
 
 
 @api_view(['GET'])

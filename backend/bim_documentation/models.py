@@ -6,7 +6,9 @@ User = get_user_model()
 
 APPROVAL_STATUS_CHOICES = [
     ('draft', 'Draft'),
-    ('pending_review', 'Pending Review'),
+    ('pending_bim_review', 'Pending BIM Review'),
+    ('pending_studio_head_review', 'Pending Studio Head Review'),
+    ('pending_ceo_review', 'Pending CEO Review'),
     ('approved', 'Approved'),
     ('rejected', 'Rejected'),
 ]
@@ -15,7 +17,7 @@ APPROVAL_STATUS_CHOICES = [
 class BimDocumentation(models.Model):
     """
     Stores BIM documentation created by BIM Specialists.
-    Tracks approval workflow from BIM Specialist → Studio Head → CEO
+    Tracks approval workflow from Junior Designer/Architect -> BIM Specialist -> Studio Head -> CEO
     """
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -31,11 +33,22 @@ class BimDocumentation(models.Model):
     
     # Approval Workflow
     status = models.CharField(
-        max_length=20,
+        max_length=32,
         choices=APPROVAL_STATUS_CHOICES,
         default='draft'
     )
     
+    # BIM Specialist Review
+    reviewed_by_bim = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_bim_docs'
+    )
+    bim_reviewed_at = models.DateTimeField(null=True, blank=True)
+    bim_comments = models.TextField(blank=True, null=True)
+
     # Studio Head Review
     reviewed_by_studio_head = models.ForeignKey(
         User,
@@ -71,13 +84,21 @@ class BimDocumentation(models.Model):
     
     def __str__(self):
         return f"{self.title} - {self.created_by}"
+
+    def approve_bim(self, user, comments=''):
+        """Mark as approved by BIM Specialist and forward to Studio Head."""
+        self.reviewed_by_bim = user
+        self.bim_reviewed_at = timezone.now()
+        self.bim_comments = comments
+        self.status = 'pending_studio_head_review'
+        self.save()
     
     def approve_studio_head(self, user, comments=''):
-        """Mark as approved by Studio Head"""
+        """Mark as approved by Studio Head and forward to CEO."""
         self.reviewed_by_studio_head = user
         self.studio_head_reviewed_at = timezone.now()
         self.studio_head_comments = comments
-        self.status = 'pending_review'
+        self.status = 'pending_ceo_review'
         self.save()
     
     def approve_ceo(self, user, comments=''):
@@ -88,9 +109,13 @@ class BimDocumentation(models.Model):
         self.status = 'approved'
         self.save()
     
-    def reject(self, user, reason, is_studio_head=False):
+    def reject(self, user, reason, reviewer_stage='ceo'):
         """Reject documentation"""
-        if is_studio_head:
+        if reviewer_stage == 'bim':
+            self.reviewed_by_bim = user
+            self.bim_reviewed_at = timezone.now()
+            self.bim_comments = reason
+        elif reviewer_stage == 'studio_head':
             self.reviewed_by_studio_head = user
             self.studio_head_reviewed_at = timezone.now()
             self.studio_head_comments = reason

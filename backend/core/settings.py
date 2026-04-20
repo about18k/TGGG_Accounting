@@ -263,6 +263,35 @@ MEDIA_URL = '/media/'
 # Base URL for generating absolute URLs (used for PDF links in WhatsApp)
 BASE_URL = config('BASE_URL', default='http://localhost:8000')
 
+# Cache configuration
+# Defaults to local-memory cache for easy development startup.
+# Set CACHE_BACKEND=redis and REDIS_CACHE_URL to enable shared server-side cache.
+CACHE_BACKEND = config('CACHE_BACKEND', default='local').strip().lower()
+REDIS_CACHE_URL = config('REDIS_CACHE_URL', default='redis://localhost:6379/1')
+
+if CACHE_BACKEND == 'redis':
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+            'LOCATION': REDIS_CACHE_URL,
+            'KEY_PREFIX': config('CACHE_KEY_PREFIX', default='tggg'),
+            'TIMEOUT': config('CACHE_DEFAULT_TIMEOUT', default=300, cast=int),
+        }
+    }
+else:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'tggg-local-cache',
+            'TIMEOUT': config('CACHE_DEFAULT_TIMEOUT', default=120, cast=int),
+        }
+    }
+
+# Shared API response cache TTLs (seconds)
+API_CACHE_TTL_SHORT = config('API_CACHE_TTL_SHORT', default=20, cast=int)
+API_CACHE_TTL_MEDIUM = config('API_CACHE_TTL_MEDIUM', default=60, cast=int)
+ENABLE_API_RESPONSE_CACHE = config('ENABLE_API_RESPONSE_CACHE', default='True') == 'True'
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 

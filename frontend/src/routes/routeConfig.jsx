@@ -58,45 +58,93 @@ import CeoEmployeeDirectoryPage from '../pages/dashboards/ceo/CeoEmployeeDirecto
 import CeoPayrollProcessedPage from '../pages/dashboards/ceo/CeoPayrollProcessedPage';
 import CeoCalendarPage from '../pages/dashboards/ceo/CeoCalendarPage';
 
+const loadAccountingDashboardLayout = () => import('../pages/dashboards/Accounting_Department/DashboardLayout');
+const loadAccountingDashboardOverview = () => import('../pages/dashboards/Accounting_Department/DashboardOverview');
+const loadAccountingEmployeeManagement = () => import('../pages/dashboards/Accounting_Department/EmployeeManagement');
+const loadAccountingAttendanceLeave = () => import('../pages/dashboards/Accounting_Department/AttendanceLeave');
+const loadAccountingPayrollManagement = () => import('../pages/dashboards/Accounting_Department/PayrollManagement');
+const loadAccountingSettings = () => import('../pages/dashboards/Accounting_Department/Settings');
+const loadAccountingPersonalAttendance = () => import('../pages/dashboards/Accounting_Department/AccountingPersonalAttendance');
+const loadAccountingOvertimePage = () => import('../pages/dashboards/Accounting_Department/AccountingOvertimePage');
+const loadAccountingEventsPanel = () => import('../pages/dashboards/Accounting_Department/Calendar_Events/AccountingEventsPanel');
+const loadAccountingMaterialRequestPage = () => import('../pages/dashboards/Accounting_Department/AccountingMaterialRequestPage');
+const loadAccountingOvertimeRequestsPanel = () => import('../pages/dashboards/shared/OvertimeRequestApprovalsPanel');
+const loadEmployeeCalendarPage = () => import('../pages/dashboards/shared/EmployeeCalendarPage');
+const loadAccountingProfilePage = () => import('../pages/dashboards/Accounting_Department/AccountingProfilePage');
+
 const AccountingDashboardLayout = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/DashboardLayout').then((mod) => ({ default: mod.DashboardLayout }))
+    loadAccountingDashboardLayout().then((mod) => ({ default: mod.DashboardLayout }))
 );
 const AccountingDashboardOverview = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/DashboardOverview').then((mod) => ({ default: mod.DashboardOverview }))
+    loadAccountingDashboardOverview().then((mod) => ({ default: mod.DashboardOverview }))
 );
 const AccountingEmployeeManagement = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/EmployeeManagement').then((mod) => ({ default: mod.EmployeeManagement }))
+    loadAccountingEmployeeManagement().then((mod) => ({ default: mod.EmployeeManagement }))
 );
 const AccountingAttendanceLeave = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/AttendanceLeave').then((mod) => ({ default: mod.AttendanceLeave }))
+    loadAccountingAttendanceLeave().then((mod) => ({ default: mod.AttendanceLeave }))
 );
 const AccountingPayrollManagement = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/PayrollManagement').then((mod) => ({ default: mod.PayrollManagement }))
+    loadAccountingPayrollManagement().then((mod) => ({ default: mod.PayrollManagement }))
 );
 const AccountingSettings = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/Settings').then((mod) => ({ default: mod.Settings }))
+    loadAccountingSettings().then((mod) => ({ default: mod.Settings }))
 );
 const AccountingPersonalAttendance = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/AccountingPersonalAttendance')
+    loadAccountingPersonalAttendance()
 );
 const AccountingOvertimePage = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/AccountingOvertimePage')
+    loadAccountingOvertimePage()
 );
 const AccountingEventsPanel = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/Calendar_Events/AccountingEventsPanel')
+    loadAccountingEventsPanel()
 );
 const AccountingMaterialRequestPage = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/AccountingMaterialRequestPage')
+    loadAccountingMaterialRequestPage()
 );
 const AccountingOvertimeRequestsPanel = lazy(() =>
-    import('../pages/dashboards/shared/OvertimeRequestApprovalsPanel')
+    loadAccountingOvertimeRequestsPanel()
 );
 const EmployeeCalendarPage = lazy(() =>
-    import('../pages/dashboards/shared/EmployeeCalendarPage')
+    loadEmployeeCalendarPage()
 );
 const AccountingProfilePage = lazy(() =>
-    import('../pages/dashboards/Accounting_Department/AccountingProfilePage')
+    loadAccountingProfilePage()
 );
+
+export function preloadDashboardAssets({ role, currentPage, departmentName } = {}) {
+    const normalizedRole = String(role || '').toLowerCase();
+    const normalizedPage = String(currentPage || '').toLowerCase();
+    const normalizedDepartment = String(departmentName || '').toLowerCase();
+    const isAccountingEmployee = normalizedRole === 'employee' && (
+        normalizedDepartment === 'accounting department' || normalizedDepartment === 'accounting'
+    );
+
+    const preloads = [loadEmployeeCalendarPage()];
+
+    if (normalizedRole === 'accounting' || isAccountingEmployee) {
+        preloads.push(
+            loadAccountingDashboardLayout(),
+            loadAccountingDashboardOverview(),
+            loadAccountingEmployeeManagement(),
+            loadAccountingAttendanceLeave(),
+            loadAccountingPayrollManagement(),
+            loadAccountingSettings(),
+            loadAccountingProfilePage(),
+            loadAccountingOvertimePage(),
+            loadAccountingPersonalAttendance(),
+            loadAccountingEventsPanel(),
+            loadAccountingMaterialRequestPage(),
+            loadAccountingOvertimeRequestsPanel(),
+        );
+    }
+
+    if (normalizedPage === 'overtime') {
+        preloads.push(loadAccountingOvertimePage(), loadAccountingOvertimeRequestsPanel());
+    }
+
+    return Promise.allSettled(preloads);
+}
 
 // Suspense wrapper for lazy-loaded calendar page
 const SuspendedCalendarPage = ({ user, onNavigate }) => (
