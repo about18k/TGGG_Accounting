@@ -79,6 +79,75 @@ def _doc_has_file_attachment(doc):
     return False
 
 
+def _notify_studio_head_documentation_forwarded(doc, actor):
+    """Notify Studio Heads when BIM Specialist forwards a doc."""
+    creator_role = str(getattr(doc.created_by, 'role', '') or '').strip().lower()
+    if creator_role in ['junior_architect', 'junior_designer']:
+        doc_origin = "Junior Architect documentation"
+    elif creator_role == 'bim_specialist':
+        doc_origin = "BIM Specialist documentation"
+    else:
+        doc_origin = "documentation"
+
+    recipients = (
+        CustomUser.objects
+        .filter(is_active=True, role='studio_head')
+        .exclude(id=actor.id)
+    )
+
+    for recipient in recipients:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=actor,
+            notif_type='bim_forwarded_to_sh',
+            title='Documentation Needs Studio Head Approval',
+            message=(
+                f'BIM Specialist forwarded {doc_origin}: "{doc.title}". '
+                'Please review and approve or reject.'
+            ),
+        )
+
+
+def _notify_studio_head_documentation_submitted(doc, actor):
+    """Notify the next reviewer stage when documentation is submitted for review."""
+    creator_role = str(getattr(doc.created_by, 'role', '') or '').strip().lower()
+    if creator_role in ['junior_architect', 'junior_designer']:
+        doc_origin = 'Junior Architect documentation'
+        recipients = (
+            CustomUser.objects
+            .filter(is_active=True, role='bim_specialist')
+            .exclude(id=actor.id)
+        )
+        notif_type = 'bim_submitted_to_bim'
+        notif_title = 'Documentation Needs BIM Review'
+    elif creator_role == 'bim_specialist':
+        doc_origin = 'BIM Specialist documentation'
+        recipients = (
+            CustomUser.objects
+            .filter(is_active=True, role='studio_head')
+            .exclude(id=actor.id)
+        )
+        notif_type = 'bim_submitted_to_sh'
+        notif_title = 'Documentation Needs Studio Head Approval'
+    else:
+        doc_origin = 'documentation'
+        recipients = CustomUser.objects.none()
+        notif_type = 'bim_submitted'
+        notif_title = 'Documentation Submitted'
+
+    for recipient in recipients:
+        NotificationService.create_notification(
+            recipient=recipient,
+            actor=actor,
+            notif_type=notif_type,
+            title=notif_title,
+            message=(
+                f'{doc_origin} was submitted: "{doc.title}". '
+                'Please review and approve or reject.'
+            ),
+        )
+
+
 def _notify_ceo_documentation_forwarded(doc, actor):
     """Notify all active CEO/President users when Studio Head forwards a doc."""
     creator_role = str(getattr(doc.created_by, 'role', '') or '').strip().lower()
@@ -108,42 +177,18 @@ def _notify_ceo_documentation_forwarded(doc, actor):
         )
 
 
-def _notify_studio_head_documentation_submitted(doc, actor):
-    """Notify active Studio Heads when documentation is submitted for review."""
-    creator_role = str(getattr(doc.created_by, 'role', '') or '').strip().lower()
-    if creator_role in ['junior_architect', 'junior_designer']:
-        doc_origin = 'Junior Architect documentation'
-    elif creator_role == 'bim_specialist':
-        doc_origin = 'BIM Specialist documentation'
-    else:
-        doc_origin = 'documentation'
-
-    recipients = (
-        CustomUser.objects
-        .filter(is_active=True, role='studio_head')
-        .exclude(id=actor.id)
-    )
-
-    for recipient in recipients:
-        NotificationService.create_notification(
-            recipient=recipient,
-            actor=actor,
-            notif_type='bim_submitted_to_sh',
-            title='Documentation Needs Studio Head Approval',
-            message=(
-                f'{doc_origin} was submitted: "{doc.title}". '
-                'Please review and approve or reject.'
-            ),
-        )
-
-
 def _notify_documentation_rejected(doc, actor):
-    """Notify documentation creator when Studio Head/CEO rejects the document."""
+    """Notify documentation creator when BIM/Studio Head/CEO rejects the document."""
     creator = getattr(doc, 'created_by', None)
     if not creator or not creator.is_active or creator.id == actor.id:
         return
 
-    decision_role = 'Studio Head' if actor.role == 'studio_head' else 'CEO'
+    decision_role = {
+        'bim_specialist': 'BIM Specialist',
+        'studio_head': 'Studio Head',
+        'ceo': 'CEO',
+        'president': 'CEO',
+    }.get(actor.role, 'Reviewer')
     NotificationService.create_notification(
         recipient=creator,
         actor=actor,
@@ -174,6 +219,15 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     junior_architect_role_aliases = ('junior_architect', 'junior_designer')
 
     @staticmethod
+    def _is_bim_rejected(doc):
+        return (
+            doc.status == 'rejected'
+            and doc.reviewed_by_bim_id is not None
+            and doc.reviewed_by_studio_head_id is None
+            and doc.reviewed_by_ceo_id is None
+        )
+
+    @staticmethod
     def _is_studio_head_rejected(doc):
         return (
             doc.status == 'rejected'
@@ -181,10 +235,14 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
             and doc.reviewed_by_ceo_id is None
         )
 
+    @classmethod
+    def _is_revisable_rejected(cls, doc):
+        return cls._is_bim_rejected(doc) or cls._is_studio_head_rejected(doc)
+
     @staticmethod
     def _visible_to_ceo_queryset():
         return BimDocumentation.objects.filter(
-            Q(status='pending_review', reviewed_by_studio_head__isnull=False)
+            Q(status='pending_ceo_review', reviewed_by_studio_head__isnull=False)
             | Q(status='approved', reviewed_by_ceo__isnull=False)
             | Q(status='rejected', reviewed_by_ceo__isnull=False)
         )
@@ -199,6 +257,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         return BimDocumentation.objects.filter(
             created_by__role__in=self.junior_architect_role_aliases,
             status='approved',
+            reviewed_by_bim__isnull=False,
             reviewed_by_studio_head__isnull=False,
             reviewed_by_ceo__isnull=False,
         )
@@ -206,9 +265,9 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """
         Filter based on user role:
-        - BIM Specialist: Can see own docs + Junior Architect docs approved by Studio Head and CEO
+        - BIM Specialist: Can see own docs + pending BIM review docs from Junior Architect + fully approved Junior Architect docs
         - Junior Architect: Can see own docs
-        - Studio Head: Can see all pending, approved, and rejected docs
+        - Studio Head: Can see docs pending Studio Head review + historical decisions
         - CEO / President: Can only see docs forwarded to CEO or already decided by CEO
         - Admin: Can see all docs
         """
@@ -220,13 +279,15 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
             approved_junior_doc_ids = self._approved_junior_docs_queryset().values_list('id', flat=True)
             queryset = BimDocumentation.objects.filter(
                 Q(created_by=user)
+                | Q(created_by__role__in=self.junior_architect_role_aliases, status='pending_bim_review')
                 | Q(id__in=approved_junior_doc_ids)
             )
         elif user.role in self.junior_architect_role_aliases:
             queryset = BimDocumentation.objects.filter(created_by=user)
         elif user.role == 'studio_head':
             queryset = BimDocumentation.objects.filter(
-                Q(status__in=['pending_review', 'approved', 'rejected'])
+                Q(status__in=['pending_studio_head_review', 'pending_ceo_review', 'approved'])
+                | Q(status='rejected', reviewed_by_studio_head__isnull=False)
             )
         elif user.role in ['ceo', 'president']:
             queryset = self._visible_to_ceo_queryset()
@@ -239,6 +300,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
 
         queryset = queryset.select_related(
             'created_by',
+            'reviewed_by_bim',
             'reviewed_by_studio_head',
             'reviewed_by_ceo',
         ).prefetch_related('files')
@@ -332,7 +394,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     def update(self, request, *args, **kwargs):
         """
         Update BIM documentation.
-        Only the creator can update draft docs or docs rejected by Studio Head.
+        Only the creator can update draft docs or docs rejected by BIM/Studio Head.
         Supports adding new files during update.
         """
         doc = self.get_object()
@@ -343,11 +405,11 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        can_edit = doc.status == 'draft' or self._is_studio_head_rejected(doc)
+        can_edit = doc.status == 'draft' or self._is_revisable_rejected(doc)
 
         if not can_edit:
             return Response(
-                {'error': 'Can only edit draft or Studio Head-rejected documentation'},
+                {'error': 'Can only edit draft or BIM/Studio Head-rejected documentation'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -434,7 +496,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     def submit(self, request, pk=None):
         """
         Submit documentation for review.
-        Changes status from draft/rejected to pending_review.
+        Changes status from draft/rejected to the next queue.
         """
         doc = self.get_object()
         
@@ -444,26 +506,35 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        can_resubmit_after_studio_head_rejection = self._is_studio_head_rejected(doc)
+        can_resubmit_after_rejection = self._is_revisable_rejected(doc)
 
-        if doc.status != 'draft' and not can_resubmit_after_studio_head_rejection:
+        if doc.status != 'draft' and not can_resubmit_after_rejection:
             return Response(
-                {'error': 'Only draft or Studio Head-rejected documentation can be submitted'},
+                {'error': 'Only draft or BIM/Studio Head-rejected documentation can be submitted'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         update_fields = ['status', 'updated_at']
-        if can_resubmit_after_studio_head_rejection:
+        if can_resubmit_after_rejection:
+            doc.reviewed_by_bim = None
+            doc.bim_reviewed_at = None
+            doc.bim_comments = ''
             doc.reviewed_by_studio_head = None
             doc.studio_head_reviewed_at = None
             doc.studio_head_comments = ''
             update_fields.extend([
+                'reviewed_by_bim',
+                'bim_reviewed_at',
+                'bim_comments',
                 'reviewed_by_studio_head',
                 'studio_head_reviewed_at',
                 'studio_head_comments',
             ])
 
-        doc.status = 'pending_review'
+        if str(getattr(doc.created_by, 'role', '') or '').lower() in self.junior_architect_role_aliases:
+            doc.status = 'pending_bim_review'
+        else:
+            doc.status = 'pending_studio_head_review'
         doc.save(update_fields=update_fields)
 
         try:
@@ -478,7 +549,8 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     def approval_action(self, request, pk=None):
         """
         Approve or reject documentation.
-        - Studio Head: First level of approval/rejection
+        - BIM Specialist: First level for Junior Architect submissions
+        - Studio Head: Second level approval/rejection
         - CEO: Final approval/rejection
         """
         doc = self.get_object()
@@ -490,11 +562,67 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         
         user = request.user
         
+        # BIM Specialist Review (for junior architect submissions)
+        if user.role == 'bim_specialist':
+            if doc.status != 'pending_bim_review':
+                return Response(
+                    {'error': 'Documentation must be pending BIM review'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            creator_role = str(getattr(doc.created_by, 'role', '') or '').lower()
+            if creator_role not in self.junior_architect_role_aliases:
+                return Response(
+                    {'error': 'BIM review stage is only for Junior Architect documentation'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if action_type == 'approve':
+                doc.approve_bim(user, comments)
+                if comments:
+                    BimDocumentationComment.objects.create(
+                        documentation=doc,
+                        author=user,
+                        content=f"✅ Approved by BIM Specialist: {comments}",
+                        is_system_comment=True,
+                    )
+                else:
+                    BimDocumentationComment.objects.create(
+                        documentation=doc,
+                        author=user,
+                        content="✅ Approved by BIM Specialist — forwarded to Studio Head.",
+                        is_system_comment=True,
+                    )
+                try:
+                    _notify_studio_head_documentation_forwarded(doc, user)
+                except Exception as exc:
+                    logger.warning('Failed to notify Studio Head for BIM doc %s forward: %s', doc.id, exc)
+                return Response(
+                    {'message': 'Documentation approved and forwarded to Studio Head'},
+                    status=status.HTTP_200_OK
+                )
+
+            doc.reject(user, comments, reviewer_stage='bim')
+            BimDocumentationComment.objects.create(
+                documentation=doc,
+                author=user,
+                content=f"❌ Rejected by BIM Specialist: {comments}" if comments else "❌ Rejected by BIM Specialist.",
+                is_system_comment=True,
+            )
+            try:
+                _notify_documentation_rejected(doc, user)
+            except Exception as exc:
+                logger.warning('Failed to notify creator for BIM rejection doc %s: %s', doc.id, exc)
+            return Response(
+                {'message': 'Documentation rejected'},
+                status=status.HTTP_200_OK
+            )
+
         # Studio Head Review
         if user.role == 'studio_head':
-            if doc.status != 'pending_review':
+            if doc.status != 'pending_studio_head_review':
                 return Response(
-                    {'error': 'Documentation must be pending review'},
+                    {'error': 'Documentation must be pending Studio Head review'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
@@ -523,7 +651,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_200_OK
                 )
             else:
-                doc.reject(user, comments, is_studio_head=True)
+                doc.reject(user, comments, reviewer_stage='studio_head')
                 BimDocumentationComment.objects.create(
                     documentation=doc,
                     author=user,
@@ -541,9 +669,9 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         
         # CEO Review
         elif user.role in ['ceo', 'president']:
-            if doc.status != 'pending_review':
+            if doc.status != 'pending_ceo_review':
                 return Response(
-                    {'error': 'Documentation must be pending review'},
+                    {'error': 'Documentation must be pending CEO review'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             
@@ -568,7 +696,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_200_OK
                 )
             else:
-                doc.reject(user, comments, is_studio_head=False)
+                doc.reject(user, comments, reviewer_stage='ceo')
                 BimDocumentationComment.objects.create(
                     documentation=doc,
                     author=user,
@@ -612,11 +740,11 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        can_edit_files = doc.status == 'draft' or self._is_studio_head_rejected(doc)
+        can_edit_files = doc.status == 'draft' or self._is_revisable_rejected(doc)
 
         if not can_edit_files:
             return Response(
-                {'error': 'Can only edit draft or Studio Head-rejected documentation'},
+                {'error': 'Can only edit draft or BIM/Studio Head-rejected documentation'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -640,11 +768,16 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         """
         user = request.user
         
-        if user.role == 'studio_head':
-            docs = BimDocumentation.objects.filter(status='pending_review')
+        if user.role == 'bim_specialist':
+            docs = BimDocumentation.objects.filter(
+                status='pending_bim_review',
+                created_by__role__in=self.junior_architect_role_aliases,
+            )
+        elif user.role == 'studio_head':
+            docs = BimDocumentation.objects.filter(status='pending_studio_head_review')
         elif user.role in ['ceo', 'president']:
             docs = BimDocumentation.objects.filter(
-                status='pending_review',
+                status='pending_ceo_review',
                 reviewed_by_studio_head__isnull=False
             )
         else:

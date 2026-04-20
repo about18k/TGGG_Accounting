@@ -8,7 +8,7 @@ const CeoJuniorArchitectDocumentationPage = ({ user, onNavigate, onLogout }) => 
         onLogout={onLogout}
         pageEyebrow="CEO Final Review"
         pageTitle="Junior Architect Documentation"
-        pageDescription="Review Junior Architect documentation that already passed Studio Head review."
+        pageDescription="Review Junior Architect documentation that passed BIM and Studio Head review."
         navigationCurrentPage="ceo-junior-docs"
         sidebarCurrentPage="ceo-junior-docs"
         documentationQuery={{ created_by_role: 'junior_architect' }}

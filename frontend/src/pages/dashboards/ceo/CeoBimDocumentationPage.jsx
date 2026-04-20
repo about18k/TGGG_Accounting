@@ -5,7 +5,6 @@ import {
     Clock3,
     FileText,
     FolderKanban,
-    Paperclip,
     User2,
     XCircle,
 } from 'lucide-react';
@@ -41,7 +40,7 @@ const TAB_CONFIG = [
 ];
 
 const STATUS_TO_TAB_ID = {
-    pending_review: 'pending',
+    pending_ceo_review: 'pending',
     approved: 'approved',
     rejected: 'rejected',
 };
@@ -150,6 +149,7 @@ const getAttachmentDisplayName = (name) => {
 };
 
 const getDisplayType = (type) => DOC_TYPE_LABELS[type] || type || 'Documentation';
+const normalizeText = (value) => String(value || '').trim().toLowerCase();
 
 const SummaryCard = ({ label, value, icon: Icon, tone = 'neutral', isActive = false, onClick }) => {
     const toneStyles = {
@@ -184,7 +184,15 @@ const SummaryCard = ({ label, value, icon: Icon, tone = 'neutral', isActive = fa
 
 const DocumentListItem = ({ doc, isSelected, onSelect }) => {
     const statusMeta = getStatusMeta(doc.status);
-    const attachmentCount = doc.files?.length ?? doc.file_count ?? 0;
+    const titleText = String(doc.title || 'Untitled documentation').trim();
+    const displayType = String(getDisplayType(doc.doc_type) || '').trim();
+    const normalizedTitle = normalizeText(titleText);
+    const normalizedType = normalizeText(displayType);
+    const shouldShowType = Boolean(displayType)
+        && normalizedType !== normalizedTitle
+        && !['no file', 'no files'].includes(normalizedType);
+
+    const statusLabel = statusMeta.tabId === 'pending' ? 'Pending' : statusMeta.label;
 
     return (
         <button
@@ -198,37 +206,25 @@ const DocumentListItem = ({ doc, isSelected, onSelect }) => {
         >
             <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <p className="text-sm font-semibold text-white line-clamp-2">{doc.title}</p>
-                    <p className="mt-1 text-xs text-white/45">{getDisplayType(doc.doc_type)}</p>
+                    <p className="text-sm font-semibold text-white line-clamp-2">{titleText}</p>
+                    {shouldShowType && (
+                        <p className="mt-1 text-xs text-white/45">{displayType}</p>
+                    )}
                 </div>
-                <Badge tone={statusMeta.tone}>{statusMeta.label}</Badge>
+                <Badge tone={statusMeta.tone}>{statusLabel}</Badge>
             </div>
 
-            <div className="mt-3 grid gap-2 text-xs text-white/55 sm:grid-cols-2">
-                <div className="flex items-center gap-2 min-w-0">
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-white/55">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                     <User2 className="h-3.5 w-3.5 shrink-0" />
                     <span className="truncate">{doc.created_by_name || 'Unknown author'}</span>
                 </div>
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
                     <CalendarDays className="h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">{formatDate(doc.doc_date)}</span>
+                    <span className="truncate">{formatDateTime(doc.created_at)}</span>
                 </div>
             </div>
 
-            {doc.studio_head_comments && (
-                <div className="mt-3 rounded-xl border border-white/10 bg-black/10 px-3 py-2">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/35">Studio Head Note</p>
-                    <p className="mt-1 text-xs text-white/65 line-clamp-2">{doc.studio_head_comments}</p>
-                </div>
-            )}
-
-            <div className="mt-3 flex items-center justify-between gap-3 text-xs text-white/40">
-                <span>{formatDateTime(doc.created_at)}</span>
-                <span className="inline-flex items-center gap-1.5">
-                    <Paperclip className="h-3.5 w-3.5" />
-                    {attachmentCount} file{attachmentCount === 1 ? '' : 's'}
-                </span>
-            </div>
         </button>
     );
 };
@@ -303,7 +299,7 @@ const CeoBimDocumentationPage = ({
             const docs = Array.isArray(result.data) ? result.data : (result.data?.results || []);
             const ceoDocs = docs.filter(
                 (doc) => {
-                    if (doc.status === 'pending_review') {
+                    if (doc.status === 'pending_ceo_review') {
                         return doc.reviewed_by_studio_head !== null && doc.reviewed_by_studio_head !== undefined;
                     }
 
@@ -315,7 +311,7 @@ const CeoBimDocumentationPage = ({
                 }
             );
 
-            setPendingDocs(ceoDocs.filter((doc) => doc.status === 'pending_review'));
+            setPendingDocs(ceoDocs.filter((doc) => doc.status === 'pending_ceo_review'));
             setApprovedDocs(ceoDocs.filter((doc) => doc.status === 'approved'));
             setRejectedDocs(ceoDocs.filter((doc) => doc.status === 'rejected'));
         } else {
@@ -428,7 +424,7 @@ const CeoBimDocumentationPage = ({
     };
 
     const requiresDecision = Boolean(
-        selectedDoc && selectedDoc.status === 'pending_review' && !selectedDoc.reviewed_by_ceo_name
+        selectedDoc && selectedDoc.status === 'pending_ceo_review' && !selectedDoc.reviewed_by_ceo_name
     );
     const statusMeta = getStatusMeta(selectedDoc?.status);
     const attachmentCount = selectedDoc ? (selectedDoc.files?.length ?? selectedDoc.file_count ?? 0) : 0;
@@ -495,19 +491,19 @@ const CeoBimDocumentationPage = ({
                             />
                         </section>
 
-                        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                        <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-stretch">
                             <div className="lg:col-span-1">
-                                <div className={cardClass}>
-                                    <div className="p-5 border-b border-white/10">
+                                <div className={`${cardClass} flex flex-col h-[70vh] min-h-[560px] lg:h-[740px] overflow-hidden`}>
+                                    <div className="sticky top-0 z-10 p-5 border-b border-white/10 bg-[#001f35]/95 backdrop-blur-sm">
                                         <p className="text-lg font-semibold text-white">{activeTabMeta.label}</p>
                                         <p className="mt-1 text-sm text-white/55">{activeTabMeta.description}</p>
                                     </div>
 
-                                    <div className="p-4">
+                                    <div className="flex-1 min-h-0 overflow-y-auto p-4">
                                         {loading ? (
                                             <p className="py-10 text-center text-sm text-white/55">Loading documentation...</p>
                                         ) : activeDocs.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center py-16 px-4">
+                                            <div className="flex h-full flex-col items-center justify-center py-16 px-4">
                                                 <div className="w-16 h-16 bg-[#FF7120]/10 rounded-2xl border border-[#FF7120]/20 flex items-center justify-center mb-4">
                                                     <Clock3 className="w-8 h-8 text-[#FF7120]" />
                                                 </div>
@@ -515,7 +511,7 @@ const CeoBimDocumentationPage = ({
                                                 <p className="mt-2 text-sm text-white/50 max-w-[200px] mx-auto">{activeTabMeta.emptyText}</p>
                                             </div>
                                         ) : (
-                                            <div className="space-y-3 max-h-[740px] overflow-y-auto pr-1">
+                                            <div className="space-y-3 pr-1">
                                                 {activeDocs.map((doc) => (
                                                     <DocumentListItem
                                                         key={doc.id}
@@ -532,8 +528,8 @@ const CeoBimDocumentationPage = ({
 
                             <div className="lg:col-span-2">
                                 {selectedDoc ? (
-                                    <section className={cardClass}>
-                                        <div className="p-6 border-b border-white/10">
+                                    <section className={`${cardClass} flex flex-col h-[70vh] min-h-[560px] lg:h-[740px] overflow-hidden`}>
+                                        <div className="sticky top-0 z-10 p-6 border-b border-white/10 bg-[#001f35]/95 backdrop-blur-sm">
                                             <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                                                 <div className="min-w-0">
                                                     <h2 className="text-2xl font-semibold text-white break-words">{selectedDoc.title}</h2>
@@ -558,18 +554,11 @@ const CeoBimDocumentationPage = ({
                                             </div>
                                         </div>
 
-                                        <div className="p-6 space-y-6">
+                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
                                             <div>
                                                 <h3 className="text-sm font-semibold text-white mb-2">Description</h3>
                                                 <p className="text-sm text-white/72 whitespace-pre-wrap leading-7">
                                                     {selectedDoc.description || 'No description was provided for this submission.'}
-                                                </p>
-                                            </div>
-
-                                            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-                                                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/35">Studio Head Handoff Note</p>
-                                                <p className="mt-2 text-sm text-white/72 whitespace-pre-wrap leading-7">
-                                                    {selectedDoc.studio_head_comments || 'No additional Studio Head note was attached to this submission.'}
                                                 </p>
                                             </div>
 
@@ -672,8 +661,8 @@ const CeoBimDocumentationPage = ({
                                         </div>
                                     </section>
                                 ) : (
-                                    <div className={cardClass}>
-                                        <div className="flex flex-col items-center justify-center py-32 px-4 text-center">
+                                    <div className={`${cardClass} h-[70vh] min-h-[560px] lg:h-[740px]`}>
+                                        <div className="flex h-full flex-col items-center justify-center py-32 px-4 text-center">
                                             <div className="w-20 h-20 bg-[#FF7120]/10 rounded-3xl border border-[#FF7120]/20 flex items-center justify-center mb-6">
                                                 <FileText className="w-10 h-10 text-[#FF7120]" />
                                             </div>

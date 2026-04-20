@@ -86,10 +86,30 @@ class BimDocumentationResubmissionTests(APITestCase):
 
         return doc_id
 
-    def _assert_creator_can_edit_and_resubmit_after_studio_head_rejection(self, creator, title):
+    def _move_junior_doc_to_studio_head_queue(self, doc_id):
+        self.client.force_authenticate(self.bim_specialist)
+        bim_approve = self.client.post(
+            f'/api/bim-docs/{doc_id}/approval_action/',
+            {'action': 'approve', 'comments': 'Validated by BIM.'},
+            format='json',
+        )
+        self.assertEqual(bim_approve.status_code, status.HTTP_200_OK)
+
+    def _move_junior_doc_to_ceo_queue(self, doc_id):
+        self._move_junior_doc_to_studio_head_queue(doc_id)
+        self.client.force_authenticate(self.studio_head)
+        studio_head_approve = self.client.post(
+            f'/api/bim-docs/{doc_id}/approval_action/',
+            {'action': 'approve', 'comments': 'Forwarding to CEO.'},
+            format='json',
+        )
+        self.assertEqual(studio_head_approve.status_code, status.HTTP_200_OK)
+
+    def _assert_creator_can_edit_and_resubmit_after_rejection(self, creator, title):
         doc_id = self._create_and_submit_documentation(creator=creator, title=title)
 
-        self.client.force_authenticate(self.studio_head)
+        reviewer = self.bim_specialist if creator.role in ['junior_architect', 'junior_designer'] else self.studio_head
+        self.client.force_authenticate(reviewer)
         reject_response = self.client.post(
             f'/api/bim-docs/{doc_id}/approval_action/',
             {'action': 'reject', 'comments': 'Please revise the model notes.'},
@@ -116,18 +136,21 @@ class BimDocumentationResubmissionTests(APITestCase):
         self.assertEqual(resubmit_response.status_code, status.HTTP_200_OK)
 
         documentation = BimDocumentation.objects.get(pk=doc_id)
-        self.assertEqual(documentation.status, 'pending_review')
+        expected_status = 'pending_bim_review' if creator.role in ['junior_architect', 'junior_designer'] else 'pending_studio_head_review'
+        self.assertEqual(documentation.status, expected_status)
+        self.assertIsNone(documentation.reviewed_by_bim)
+        self.assertEqual(documentation.bim_comments, '')
         self.assertIsNone(documentation.reviewed_by_studio_head)
         self.assertEqual(documentation.studio_head_comments, '')
 
     def test_bim_specialist_can_edit_and_resubmit_after_studio_head_rejection(self):
-        self._assert_creator_can_edit_and_resubmit_after_studio_head_rejection(
+        self._assert_creator_can_edit_and_resubmit_after_rejection(
             creator=self.bim_specialist,
             title='BIM Specialist Submission',
         )
 
     def test_junior_architect_can_edit_and_resubmit_after_studio_head_rejection(self):
-        self._assert_creator_can_edit_and_resubmit_after_studio_head_rejection(
+        self._assert_creator_can_edit_and_resubmit_after_rejection(
             creator=self.junior_architect,
             title='Junior Architect Submission',
         )
@@ -163,7 +186,7 @@ class BimDocumentationResubmissionTests(APITestCase):
         self.assertEqual(update_response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(
             update_response.data['error'],
-            'Can only edit draft or Studio Head-rejected documentation',
+            'Can only edit draft or BIM/Studio Head-rejected documentation',
         )
 
     def test_studio_head_rejected_documentation_is_hidden_from_ceo(self):
@@ -194,13 +217,7 @@ class BimDocumentationResubmissionTests(APITestCase):
             title='Junior Architect Approved Design',
         )
 
-        self.client.force_authenticate(self.studio_head)
-        studio_head_approve = self.client.post(
-            f'/api/bim-docs/{doc_id}/approval_action/',
-            {'action': 'approve', 'comments': 'Forwarding to CEO.'},
-            format='json',
-        )
-        self.assertEqual(studio_head_approve.status_code, status.HTTP_200_OK)
+        self._move_junior_doc_to_ceo_queue(doc_id)
 
         self.client.force_authenticate(self.ceo)
         ceo_approve = self.client.post(
@@ -233,13 +250,7 @@ class BimDocumentationResubmissionTests(APITestCase):
             title='Junior Architect Pending CEO Approval',
         )
 
-        self.client.force_authenticate(self.studio_head)
-        studio_head_approve = self.client.post(
-            f'/api/bim-docs/{doc_id}/approval_action/',
-            {'action': 'approve', 'comments': 'Forwarding to CEO.'},
-            format='json',
-        )
-        self.assertEqual(studio_head_approve.status_code, status.HTTP_200_OK)
+        self._move_junior_doc_to_studio_head_queue(doc_id)
 
         self.client.force_authenticate(self.bim_specialist)
         list_response = self.client.get('/api/bim-docs/?created_by_role=junior_architect')
@@ -259,13 +270,7 @@ class BimDocumentationResubmissionTests(APITestCase):
             title='Legacy Junior Designer Approved Design',
         )
 
-        self.client.force_authenticate(self.studio_head)
-        studio_head_approve = self.client.post(
-            f'/api/bim-docs/{doc_id}/approval_action/',
-            {'action': 'approve', 'comments': 'Forwarding to CEO.'},
-            format='json',
-        )
-        self.assertEqual(studio_head_approve.status_code, status.HTTP_200_OK)
+        self._move_junior_doc_to_ceo_queue(doc_id)
 
         self.client.force_authenticate(self.ceo)
         ceo_approve = self.client.post(
@@ -327,12 +332,35 @@ class BimDocumentationResubmissionTests(APITestCase):
 
         notification = (
             TodoNotification.objects
-            .filter(recipient=self.studio_head, type='bim_submitted_to_sh')
+            .filter(recipient=self.bim_specialist, type='bim_submitted_to_bim')
             .order_by('-created_at')
             .first()
         )
         self.assertIsNotNone(notification)
         self.assertIn('junior architect', notification.message.lower())
+
+    def test_bim_approval_notifies_studio_head(self):
+        doc_id = self._create_and_submit_documentation(
+            creator=self.junior_architect,
+            title='Junior Architect Submission for Studio Head Notification',
+        )
+
+        self.client.force_authenticate(self.bim_specialist)
+        bim_approve = self.client.post(
+            f'/api/bim-docs/{doc_id}/approval_action/',
+            {'action': 'approve', 'comments': 'Forwarding to Studio Head.'},
+            format='json',
+        )
+        self.assertEqual(bim_approve.status_code, status.HTTP_200_OK)
+
+        notification = (
+            TodoNotification.objects
+            .filter(recipient=self.studio_head, type='bim_forwarded_to_sh')
+            .order_by('-created_at')
+            .first()
+        )
+        self.assertIsNotNone(notification)
+        self.assertIn('forwarded', notification.message.lower())
 
     def test_studio_head_rejection_notifies_documentation_creator(self):
         doc_id = self._create_and_submit_documentation(
@@ -387,6 +415,21 @@ class BimDocumentationResubmissionTests(APITestCase):
         )
         self.assertIsNotNone(notification)
         self.assertIn('ceo', notification.message.lower())
+
+    def test_junior_doc_requires_bim_review_before_studio_head_can_approve(self):
+        doc_id = self._create_and_submit_documentation(
+            creator=self.junior_architect,
+            title='Junior Doc Gatekeeping Check',
+        )
+
+        self.client.force_authenticate(self.studio_head)
+        studio_head_approve = self.client.post(
+            f'/api/bim-docs/{doc_id}/approval_action/',
+            {'action': 'approve', 'comments': 'Attempting to skip BIM stage.'},
+            format='json',
+        )
+        self.assertEqual(studio_head_approve.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('pending studio head review', studio_head_approve.data['error'].lower())
 
     def test_create_documentation_requires_at_least_one_uploaded_image(self):
         self.client.force_authenticate(self.bim_specialist)

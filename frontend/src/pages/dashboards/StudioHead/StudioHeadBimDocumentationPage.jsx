@@ -64,7 +64,7 @@ const getStatusMeta = (doc) => {
         tabId = 'approved';
     } else if (doc.status === 'rejected') {
         tabId = 'rejected';
-    } else if (doc.status === 'pending_review' && doc.reviewed_by_studio_head) {
+    } else if (doc.status === 'pending_ceo_review' && doc.reviewed_by_studio_head) {
         tabId = 'forwarded';
     }
 
@@ -302,8 +302,8 @@ const StudioHeadBimDocumentationPage = ({
         if (result.success) {
             const docs = Array.isArray(result.data) ? result.data : (result.data?.results || []);
 
-            setPendingDocs(docs.filter((doc) => doc.status === 'pending_review' && !doc.reviewed_by_studio_head));
-            setForwardedDocs(docs.filter((doc) => doc.status === 'pending_review' && doc.reviewed_by_studio_head));
+            setPendingDocs(docs.filter((doc) => doc.status === 'pending_studio_head_review'));
+            setForwardedDocs(docs.filter((doc) => doc.status === 'pending_ceo_review'));
             setApprovedDocs(docs.filter((doc) => doc.status === 'approved'));
             setRejectedDocs(docs.filter((doc) => doc.status === 'rejected'));
         } else {
@@ -328,7 +328,7 @@ const StudioHeadBimDocumentationPage = ({
 
             updatedDoc = {
                 ...found,
-                status: action === 'approve' ? 'pending_review' : 'rejected',
+                status: action === 'approve' ? 'pending_ceo_review' : 'rejected',
                 reviewed_by_studio_head: user?.id || found.reviewed_by_studio_head || true,
                 reviewed_by_studio_head_name: reviewerName,
                 studio_head_reviewed_at: reviewedAt,
@@ -416,7 +416,7 @@ const StudioHeadBimDocumentationPage = ({
     };
 
     const requiresDecision = Boolean(
-        selectedDoc && selectedDoc.status === 'pending_review' && !selectedDoc.reviewed_by_studio_head
+        selectedDoc && selectedDoc.status === 'pending_studio_head_review' && !selectedDoc.reviewed_by_studio_head
     );
     const statusMeta = getStatusMeta(selectedDoc);
     const attachmentCount = selectedDoc ? (selectedDoc.files?.length ?? selectedDoc.file_count ?? 0) : 0;

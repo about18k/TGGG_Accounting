@@ -53,6 +53,11 @@ class BimDocumentationSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True
     )
+    reviewed_by_bim_name = serializers.CharField(
+        source='reviewed_by_bim.get_full_name',
+        read_only=True,
+        allow_null=True
+    )
     reviewed_by_ceo_name = serializers.CharField(
         source='reviewed_by_ceo.get_full_name',
         read_only=True,
@@ -72,6 +77,10 @@ class BimDocumentationSerializer(serializers.ModelSerializer):
             'created_by_name',
             'created_by_email',
             'status',
+            'reviewed_by_bim',
+            'reviewed_by_bim_name',
+            'bim_reviewed_at',
+            'bim_comments',
             'reviewed_by_studio_head',
             'reviewed_by_studio_head_name',
             'studio_head_reviewed_at',
@@ -88,6 +97,9 @@ class BimDocumentationSerializer(serializers.ModelSerializer):
             'created_by',
             'created_at',
             'updated_at',
+            'reviewed_by_bim',
+            'bim_reviewed_at',
+            'bim_comments',
             'reviewed_by_studio_head',
             'studio_head_reviewed_at',
             'studio_head_comments',
@@ -116,6 +128,11 @@ class BimDocumentationListSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True
     )
+    reviewed_by_bim_name = serializers.CharField(
+        source='reviewed_by_bim.get_full_name',
+        read_only=True,
+        allow_null=True
+    )
     reviewed_by_ceo_name = serializers.CharField(
         source='reviewed_by_ceo.get_full_name',
         read_only=True,
@@ -136,6 +153,10 @@ class BimDocumentationListSerializer(serializers.ModelSerializer):
             'created_by_name',
             'created_by_email',
             'status',
+            'reviewed_by_bim',
+            'reviewed_by_bim_name',
+            'bim_reviewed_at',
+            'bim_comments',
             'reviewed_by_studio_head',
             'reviewed_by_studio_head_name',
             'studio_head_reviewed_at',

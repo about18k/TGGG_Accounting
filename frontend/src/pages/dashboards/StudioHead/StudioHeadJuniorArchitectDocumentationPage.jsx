@@ -7,7 +7,7 @@ const StudioHeadJuniorArchitectDocumentationPage = ({ user, onNavigate }) => (
         onNavigate={onNavigate}
         pageEyebrow="Studio Head Review"
         pageTitle="Junior Architect Documentation"
-        pageDescription="Approve Junior Architect documentation submissions before they are forwarded to the CEO."
+        pageDescription="Approve Junior Architect documentation submissions after BIM review and before CEO final decision."
         navigationCurrentPage="studio-head-junior-docs"
         sidebarCurrentPage="studio-head-junior-docs"
         documentationQuery={{ created_by_role: 'junior_architect' }}
