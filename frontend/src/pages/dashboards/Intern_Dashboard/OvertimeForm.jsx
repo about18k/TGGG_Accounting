@@ -22,6 +22,16 @@ const TIME_SLOTS = [
   { value: '22:00', label: '10:00 PM' }
 ];
 
+const mapRoleToDepartment = (roleStr) => {
+  if (!roleStr) return '';
+  const r = String(roleStr).toLowerCase();
+  if (r === 'accounting') return 'Accounting Department';
+  if (['junior_architect', 'bim_specialist', 'studio_head'].includes(r)) return 'Design Department';
+  if (['site_engineer', 'site_coordinator'].includes(r)) return 'Engineering Department';
+  if (r === 'intern') return 'OJT Department';
+  return '';
+};
+
 const calculateTotalHoursFromPeriods = (periods) => {
   let totalMilliseconds = 0;
   periods.forEach(({ start_date, start_time, end_date, end_time }) => {
@@ -87,6 +97,7 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
           ...prev,
           employee_name: data.full_name || `${data.first_name} ${data.last_name}`.trim() || prev.employee_name,
           job_position: formatJobPosition(data.role_name || data.role || prev.job_position),
+          department: mapRoleToDepartment(data.role) || prev.department,
           employee_signature: data.signature_image || ''
         }));
       } catch (err) {
@@ -336,17 +347,12 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
                 </div>
                 <div className="overtime-field span-3">
                   <label>Department</label>
-                  <select
+                  <input
+                    type="text"
                     value={form.department}
-                    onChange={(e) => updateFormField('department', e.target.value)}
+                    readOnly
                     required
-                  >
-                    <option value="">Select department</option>
-                    <option value="OJT Department">OJT Department</option>
-                    <option value="Design Department">Design Department</option>
-                    <option value="Engineering Department">Engineering Department</option>
-                    <option value="Accounting Department">Accounting Department</option>
-                  </select>
+                  />
                 </div>
               </div>
 
