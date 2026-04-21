@@ -112,23 +112,15 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
             const ownDocs = docs.filter((doc) => isOwnedByCurrentUser(doc));
             const juniorForBimReviewDocs = docs.filter((doc) => (
                 !isOwnedByCurrentUser(doc)
-                && doc.status === 'pending_bim_review'
-                && !doc.reviewed_by_bim
+                && ['pending_bim_review', 'pending_studio_head_review', 'pending_ceo_review'].includes(doc.status)
             ));
             const juniorFinalApprovedDocs = docs.filter((doc) => (
                 !isOwnedByCurrentUser(doc)
-                && !!doc.reviewed_by_bim
-                && (
-                    doc.status === 'pending_bim_review'
-                    || doc.status === 'pending_studio_head_review'
-                    || doc.status === 'pending_ceo_review'
-                    || doc.status === 'approved'
-                )
+                && doc.status === 'approved'
             ));
             const juniorFinalRejectedDocs = docs.filter((doc) => (
                 !isOwnedByCurrentUser(doc)
                 && doc.status === 'rejected'
-                && !!doc.reviewed_by_bim
             ));
 
             setSavedDocs(ownDocs);
@@ -246,16 +238,26 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
 
     const getStatusLabel = (doc) => {
         if (doc?.status === 'pending_bim_review') {
-            if (doc?.reviewed_by_studio_head) {
-                return 'Approved by Studio Head - Awaiting BIM Review';
+            const awaitingBim = !doc?.reviewed_by_bim;
+            const awaitingStudioHead = !doc?.reviewed_by_studio_head;
+
+            if (awaitingBim && awaitingStudioHead) {
+                return 'Awaiting Approval';
             }
-            return 'Awaiting BIM Review';
+            if (awaitingBim) {
+                return 'Awaiting BIM Approval';
+            }
+            if (awaitingStudioHead) {
+                return 'Awaiting Studio Head Approval';
+            }
+
+            return 'Awaiting Approval';
         }
         if (doc?.status === 'pending_studio_head_review') {
-            return 'Awaiting Studio Head Review';
+            return 'Awaiting Studio Head Approval';
         }
         if (isForwardedToCeo(doc)) {
-            return 'Forwarded to the CEO';
+            return 'Awaiting CEO Final Review';
         }
 
         const labels = {
@@ -994,18 +996,6 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                                         </div>
                                                     )}
 
-                                                    {doc.status === 'pending_bim_review' && (
-                                                        <div className="pt-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                                                            <p className="text-xs text-blue-300">Awaiting BIM review...</p>
-                                                        </div>
-                                                    )}
-
-                                                    {doc.status === 'pending_ceo_review' && (
-                                                        <div className="pt-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-                                                            <p className="text-xs text-green-300">Forwarded to the CEO</p>
-                                                        </div>
-                                                    )}
-
                                                     {doc.status === 'rejected' && (
                                                         <div className="pt-2 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg">
                                                             <p className="text-xs text-red-300">
@@ -1042,7 +1032,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                         <div className="max-w-2xl text-left space-y-1.5">
                                             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight leading-tight text-white">Junior Architect Review</h2>
                                             <p className="text-sm leading-relaxed text-white/65">
-                                                Review Junior Architect documentation pending BIM decision, then browse finalized approvals.
+                                                Review Junior Architect documentation pending approval, then browse finalized approvals.
                                             </p>
                                         </div>
                                         <div className="self-start sm:self-end flex flex-col items-start sm:items-end gap-2 w-full sm:w-auto">
@@ -1100,10 +1090,10 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                             Icon={juniorOutcomeFilter === 'approved' ? CheckCircle2 : Clock3}
                                             accent={juniorOutcomeFilter === 'approved' ? 'green' : 'orange'}
                                             title={juniorOutcomeFilter === 'pending'
-                                                ? 'No pending BIM reviews'
+                                                ? 'No pending approvals'
                                                 : (juniorOutcomeFilter === 'rejected' ? 'No rejected submissions yet' : 'No approved submissions yet')}
                                             subtitle={juniorOutcomeFilter === 'pending'
-                                                ? 'Junior Architect submissions waiting for BIM approval will show here.'
+                                                ? 'Junior Architect submissions awaiting BIM, Studio Head, or CEO approval will show here.'
                                                 : (juniorOutcomeFilter === 'rejected'
                                                     ? 'Rejected Junior Architect documentation will show here when available.'
                                                     : 'Approved Junior Architect documentation will show here once finalized.')}
@@ -1117,6 +1107,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                                     const previewableImages = files.filter((file) => (file.is_image || file.file_type === 'image') && file.file_url);
                                                     const commentValue = reviewComments[doc.id] || '';
                                                     const decisionLoading = Boolean(decisionLoadingByDoc[doc.id]);
+                                                    const canBimDecide = doc.status === 'pending_bim_review' && !doc.reviewed_by_bim;
 
                                                     return (
                                                         <div key={doc.id} className="h-full rounded-2xl border border-white/10 bg-[#00273C]/45 overflow-hidden p-3 sm:p-5 gap-3 sm:gap-4 hover:border-white/20 transition flex flex-col">
@@ -1126,7 +1117,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                                                         <h3 className="text-base sm:text-lg font-semibold text-white leading-snug truncate">{doc.title}</h3>
                                                                         <p className="text-xs text-white/50 mt-1">By: {doc.created_by_name || doc.created_by_email || 'Junior Architect'}</p>
                                                                     </div>
-                                                                    <Badge tone="pending">Awaiting BIM Review</Badge>
+                                                                    <Badge tone={getStatusColor(doc)}>{getStatusLabel(doc)}</Badge>
                                                                 </div>
 
                                                                 <div className="flex gap-2.5 flex-wrap">
@@ -1180,35 +1171,39 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
 
                                                             </div>
 
-                                                            <div className="space-y-2 pt-3 border-t border-white/10">
-                                                                <label className="block text-xs font-semibold text-white/70">Review Comment</label>
-                                                                <textarea
-                                                                    value={commentValue}
-                                                                    onChange={(e) => setReviewComment(doc.id, e.target.value)}
-                                                                    rows={3}
-                                                                    placeholder="Add BIM review feedback (required when rejecting)."
-                                                                    className="w-full rounded-lg border border-white/15 bg-[#00273C]/60 px-3 py-2 text-xs text-white placeholder:text-white/45 outline-none resize-none focus:border-[#FF7120]/50"
-                                                                />
-                                                            </div>
+                                                            {canBimDecide && (
+                                                                <>
+                                                                    <div className="space-y-2 pt-3 border-t border-white/10">
+                                                                        <label className="block text-xs font-semibold text-white/70">Review Comment</label>
+                                                                        <textarea
+                                                                            value={commentValue}
+                                                                            onChange={(e) => setReviewComment(doc.id, e.target.value)}
+                                                                            rows={3}
+                                                                            placeholder="Add BIM review feedback (required when rejecting)."
+                                                                            className="w-full rounded-lg border border-white/15 bg-[#00273C]/60 px-3 py-2 text-xs text-white placeholder:text-white/45 outline-none resize-none focus:border-[#FF7120]/50"
+                                                                        />
+                                                                    </div>
 
-                                                            <div className="flex gap-2 pt-1">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleJuniorReviewDecision(doc.id, 'approve')}
-                                                                    disabled={decisionLoading}
-                                                                    className="flex-1 rounded-lg bg-emerald-600/20 text-emerald-300 text-xs font-semibold py-2 hover:bg-emerald-600/30 transition disabled:opacity-50"
-                                                                >
-                                                                    {decisionLoading ? 'Processing...' : 'Approve'}
-                                                                </button>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleJuniorReviewDecision(doc.id, 'reject')}
-                                                                    disabled={decisionLoading}
-                                                                    className="flex-1 rounded-lg bg-red-600/20 text-red-300 text-xs font-semibold py-2 hover:bg-red-600/30 transition disabled:opacity-50"
-                                                                >
-                                                                    {decisionLoading ? 'Processing...' : 'Reject'}
-                                                                </button>
-                                                            </div>
+                                                                    <div className="flex gap-2 pt-1">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleJuniorReviewDecision(doc.id, 'approve')}
+                                                                            disabled={decisionLoading}
+                                                                            className="flex-1 rounded-lg bg-emerald-600/20 text-emerald-300 text-xs font-semibold py-2 hover:bg-emerald-600/30 transition disabled:opacity-50"
+                                                                        >
+                                                                            {decisionLoading ? 'Processing...' : 'Approve'}
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleJuniorReviewDecision(doc.id, 'reject')}
+                                                                            disabled={decisionLoading}
+                                                                            className="flex-1 rounded-lg bg-red-600/20 text-red-300 text-xs font-semibold py-2 hover:bg-red-600/30 transition disabled:opacity-50"
+                                                                        >
+                                                                            {decisionLoading ? 'Processing...' : 'Reject'}
+                                                                        </button>
+                                                                    </div>
+                                                                </>
+                                                            )}
                                                         </div>
                                                     );
                                                 })}
@@ -1280,13 +1275,6 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
                                                                             : `+ ${previewableImages.length - 3} more image(s)`}
                                                                     </button>
                                                                 )}
-                                                            </div>
-                                                        )}
-
-                                                        {doc.studio_head_comments && (
-                                                            <div className="pt-2 px-3 py-2 bg-cyan-500/10 border border-cyan-500/20 rounded-lg">
-                                                                <p className="text-xs text-cyan-300">Studio Head Note</p>
-                                                                <p className="text-xs text-cyan-200/80 mt-1 line-clamp-2">{doc.studio_head_comments}</p>
                                                             </div>
                                                         )}
 

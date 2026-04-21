@@ -157,10 +157,23 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
 
     const getStatusLabel = (doc) => {
         if (doc?.status === 'pending_bim_review') {
-            return 'Awaiting BIM Review';
+            const awaitingBim = !doc?.reviewed_by_bim;
+            const awaitingStudioHead = !doc?.reviewed_by_studio_head;
+
+            if (awaitingBim && awaitingStudioHead) {
+                return 'Awaiting Approval';
+            }
+            if (awaitingBim) {
+                return 'Awaiting BIM Approval';
+            }
+            if (awaitingStudioHead) {
+                return 'Awaiting Studio Head Approval';
+            }
+
+            return 'Awaiting Approval';
         }
         if (doc?.status === 'pending_studio_head_review') {
-            return 'Awaiting Studio Head Review';
+            return 'Awaiting Studio Head Approval';
         }
         if (isForwardedToCeo(doc)) {
             return 'Awaiting CEO Final Review';
@@ -743,7 +756,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex-1 space-y-3 pt-1">
+                                                        <div className="flex-1 min-h-0 flex flex-col gap-3 pt-1">
                                                         {doc.description && (
                                                             <div className="space-y-1">
                                                                 <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50">Description</p>
@@ -876,7 +889,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex-1 space-y-3 pt-1">
+                                                        <div className="flex-1 min-h-0 flex flex-col gap-3 pt-1">
                                                         {doc.description && (
                                                             <div className="space-y-1">
                                                                 <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50">Description</p>
@@ -927,7 +940,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                                         )}
 
                                                         {(canSubmitForReview || canEdit) && (
-                                                            <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10">
+                                                            <div className="mt-auto flex flex-wrap gap-2 pt-2 border-t border-white/10">
                                                                 {canEdit && (
                                                                     <button
                                                                         onClick={() => startEditingDocumentation(doc)}
@@ -955,28 +968,6 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                                                         Delete
                                                                     </button>
                                                                 )}
-                                                            </div>
-                                                        )}
-
-                                                        {doc.status === 'pending_bim_review' && (
-                                                            <div className="pt-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                                                                <p className="text-xs text-blue-300">Awaiting BIM review...</p>
-                                                            </div>
-                                                        )}
-
-                                                        {doc.status === 'pending_studio_head_review' && (
-                                                            <div className="pt-2 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-                                                                <p className="text-xs text-blue-300">Awaiting Studio Head review...</p>
-                                                            </div>
-                                                        )}
-
-                                                        {doc.status === 'pending_ceo_review' && (
-                                                            <div className="pt-2 px-3 py-2 bg-green-500/10 border border-green-500/20 rounded-lg">
-                                                                <p className="text-xs text-green-300">
-                                                                    {doc.reviewed_by_bim && doc.reviewed_by_studio_head
-                                                                        ? 'Forwarded to the CEO'
-                                                                        : 'Pending final reviewer approval'}
-                                                                </p>
                                                             </div>
                                                         )}
 

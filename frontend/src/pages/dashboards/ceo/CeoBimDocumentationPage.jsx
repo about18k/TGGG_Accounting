@@ -12,6 +12,7 @@ import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import CeoSidebar from './CeoSidebar';
 import bimDocumentationService from '../../../services/bimDocumentationService';
 import CommentThread from '../../../components/CommentThread';
+import { toast } from 'sonner';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -248,7 +249,6 @@ const CeoBimDocumentationPage = ({
     const [approvalComments, setApprovalComments] = useState('');
     const [loading, setLoading] = useState(false);
     const [submittingDecision, setSubmittingDecision] = useState(false);
-    const [message, setMessage] = useState('');
     const [previewImage, setPreviewImage] = useState(null);
 
     const reviewerName = useMemo(() => {
@@ -315,7 +315,7 @@ const CeoBimDocumentationPage = ({
             setApprovedDocs(ceoDocs.filter((doc) => doc.status === 'approved'));
             setRejectedDocs(ceoDocs.filter((doc) => doc.status === 'rejected'));
         } else {
-            setMessage(`Failed to load documentations: ${result.error}`);
+            toast.error('Load Failed', { description: `Failed to load documentations: ${result.error}` });
         }
 
         if (!silent) {
@@ -369,12 +369,12 @@ const CeoBimDocumentationPage = ({
         const result = await bimDocumentationService.approvalAction(selectedDoc.id, 'approve', approvalComments);
 
         if (result.success) {
-            setMessage('Documentation approved and finalized.');
+            toast.success('Documentation approved and finalized.');
             setApprovalComments('');
             applyLocalDecision(selectedDoc.id, 'approve', approvalComments);
             fetchDocumentations({ silent: true });
         } else {
-            setMessage(`Error: ${result.error}`);
+            toast.error('Approval Failed', { description: result.error || 'Failed to approve documentation.' });
         }
 
         setSubmittingDecision(false);
@@ -384,7 +384,7 @@ const CeoBimDocumentationPage = ({
         if (!selectedDoc) return;
 
         if (!approvalComments.trim()) {
-            setMessage('Please add a reason before rejecting this documentation.');
+            toast.error('Validation Error', { description: 'Please add a reason before rejecting this documentation.' });
             return;
         }
 
@@ -392,12 +392,12 @@ const CeoBimDocumentationPage = ({
         const result = await bimDocumentationService.approvalAction(selectedDoc.id, 'reject', approvalComments);
 
         if (result.success) {
-            setMessage('Documentation rejected and returned for revision.');
+            toast.success('Documentation rejected and returned for revision.');
             setApprovalComments('');
             applyLocalDecision(selectedDoc.id, 'reject', approvalComments);
             fetchDocumentations({ silent: true });
         } else {
-            setMessage(`Error: ${result.error}`);
+            toast.error('Rejection Failed', { description: result.error || 'Failed to reject documentation.' });
         }
 
         setSubmittingDecision(false);
@@ -406,7 +406,6 @@ const CeoBimDocumentationPage = ({
     const handleTabChange = (tabId) => {
         setActiveTab(tabId);
         setApprovalComments('');
-        setMessage('');
     };
 
     const openImagePreview = (file) => {
@@ -453,16 +452,6 @@ const CeoBimDocumentationPage = ({
                                 </div>
                             </div>
                         </section>
-
-                        {message && (
-                            <div className={`rounded-xl border px-4 py-3 text-sm ${
-                                message.startsWith('Error') || message.startsWith('Failed')
-                                    ? 'border-red-500/20 bg-red-500/10 text-red-200'
-                                    : 'border-emerald-500/20 bg-emerald-500/10 text-emerald-200'
-                            }`}>
-                                {message}
-                            </div>
-                        )}
 
                         <section className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <SummaryCard
@@ -554,7 +543,7 @@ const CeoBimDocumentationPage = ({
                                             </div>
                                         </div>
 
-                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 space-y-6">
+                                        <div className="flex-1 min-h-0 overflow-y-auto p-6 flex flex-col gap-6">
                                             <div>
                                                 <h3 className="text-sm font-semibold text-white mb-2">Description</h3>
                                                 <p className="text-sm text-white/72 whitespace-pre-wrap leading-7">
@@ -638,25 +627,11 @@ const CeoBimDocumentationPage = ({
                                                         </button>
                                                     </div>
                                                 </div>
-                                            ) : (
-                                                <div className={`rounded-xl border px-4 py-4 ${
-                                                    selectedDoc.status === 'approved'
-                                                        ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-100'
-                                                        : 'border-red-500/20 bg-red-500/10 text-red-100'
-                                                }`}>
-                                                    <p className="text-sm font-semibold">
-                                                        {selectedDoc.status === 'approved' ? 'Approved by CEO' : 'Rejected by CEO'}
-                                                    </p>
-                                                    <p className="mt-2 text-sm leading-7 opacity-90 whitespace-pre-wrap">
-                                                        {selectedDoc.ceo_comments || 'No additional CEO note was saved for this decision.'}
-                                                    </p>
-                                                    <p className="mt-3 text-xs opacity-70">Recorded {formatDateTime(selectedDoc.ceo_reviewed_at)}</p>
-                                                </div>
-                                            )}
+                                            ) : null}
 
-                                            <div className="border-t border-white/10 pt-6">
+                                            <div className="mt-auto border-t border-white/10 pt-6">
                                                 <p className="text-sm font-semibold text-white mb-3">Discussion</p>
-                                                <CommentThread docId={selectedDoc.id} currentUser={user} />
+                                                <CommentThread docId={selectedDoc.id} currentUser={user} collapsible defaultOpen={false} />
                                             </div>
                                         </div>
                                     </section>
