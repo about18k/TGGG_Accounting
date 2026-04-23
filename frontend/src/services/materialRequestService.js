@@ -13,14 +13,31 @@ const MATERIAL_REQUEST_CACHE_PREFIX = {
   recentApproved: 'material-requests:recent-approved',
 };
 
+const isLikelyHtml = (value) => {
+  if (typeof value !== 'string') return false;
+  const sample = value.trim().slice(0, 200).toLowerCase();
+  return sample.includes('<!doctype html') || sample.includes('<html');
+};
+
 const getErrorMessage = (error, fallbackMessage) => {
   const responseData = error?.response?.data;
+  const statusCode = error?.response?.status;
 
   if (typeof responseData?.error === 'string' && responseData.error.trim()) {
+    if (isLikelyHtml(responseData.error)) {
+      return statusCode === 503
+        ? 'Service temporarily unavailable. Please try again shortly.'
+        : fallbackMessage;
+    }
     return responseData.error;
   }
 
   if (typeof responseData?.detail === 'string' && responseData.detail.trim()) {
+    if (isLikelyHtml(responseData.detail)) {
+      return statusCode === 503
+        ? 'Service temporarily unavailable. Please try again shortly.'
+        : fallbackMessage;
+    }
     return responseData.detail;
   }
 
@@ -37,6 +54,11 @@ const getErrorMessage = (error, fallbackMessage) => {
   }
 
   if (typeof responseData === 'string' && responseData.trim()) {
+    if (isLikelyHtml(responseData)) {
+      return statusCode === 503
+        ? 'Service temporarily unavailable. Please try again shortly.'
+        : fallbackMessage;
+    }
     return responseData;
   }
 

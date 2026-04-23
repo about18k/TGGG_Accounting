@@ -184,7 +184,6 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
               </div>
             </div>
           </div>
-          <script>window.onload = function() { window.print(); };</script>
         </body>
       </html>
     `;

@@ -1039,27 +1039,3 @@ def employee_contribution_detail(request, employee_id, contribution_id):
 
     contribution.delete()
     return Response({'success': True})
-
-
-@api_view(['POST'])
-@permission_classes([IsAuthenticated])
-def notify_employee_payroll(request):
-    """Notification endpoint kept for compatibility; WhatsApp is disabled during testing."""
-    if not _can_manage_payroll(request.user):
-        return Response({'error': 'Not authorized'}, status=status.HTTP_403_FORBIDDEN)
-
-    employee_id = request.data.get('employee_id')
-
-    if not employee_id:
-        return Response({'error': 'employee_id is required.'}, status=status.HTTP_400_BAD_REQUEST)
-
-    try:
-        employee = CustomUser.objects.get(id=employee_id, is_active=True)
-    except CustomUser.DoesNotExist:
-        return Response({'error': 'Employee not found.'}, status=status.HTTP_404_NOT_FOUND)
-
-    return Response({
-        'success': True,
-        'message': 'WhatsApp notifications are disabled for testing. Payroll processing is not blocked.',
-        'employee_id': str(employee.id),
-    })

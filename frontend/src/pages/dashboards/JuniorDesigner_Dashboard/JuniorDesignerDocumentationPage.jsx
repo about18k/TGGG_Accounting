@@ -3,7 +3,7 @@ import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import JuniorDesignerSidebar from './components/JuniorDesignerSidebar';
 import bimDocumentationService from '../../../services/bimDocumentationService';
 import CommentThread from '../../../components/CommentThread';
-import { CheckCircle2, FolderOpen } from 'lucide-react';
+import { FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import Alert from '../../../components/Alert';
 
@@ -19,7 +19,6 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
     const [manageStatusFilter, setManageStatusFilter] = useState('all');
     const [imageFiles, setImageFiles] = useState([]);
     const [savedDocs, setSavedDocs] = useState([]);
-    const [approvedDocs, setApprovedDocs] = useState([]);
     const [loading, setLoading] = useState(false);
     const [zoomedImage, setZoomedImage] = useState(null);
     const [zoomScale, setZoomScale] = useState(1);
@@ -79,15 +78,24 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
         };
     }, [imageFiles]);
 
+    const normalizeDocStatus = (status) => {
+        const value = String(status || '').trim().toLowerCase();
+        if (value === 'approve') return 'approved';
+        if (value === 'reject') return 'rejected';
+        if (value === 'pending' || value === 'pending_review') return 'pending_bim_review';
+        return value;
+    };
+
     const fetchDocumentations = async () => {
         setLoading(true);
         const result = await bimDocumentationService.getDocumentations();
         if (result.success) {
-            const docs = Array.isArray(result.data) ? result.data : (result.data?.results || []);
-            const approved = docs.filter(doc => doc.status === 'approved');
-            const others = docs.filter(doc => doc.status !== 'approved');
-            setSavedDocs(others);
-            setApprovedDocs(approved);
+            const docs = (Array.isArray(result.data) ? result.data : (result.data?.results || []))
+                .map((doc) => ({
+                    ...doc,
+                    status: normalizeDocStatus(doc?.status),
+                }));
+            setSavedDocs(docs);
         } else {
             toast.error('Load Failed', { description: 'Failed to load documentations: ' + result.error });
         }
@@ -197,6 +205,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
         if (filter === 'all') return true;
         if (filter === 'pending') return isPendingStatus(doc?.status);
         if (filter === 'draft') return doc?.status === 'draft';
+        if (filter === 'approved') return doc?.status === 'approved';
         if (filter === 'rejected') return doc?.status === 'rejected';
         return true;
     };
@@ -457,16 +466,6 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                 >
                                     Manage<span className="hidden sm:inline"> Documentation</span>
                                 </button>
-                                <button
-                                    onClick={() => setActiveTab('approved')}
-                                    className={`flex-1 py-3 px-4 rounded-xl text-sm font-semibold transition ${
-                                        activeTab === 'approved'
-                                            ? 'bg-[#FF7120] text-white'
-                                            : 'text-white/60 hover:text-white hover:bg-white/5 border border-[#FF7120]/30'
-                                    }`}
-                                >
-                                    Approved
-                                </button>
                             </div>
                         </div>
 
@@ -708,124 +707,13 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                             </div>
                         )}
 
-                        {activeTab === 'approved' && (
-                            <div className={cardClass}>
-                                <div className="p-4 sm:p-6 border-b border-white/10">
-                                    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-                                        <div className="max-w-2xl text-left space-y-1.5">
-                                            <h2 className="text-xl sm:text-2xl font-semibold tracking-tight leading-tight text-white">Approved Documentation</h2>
-                                            <p className="text-sm leading-relaxed text-white/65">View finalized design documentation and full discussion history.</p>
-                                        </div>
-                                        <button
-                                            onClick={fetchDocumentations}
-                                            className="self-start sm:self-end px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-white/10 text-white/75 text-xs sm:text-sm hover:bg-white/20 transition"
-                                        >
-                                            Refresh
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="p-4 sm:p-6">
-                                    {loading && <p className="text-center text-white/60">Loading...</p>}
-                                    {!loading && approvedDocs.length === 0 && (
-                                        <EmptyStatePanel
-                                            Icon={CheckCircle2}
-                                            accent="green"
-                                            title="No approved documentation yet"
-                                            subtitle="Approved documentation will appear here once all review stages are completed."
-                                        />
-                                    )}
-                                    {!loading && approvedDocs.length > 0 && (
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 auto-rows-fr">
-                                            {approvedDocs.map((doc) => {
-                                                const files = doc.files || [];
-                                                const previewableImages = files.filter((file) => (file.is_image || file.file_type === 'image') && file.file_url);
-
-                                                return (
-                                                    <div key={doc.id} className="h-full rounded-2xl border border-white/10 bg-[#00273C]/45 overflow-hidden p-3 sm:p-5 gap-3 sm:gap-4 hover:border-white/20 transition flex flex-col">
-                                                        <div className="space-y-3 pb-3 border-b border-white/10">
-                                                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3">
-                                                                <div className="flex-1 min-w-0">
-                                                                    <h3 className="text-base sm:text-lg font-semibold text-white leading-snug truncate">{doc.title}</h3>
-                                                                </div>
-                                                                <Badge tone="approved">Approved</Badge>
-                                                            </div>
-
-                                                            <div className="flex gap-2.5 flex-wrap">
-                                                                <Badge tone="neutral">Doc Date: {doc.doc_date || '-'}</Badge>
-                                                                <Badge tone="neutral">Document Type: {getDisplayType(doc.doc_type)}</Badge>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="flex-1 min-h-0 flex flex-col gap-3 pt-1">
-                                                        {doc.description && (
-                                                            <div className="space-y-1">
-                                                                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50">Description</p>
-                                                                <p className="text-sm leading-relaxed text-white/80 line-clamp-2">{doc.description}</p>
-                                                            </div>
-                                                        )}
-
-                                                        {previewableImages.length > 0 ? (
-                                                            <div className="space-y-2">
-                                                                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50">Image Preview</p>
-                                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                                                    {previewableImages.slice(0, isPreviewExpanded('approved', doc.id) ? previewableImages.length : 3).map((file) => (
-                                                                        <button
-                                                                            key={file.id}
-                                                                            type="button"
-                                                                            onClick={() => openImageZoom(file)}
-                                                                            className="group overflow-hidden rounded-lg border border-white/10 bg-black/20"
-                                                                            title={`Open ${file.file_name}`}
-                                                                        >
-                                                                            <img
-                                                                                src={file.file_url}
-                                                                                alt={file.file_name}
-                                                                                className="h-24 w-full object-cover transition group-hover:scale-105"
-                                                                                loading="lazy"
-                                                                            />
-                                                                        </button>
-                                                                    ))}
-                                                                </div>
-                                                                {previewableImages.length > 3 && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => togglePreviewExpanded('approved', doc.id)}
-                                                                        className="text-xs font-semibold text-[#7ec8ff] hover:text-[#9dd8ff] transition"
-                                                                    >
-                                                                        {isPreviewExpanded('approved', doc.id)
-                                                                            ? 'Show fewer images'
-                                                                            : `+ ${previewableImages.length - 3} more image(s)`}
-                                                                    </button>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <EmptyStatePanel
-                                                                Icon={FolderOpen}
-                                                                compact
-                                                                title="No attachments included"
-                                                                subtitle="No files were attached to this documentation entry."
-                                                            />
-                                                        )}
-                                                        </div>
-
-                                                        <div className="mt-auto pt-3 border-t border-white/10">
-                                                            <CommentThread docId={doc.id} currentUser={user} collapsible />
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
                         {activeTab === 'manage' && (
                             <div className={cardClass}>
                                 <div className="p-4 sm:p-6 border-b border-white/10">
                                     <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
                                         <div className="max-w-2xl text-left space-y-1.5">
                                             <h2 className="text-xl sm:text-2xl font-semibold tracking-tight leading-tight text-white">Manage Documentation</h2>
-                                            <p className="text-sm leading-relaxed text-white/65">View, edit, delete drafts, and submit your design documentation for review.</p>
+                                            <p className="text-sm leading-relaxed text-white/65">View, edit, delete drafts, submit for review, and track approved documentation in one place.</p>
                                         </div>
 
                                         <div className="self-start lg:self-start flex flex-col items-start lg:items-end gap-2.5 w-full lg:w-auto">
@@ -846,6 +734,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                                     <option value="all">All</option>
                                                     <option value="pending">Pending</option>
                                                     <option value="draft">Draft</option>
+                                                    <option value="approved">Approved</option>
                                                     <option value="rejected">Rejected</option>
                                                 </select>
                                             </div>

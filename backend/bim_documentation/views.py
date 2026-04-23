@@ -9,7 +9,7 @@ import os
 
 from accounts.models import CustomUser
 from todos.services import NotificationService
-from .models import BimDocumentation, BimDocumentationFile, BimDocumentationComment
+from .models import APPROVAL_STATUS_CHOICES, BimDocumentation, BimDocumentationFile, BimDocumentationComment
 from .serializers import (
     BimDocumentationSerializer,
     BimDocumentationListSerializer,
@@ -243,6 +243,15 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     junior_architect_role_aliases = ('junior_architect', 'junior_designer')
+    status_filter_aliases = {
+        'pending': ['pending_bim_review', 'pending_studio_head_review', 'pending_ceo_review', 'pending_review'],
+        'pending_review': ['pending_bim_review', 'pending_studio_head_review', 'pending_ceo_review', 'pending_review'],
+        'approved': ['approved', 'approve'],
+        'approve': ['approved', 'approve'],
+        'rejected': ['rejected', 'reject'],
+        'reject': ['rejected', 'reject'],
+        'draft': ['draft'],
+    }
 
     @staticmethod
     def _is_bim_rejected(doc):
@@ -279,6 +288,21 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
             return ['junior_architect', 'junior_designer']
         return [role]
 
+    @classmethod
+    def _expand_status_filter(cls, raw_status):
+        valid_statuses = {choice for choice, _ in APPROVAL_STATUS_CHOICES}
+        values = [value.strip().lower() for value in str(raw_status or '').split(',') if value.strip()]
+        expanded = []
+
+        for value in values:
+            if value in cls.status_filter_aliases:
+                expanded.extend(cls.status_filter_aliases[value])
+            elif value in valid_statuses:
+                expanded.append(value)
+
+        # Preserve order while removing duplicates.
+        return list(dict.fromkeys(expanded))
+
     def _approved_junior_docs_queryset(self):
         return BimDocumentation.objects.filter(
             created_by__role__in=self.junior_architect_role_aliases,
@@ -297,6 +321,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         """
         user = self.request.user
         created_by_role = (self.request.query_params.get('created_by_role') or '').strip()
+        status_filter = (self.request.query_params.get('status') or '').strip()
         queryset = BimDocumentation.objects.none()
         
         if user.role == 'bim_specialist':
@@ -329,6 +354,13 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         if created_by_role:
             role_filters = self._normalize_junior_role_filter(created_by_role)
             queryset = queryset.filter(created_by__role__in=role_filters)
+
+        if status_filter:
+            status_filters = self._expand_status_filter(status_filter)
+            if status_filters:
+                queryset = queryset.filter(status__in=status_filters)
+            else:
+                queryset = queryset.none()
 
         queryset = queryset.select_related(
             'created_by',

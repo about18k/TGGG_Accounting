@@ -49,6 +49,28 @@ const getWorkedHours = (record) => {
   return Number(((outMinutes - inMinutes) / 60).toFixed(2));
 };
 
+const getSafeErrorMessage = (error, fallbackMessage) => {
+  const rawError = error?.response?.data?.error;
+  if (typeof rawError === 'string') {
+    const sample = rawError.trim().slice(0, 200).toLowerCase();
+    if (sample.includes('<!doctype html') || sample.includes('<html')) {
+      return fallbackMessage;
+    }
+    if (rawError.trim()) return rawError;
+  }
+
+  const rawDetail = error?.response?.data?.detail;
+  if (typeof rawDetail === 'string') {
+    const sample = rawDetail.trim().slice(0, 200).toLowerCase();
+    if (sample.includes('<!doctype html') || sample.includes('<html')) {
+      return fallbackMessage;
+    }
+    if (rawDetail.trim()) return rawDetail;
+  }
+
+  return error?.message || fallbackMessage;
+};
+
 export function AttendanceLeave() {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
@@ -68,7 +90,7 @@ export function AttendanceLeave() {
       setAttendanceRecords(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Failed to fetch attendance records:', error);
-      setAttendanceError(error.response?.data?.error || 'Failed to load attendance records.');
+      setAttendanceError(getSafeErrorMessage(error, 'Failed to load attendance records.'));
       setAttendanceRecords([]);
     } finally {
       setIsAttendanceLoading(false);

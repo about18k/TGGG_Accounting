@@ -90,6 +90,14 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
         };
     }, [imageFiles]);
 
+    const normalizeDocStatus = (status) => {
+        const value = String(status || '').trim().toLowerCase();
+        if (value === 'approve') return 'approved';
+        if (value === 'reject') return 'rejected';
+        if (value === 'pending' || value === 'pending_review') return 'pending_bim_review';
+        return value;
+    };
+
     const fetchDocumentations = async ({ silent = false } = {}) => {
         if (!silent) {
             setLoading(true);
@@ -97,7 +105,11 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
 
         const result = await bimDocumentationService.getDocumentations();
         if (result.success) {
-            const docs = Array.isArray(result.data) ? result.data : (result.data?.results || []);
+            const docs = (Array.isArray(result.data) ? result.data : (result.data?.results || []))
+                .map((doc) => ({
+                    ...doc,
+                    status: normalizeDocStatus(doc?.status),
+                }));
 
             const isOwnedByCurrentUser = (doc) => {
                 if (user?.id && doc?.created_by === user.id) {

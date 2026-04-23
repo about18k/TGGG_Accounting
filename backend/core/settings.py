@@ -179,6 +179,7 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 50,
+    'EXCEPTION_HANDLER': 'core.exceptions.custom_exception_handler',
 }
 
 # JWT Configuration
@@ -260,7 +261,7 @@ import os
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
-# Base URL for generating absolute URLs (used for PDF links in WhatsApp)
+# Base URL for generating absolute URLs to uploaded media
 BASE_URL = config('BASE_URL', default='http://localhost:8000')
 
 # Cache configuration
