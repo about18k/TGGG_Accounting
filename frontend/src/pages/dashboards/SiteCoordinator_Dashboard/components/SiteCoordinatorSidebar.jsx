@@ -1,4 +1,4 @@
-import { ClipboardList, Clock, CheckSquare, Home, CalendarDays } from 'lucide-react';
+import { ClipboardList, Clock, Home, CalendarDays } from 'lucide-react';
 
 const SECTION_LINKS = [
   { id: 'attendance', label: 'Attendance', icon: Home, section: 'attendance' },
@@ -7,7 +7,6 @@ const SECTION_LINKS = [
 const PERSONAL_PAGE_LINKS = [
   { id: 'calendar', label: 'Calendar', icon: CalendarDays, page: 'calendar' },
   { id: 'overtime', label: 'My Overtime', icon: Clock, page: 'overtime' },
-  // { id: 'todo', label: 'Todo', icon: CheckSquare, page: 'todo' },
 ];
 
 const MANAGEMENT_PAGE_LINKS = [

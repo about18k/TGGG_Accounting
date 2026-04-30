@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Plus, Search, Users } from 'lucide-react';
+import { AlertTriangle, Plus, Search, Users, X } from 'lucide-react';
 import UserRow from './UserRow';
 import EmptyState from './EmptyState';
 import { getDepartments } from '../services/studioHeadApi';
@@ -54,6 +54,24 @@ export default function ManageUsersPanel({
     date_hired: '',
   });
   const editCardRef = useRef(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const openDeleteModal = (user) => { setDeleteError(''); setDeleteTarget(user); };
+  const closeDeleteModal = () => { if (!deleteLoading) { setDeleteTarget(null); setDeleteError(''); } };
+  const confirmDelete = async () => {
+    if (!deleteTarget || deleteLoading) return;
+    setDeleteLoading(true);
+    setDeleteError('');
+    const result = await onDeleteUser?.(deleteTarget.id);
+    setDeleteLoading(false);
+    if (result?.success === false) {
+      setDeleteError(result.error || 'Failed to delete user.');
+    } else {
+      setDeleteTarget(null);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -544,11 +562,59 @@ export default function ManageUsersPanel({
               loading={!!userActionById?.[user.id]}
               onEditUser={openEditModal}
               onToggleUserStatus={onToggleUserStatus}
-              onDeleteUser={onDeleteUser}
+              onDeleteUser={openDeleteModal}
             />
           ))}
         </div>
       </div>
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+          <div className="bg-[#001f35] border border-white/10 rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start justify-between mb-5">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={20} className="text-red-400" />
+                </div>
+                <h3 className="text-white font-semibold text-lg">Delete User</h3>
+              </div>
+              <button onClick={closeDeleteModal} disabled={deleteLoading} className="text-white/40 hover:text-white transition-colors disabled:opacity-50">
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-white/70 text-sm mb-1">You are about to permanently delete:</p>
+            <p className="text-white font-semibold text-sm mb-0.5">{deleteTarget.first_name} {deleteTarget.last_name}</p>
+            <p className="text-white/50 text-xs mb-4">{deleteTarget.email}</p>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 mb-6">
+              <p className="text-red-400 text-xs">This action cannot be undone. All data associated with this account will be permanently removed.</p>
+            </div>
+
+            {deleteError && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3 mb-4">
+                <p className="text-red-400 text-xs">{deleteError}</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={closeDeleteModal}
+                disabled={deleteLoading}
+                className="px-4 py-2 rounded-lg border border-white/10 text-white/70 hover:text-white hover:border-white/20 text-sm transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteLoading}
+                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

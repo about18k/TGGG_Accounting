@@ -645,9 +645,13 @@ def manage_user(request, user_id):
     if request.method == 'DELETE':
         if request.user.id == user.id:
             return Response({'error': 'You cannot delete your own account.'}, status=status.HTTP_400_BAD_REQUEST)
-        user.delete()
-        _bump_accounting_employees_cache_version()
-        return Response({'success': True})
+        try:
+            user.delete()
+            _bump_accounting_employees_cache_version()
+            return Response({'success': True})
+        except Exception as e:
+            print(f"❌ Delete user {user_id} failed: {e}")
+            return Response({'error': f'Failed to delete user: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     # PATCH update
     fields_updated = []

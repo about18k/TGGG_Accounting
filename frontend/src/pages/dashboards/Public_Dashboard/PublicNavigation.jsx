@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import * as notifService from '../../../services/notificationService';
 import { 
-  Bell, User, Home, Clock, CheckSquare, FolderKanban, ArrowUpDown, Check, Menu, Grip,
+  Bell, User, Home, Clock, FolderKanban, ArrowUpDown, Check, Menu, Grip,
   LayoutDashboard, Users, CalendarCheck, ClipboardCheck, Calendar, FileText, GitMerge, ClipboardList,
   CalendarDays, DollarSign
 } from 'lucide-react';
@@ -140,28 +140,24 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                   items = [
                     { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                     { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                    { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                     { id: 'documentation', label: 'Docs', icon: FolderKanban, path: 'documentation' },
                   ];
                 } else if (user?.role === 'junior_architect') {
                   items = [
                     { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                     { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                    { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                   ];
                 } else if (user?.role === 'site_engineer') {
                   items = [
                     { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                     { id: 'engineer-hub', label: 'MatReq', icon: ClipboardList, path: 'engineer-hub' },
                     { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                    { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                   ];
                 } else if (user?.role === 'site_coordinator') {
                   items = [
                     { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                     { id: 'coordinator-hub', label: 'MatReq', icon: ClipboardList, path: 'coordinator-hub' },
                     { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                    { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                   ];
                 } else if (user?.role === 'intern') {
                   items = [];
@@ -170,7 +166,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                     { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                     { id: 'calendar', label: 'Calendar', icon: Calendar, path: 'calendar' },
                     { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                    { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                   ];
                 }
                 return items.map((item) => (
@@ -382,7 +377,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                               { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                               { id: 'calendar', label: 'Calendar', icon: Calendar, path: 'calendar' },
                               { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                              { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                             ]
                           },
                           {
@@ -400,7 +394,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                               { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                               { id: 'calendar', label: 'Calendar', icon: Calendar, path: 'calendar' },
                               { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                              { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                             ]
                           },
                           {
@@ -418,7 +411,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                               { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                               { id: 'calendar', label: 'Calendar', icon: Calendar, path: 'calendar' },
                               { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                              { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                             ]
                           },
                           {
@@ -436,7 +428,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                               { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                               { id: 'calendar', label: 'Calendar', icon: Calendar, path: 'calendar' },
                               { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                              { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                             ]
                           },
                           {
@@ -454,7 +445,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                               { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                               { id: 'calendar', label: 'Calendar', icon: Calendar, path: 'calendar' },
                               { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                              { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                             ]
                           }
                         ];
@@ -466,7 +456,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                               { id: 'attendance', label: 'Dashboard', icon: Home, path: 'attendance' },
                               { id: 'calendar', label: 'Calendar', icon: Calendar, path: 'calendar' },
                               { id: 'overtime', label: 'OT', icon: Clock, path: 'overtime' },
-                              { id: 'todo', label: 'Todo', icon: CheckSquare, path: 'todo' },
                             ]
                           }
                         ];
