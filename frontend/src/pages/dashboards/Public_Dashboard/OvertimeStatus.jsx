@@ -126,7 +126,7 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
         <body>
           <div class="form-container">
             <div class="header">
-              <img src="/formlogo.png" alt="Company Logo" class="logo" />
+              <img src="/formlogo.webp" alt="Company Logo" class="logo" />
               <div class="header-text">
                 <div class="form-title">OT Request Form</div>
               </div>

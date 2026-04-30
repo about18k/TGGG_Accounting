@@ -53,7 +53,7 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline =
           
           {/* Company Logo Section */}
           <div className="flex flex-col items-center justify-center mb-0">
-            <img src="/formlogo.png" alt="Triple G Logo" className="h-24 w-auto object-contain mb-0 print:h-20" />
+            <img src="/formlogo.webp" alt="Triple G Logo" className="h-24 w-auto object-contain mb-0 print:h-20" />
             <h2 className="text-2xl font-black text-center border-b-2 border-black pb-0.5 tracking-[0.25em] uppercase">MATERIAL REQUISITION FORM</h2>
           </div>
 

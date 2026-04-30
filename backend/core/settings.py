@@ -93,8 +93,9 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# Check if using Supabase or SQLite
+# Check if using Supabase, Local Postgres, or SQLite
 USE_SUPABASE = config('USE_SUPABASE', default='False') == 'True'
+USE_LOCAL_POSTGRES = config('USE_LOCAL_POSTGRES', default='True') == 'True'
 SUPABASE_URL = config('SUPABASE_URL', default='')
 SUPABASE_KEY = config('SUPABASE_KEY', default='')
 
@@ -124,6 +125,17 @@ if USE_SUPABASE:
     if is_supabase_pooler:
         # Recommended with transaction poolers.
         DISABLE_SERVER_SIDE_CURSORS = config('DISABLE_SERVER_SIDE_CURSORS', default='True') == 'True'
+elif USE_LOCAL_POSTGRES:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('LOCAL_DB_NAME', default='TRIPLEGACCOUNTING'),
+            'USER': config('LOCAL_DB_USER', default='postgres'),
+            'PASSWORD': config('LOCAL_DB_PASSWORD', default='M@steryii38'),
+            'HOST': config('LOCAL_DB_HOST', default='127.0.0.1'),
+            'PORT': config('LOCAL_DB_PORT', default='5432'),
+        }
+    }
 else:
     DATABASES = {
         'default': {
