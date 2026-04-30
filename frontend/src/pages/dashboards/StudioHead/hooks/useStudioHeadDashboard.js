@@ -88,11 +88,11 @@ export function useStudioHeadDashboard() {
     }
   }
 
-  async function fetchUsers() {
+  async function fetchUsers(options = {}) {
     try {
       setUsersError('');
       setUsersLoading(true);
-      const data = await getAllUsers();
+      const data = await getAllUsers({ force: options.force === true });
       const list = Array.isArray(data) ? data : (data?.users ?? []);
       setUsers(list);
     } catch (e) {
@@ -207,9 +207,9 @@ export function useStudioHeadDashboard() {
       setUserActionById((prev) => ({ ...prev, [userId]: true }));
       await deleteUserAccount(userId);
       setMessage('User deleted successfully.');
-      await fetchUsers();
+      await fetchUsers({ force: true });
     } catch (e) {
-      setMessage('Failed to delete user.');
+      setMessage(e?.response?.data?.error || e?.message || 'Failed to delete user.');
     } finally {
       setUserActionById((prev) => ({ ...prev, [userId]: false }));
     }

@@ -31,7 +31,9 @@ class Project(models.Model):
     location = models.CharField(max_length=255)
     created_by = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='created_projects',
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -66,7 +68,9 @@ class MaterialRequest(models.Model):
 
     created_by = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='created_material_requests',
     )
     requester_role = models.CharField(max_length=50, blank=True, null=True)
@@ -248,7 +252,9 @@ class MaterialRequestComment(models.Model):
     )
     author = models.ForeignKey(
         User,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='material_request_comments',
     )
     content = models.TextField()

@@ -17,21 +17,33 @@ export {
 } from '../../../../services/adminService';
 
 // ── Groups & Leaders ──────────────────────────────────────
-export {
-  getGroups,
-  createGroup,
-  deleteGroup as disbandGroup,
-} from '../../../../services/todoService';
+import api from '../../../../services/api';
 
-export { toggleLeader } from '../../../../services/todoService';
+export async function getGroups() {
+  const { data } = await api.get('/groups');
+  return data;
+}
 
-// Convenience wrappers that match the old API shape
-import { toggleLeader as _toggleLeader } from '../../../../services/todoService';
+export async function createGroup(payload) {
+  const { data } = await api.post('/groups', payload);
+  return data;
+}
+
+export async function disbandGroup(id) {
+  const { data } = await api.delete(`/groups/${id}`);
+  return data;
+}
+
+export async function toggleLeader(userId, makeLead) {
+  const endpoint = makeLead ? 'make-leader' : 'remove-leader';
+  const { data } = await api.post(`/users/${userId}/${endpoint}`);
+  return data;
+}
 
 export async function makeLeader(userId) {
-  return _toggleLeader(userId, true);
+  return toggleLeader(userId, true);
 }
 
 export async function removeLeader(userId) {
-  return _toggleLeader(userId, false);
+  return toggleLeader(userId, false);
 }
