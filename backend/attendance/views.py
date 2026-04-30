@@ -1,11 +1,11 @@
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 import hashlib
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
-from django.db.models import Prefetch
+from django.db.models import Prefetch, Q
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
@@ -253,6 +253,148 @@ def _period_covers_day(period, day):
         return False
 
     return start_day <= day <= end_day
+
+
+def _validate_overtime_periods(periods):
+    if not isinstance(periods, list):
+        return Response({'error': 'periods must be a list.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    seen_period_ranges = set()
+    checked_ranges = []
+    for index, period in enumerate(periods, start=1):
+        if not isinstance(period, dict):
+            return Response({'error': f'Period {index} must be an object.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        has_entry = any(period.get(field) for field in ('start_date', 'end_date', 'start_time', 'end_time'))
+        if not has_entry:
+            continue
+
+        required_fields = ('start_date', 'end_date', 'start_time', 'end_time')
+        if any(not period.get(field) for field in required_fields):
+            return Response(
+                {'error': f'Period {index} is incomplete. Please fill all date and time fields.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        period_key = (
+            str(period.get('start_date')),
+            str(period.get('start_time')),
+            str(period.get('end_date')),
+            str(period.get('end_time')),
+        )
+        if period_key in seen_period_ranges:
+            return Response(
+                {'error': f'Duplicate period found: Period {index} has the same date and time range as another period.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        seen_period_ranges.add(period_key)
+
+        try:
+            start_day = date.fromisoformat(str(period['start_date']))
+            end_day = date.fromisoformat(str(period['end_date']))
+            start_clock = time.fromisoformat(str(period['start_time']))
+            end_clock = time.fromisoformat(str(period['end_time']))
+        except ValueError:
+            return Response(
+                {'error': f'Period {index} has an invalid date or time.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        start_dt = timezone.make_aware(datetime.combine(start_day, start_clock))
+        end_dt = timezone.make_aware(datetime.combine(end_day, end_clock))
+        if end_dt <= start_dt:
+            return Response(
+                {'error': f'Period {index} must end after it starts.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if any(start_dt < existing_end and existing_start < end_dt for existing_start, existing_end in checked_ranges):
+            return Response(
+                {'error': f'Period {index} overlaps another period. Please adjust the time range.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        checked_ranges.append((start_dt, end_dt))
+
+    return None
+
+
+def _period_range_from_payload(period, fallback_day=None):
+    if not isinstance(period, dict):
+        return None
+
+    start_raw = period.get('start_date')
+    end_raw = period.get('end_date')
+
+    if not start_raw and not end_raw:
+        if not fallback_day:
+            return None
+        start_day = fallback_day
+        end_day = fallback_day
+    else:
+        try:
+            start_day = date.fromisoformat(str(start_raw))
+            end_day = date.fromisoformat(str(end_raw))
+        except (TypeError, ValueError):
+            return None
+
+    start_time_raw = period.get('start_time')
+    end_time_raw = period.get('end_time')
+
+    if start_time_raw and end_time_raw:
+        try:
+            start_clock = time.fromisoformat(str(start_time_raw))
+            end_clock = time.fromisoformat(str(end_time_raw))
+        except (TypeError, ValueError):
+            return None
+    else:
+        start_clock = time(0, 0)
+        end_clock = time(23, 59, 59)
+
+    start_dt = timezone.make_aware(datetime.combine(start_day, start_clock))
+    end_dt = timezone.make_aware(datetime.combine(end_day, end_clock))
+    return start_dt, end_dt
+
+
+def _ranges_overlap(left_range, right_range):
+    if not left_range or not right_range:
+        return False
+    left_start, left_end = left_range
+    right_start, right_end = right_range
+    return left_start < right_end and right_start < left_end
+
+
+def _has_existing_overtime_overlap(user, new_periods):
+    existing_requests = OvertimeRequest.objects.filter(employee=user)
+
+    new_ranges = []
+    for period in new_periods:
+        period_range = _period_range_from_payload(period)
+        if period_range:
+            new_ranges.append(period_range)
+
+    if not new_ranges:
+        return False
+
+    for request in existing_requests:
+        existing_periods = request.periods if isinstance(request.periods, list) else []
+        existing_ranges = []
+
+        if existing_periods:
+            for period in existing_periods:
+                existing_range = _period_range_from_payload(period, request.date_completed)
+                if existing_range:
+                    existing_ranges.append(existing_range)
+        else:
+            fallback_range = _period_range_from_payload({}, request.date_completed)
+            if fallback_range:
+                existing_ranges.append(fallback_range)
+
+        for new_range in new_ranges:
+            if any(_ranges_overlap(new_range, existing_range) for existing_range in existing_ranges):
+                return True
+
+    return False
 
 
 def _has_approved_overtime_for_day(user, day):
@@ -1011,8 +1153,15 @@ def calendar_event_detail(request, event_id):
 def overtime_list_create(request):
     payload = request.data
     periods = payload.get('periods') or []
-    if not isinstance(periods, list):
-        return Response({'error': 'periods must be a list.'}, status=status.HTTP_400_BAD_REQUEST)
+    periods_error = _validate_overtime_periods(periods)
+    if periods_error:
+        return periods_error
+
+    if _has_existing_overtime_overlap(request.user, periods):
+        return Response(
+            {'error': 'You already have an overtime request that overlaps the selected period.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     date_completed, date_error = _parse_date_or_none(payload.get('date_completed'), 'date_completed')
     if date_error:

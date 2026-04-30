@@ -116,8 +116,88 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
     setPeriods(prev => {
       const next = [...prev];
       next[index] = { ...next[index], [field]: value };
+      const duplicateIndex = getDuplicatePeriodIndex(next, index);
+      if (duplicateIndex !== -1) {
+        toast.error('Duplicate Period', {
+          description: `Period ${index + 1} matches Period ${duplicateIndex + 1}. Please adjust the date/time.`
+        });
+        return prev;
+      }
+      if (isInvalidPeriodRange(next[index])) {
+        toast.error('Invalid Time Range', {
+          description: `Period ${index + 1} must end after it starts.`
+        });
+        return prev;
+      }
+      const overlapIndex = getOverlappingPeriodIndex(next, index);
+      if (overlapIndex !== -1) {
+        toast.error('Overlapping Period', {
+          description: `Period ${index + 1} overlaps Period ${overlapIndex + 1}. Adjust the time range.`
+        });
+        return prev;
+      }
       return next;
     });
+  };
+
+  const isInvalidPeriodRange = (period) => {
+    if (!period) return false;
+    const hasComplete = period.start_date && period.end_date && period.start_time && period.end_time;
+    if (!hasComplete) return false;
+    const start = new Date(`${period.start_date}T${period.start_time}`);
+    const end = new Date(`${period.end_date}T${period.end_time}`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return false;
+    return end <= start;
+  };
+
+  const getDuplicatePeriodIndex = (periodList, targetIndex) => {
+    const target = periodList[targetIndex];
+    if (!target) return -1;
+
+    const hasCompleteTarget = target.start_date && target.end_date && target.start_time && target.end_time;
+    if (!hasCompleteTarget) return -1;
+
+    const targetKey = `${target.start_date}|${target.start_time}|${target.end_date}|${target.end_time}`;
+    for (let i = 0; i < periodList.length; i += 1) {
+      if (i === targetIndex) continue;
+      const period = periodList[i];
+      const hasComplete = period.start_date && period.end_date && period.start_time && period.end_time;
+      if (!hasComplete) continue;
+      const key = `${period.start_date}|${period.start_time}|${period.end_date}|${period.end_time}`;
+      if (key === targetKey) {
+        return i;
+      }
+    }
+    return -1;
+  };
+
+  const getOverlappingPeriodIndex = (periodList, targetIndex) => {
+    const target = periodList[targetIndex];
+    if (!target) return -1;
+
+    const hasCompleteTarget = target.start_date && target.end_date && target.start_time && target.end_time;
+    if (!hasCompleteTarget) return -1;
+
+    const targetStart = new Date(`${target.start_date}T${target.start_time}`);
+    const targetEnd = new Date(`${target.end_date}T${target.end_time}`);
+    if (Number.isNaN(targetStart.getTime()) || Number.isNaN(targetEnd.getTime())) return -1;
+
+    for (let i = 0; i < periodList.length; i += 1) {
+      if (i === targetIndex) continue;
+      const period = periodList[i];
+      const hasComplete = period.start_date && period.end_date && period.start_time && period.end_time;
+      if (!hasComplete) continue;
+
+      const start = new Date(`${period.start_date}T${period.start_time}`);
+      const end = new Date(`${period.end_date}T${period.end_time}`);
+      if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) continue;
+
+      if (targetStart < end && start < targetEnd) {
+        return i;
+      }
+    }
+
+    return -1;
   };
 
   const validateForm = () => {
@@ -148,19 +228,29 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
       return 'Add at least one overtime period.';
     }
 
-    // Check for duplicate periods (same start_date and end_date)
-    const seenPeriodDates = new Set();
+    // Check for duplicate periods (same full date-time range)
+    const seenPeriodRanges = new Set();
+    const periodRanges = [];
     for (let index = 0; index < periods.length; index += 1) {
       const period = periods[index];
       const hasEntry = period.start_date || period.end_date || period.start_time || period.end_time;
       if (!hasEntry) {
         continue;
       }
-      const periodKey = `${period.start_date}|${period.end_date}`;
-      if (seenPeriodDates.has(periodKey)) {
-        return `Duplicate period found: Period ${index + 1} has the same start and end date as another period. Each period must have unique dates.`;
+      const periodKey = `${period.start_date}|${period.start_time}|${period.end_date}|${period.end_time}`;
+      if (seenPeriodRanges.has(periodKey)) {
+        return `Duplicate period found: Period ${index + 1} has the same date and time range as another period.`;
       }
-      seenPeriodDates.add(periodKey);
+      seenPeriodRanges.add(periodKey);
+
+      const start = new Date(`${period.start_date}T${period.start_time}`);
+      const end = new Date(`${period.end_date}T${period.end_time}`);
+      if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
+        if (periodRanges.some(({ start: s, end: e }) => start < e && s < end)) {
+          return `Period ${index + 1} overlaps another period. Please adjust the time range.`;
+        }
+        periodRanges.push({ start, end });
+      }
     }
 
     for (let index = 0; index < periods.length; index += 1) {
@@ -196,7 +286,16 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
   };
 
   const addRow = () => {
-    setPeriods(prev => [...prev, { start_date: '', end_date: '', start_time: '', end_time: '' }]);
+    setPeriods(prev => {
+      const next = [...prev, { start_date: '', end_date: '', start_time: '', end_time: '' }];
+      const duplicateIndex = getDuplicatePeriodIndex(next, next.length - 1);
+      if (duplicateIndex !== -1) {
+        toast.error('Duplicate Period', {
+          description: `Period ${next.length} matches Period ${duplicateIndex + 1}. Please adjust the date/time.`
+        });
+      }
+      return next;
+    });
   };
 
   const removeRow = (index) => {
@@ -233,6 +332,7 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
         ...getInitialFormState(),
         employee_name: prev.employee_name,
         job_position: prev.job_position,
+        department: prev.department,
         employee_signature: prev.employee_signature,
       }));
     } catch (err) {
