@@ -152,6 +152,68 @@ class OvertimeApprovalWorkflowTests(TestCase):
 		self.assertIsNotNone(notification)
 		self.assertIn('time in and time out', notification.message.lower())
 
+	def test_existing_overtime_overlap_is_rejected(self):
+		self._create_request_as_employee()
+
+		self._authenticate(self.employee)
+		response = self.client.post(
+			'/api/overtime',
+			{
+				'employee_name': 'Employee One',
+				'job_position': 'Intern',
+				'date_completed': str(timezone.localdate()),
+				'department': 'Operations',
+				'anticipated_hours': '2.0',
+				'explanation': 'Need overtime again',
+				'employee_signature': 'https://example.com/signature.png',
+				'periods': [
+					{
+						'start_date': str(timezone.localdate()),
+						'end_date': str(timezone.localdate()),
+						'start_time': '19:00',
+						'end_time': '21:00',
+					},
+				],
+			},
+			format='json',
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('overtime request', response.data['error'].lower())
+
+	def test_duplicate_overtime_periods_are_rejected(self):
+		self._authenticate(self.employee)
+		response = self.client.post(
+			'/api/overtime',
+			{
+				'employee_name': 'Employee One',
+				'job_position': 'Intern',
+				'date_completed': str(timezone.localdate()),
+				'department': 'Operations',
+				'anticipated_hours': '2.0',
+				'explanation': 'Need overtime',
+				'employee_signature': 'https://example.com/signature.png',
+				'periods': [
+					{
+						'start_date': str(timezone.localdate()),
+						'end_date': str(timezone.localdate()),
+						'start_time': '19:00',
+						'end_time': '21:00',
+					},
+					{
+						'start_date': str(timezone.localdate()),
+						'end_date': str(timezone.localdate()),
+						'start_time': '19:00',
+						'end_time': '21:00',
+					},
+				],
+			},
+			format='json',
+		)
+
+		self.assertEqual(response.status_code, 400)
+		self.assertIn('duplicate period', response.data['error'].lower())
+
 	def test_accounting_removal_notifies_employee_of_overtime_rejection(self):
 		request_data = self._create_request_as_employee()
 
