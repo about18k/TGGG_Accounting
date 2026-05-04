@@ -204,9 +204,24 @@ const LocationAttendance = ({
       errorSetter("Geolocation is not supported by your browser.");
       return;
     }
+
+    if (window.isSecureContext === false) {
+      errorSetter("Location requires a secure connection (HTTPS) on mobile devices.");
+      toast.error("Insecure Connection", {
+        description: "Mobile browsers require HTTPS to trigger the location prompt.",
+      });
+      // We still proceed just in case the browser allows it (e.g. some localhost setups)
+    }
+
     errorSetter("");
+    let toastId = toast.loading("Capturing location...", {
+      description: "Please allow location access if prompted."
+    });
+
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        toast.dismiss(toastId);
+        toast.success("Location captured");
         setter({
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
@@ -214,23 +229,28 @@ const LocationAttendance = ({
         });
       },
       (geoError) => {
+        toast.dismiss(toastId);
         if (geoError?.code === 1) {
-          errorSetter("Location permission denied. Please allow location access in your browser.");
+          const msg = "Location permission denied. Please enable location access in your browser or device settings.";
+          errorSetter(msg);
+          toast.error("Permission Denied", { description: msg });
           return;
         }
         if (geoError?.code === 2) {
           errorSetter("Location unavailable. Move to an open area and try again.");
+          toast.error("Location Unavailable", { description: "Make sure your device's GPS/Location service is turned on." });
           return;
         }
         if (geoError?.code === 3) {
           errorSetter("Location request timed out. Please try capturing again.");
+          toast.error("Timeout", { description: "Could not get location in time." });
           return;
         }
         errorSetter("Unable to retrieve location. Please enable location access.");
       },
       {
         enableHighAccuracy: true,
-        timeout: 15000,
+        timeout: 20000,
         maximumAge: 0,
       }
     );
