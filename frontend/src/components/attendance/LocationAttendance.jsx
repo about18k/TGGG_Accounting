@@ -184,6 +184,8 @@ const LocationAttendance = ({
     return nearest;
   };
 
+  const [isCapturing, setIsCapturing] = useState(false);
+
   useEffect(() => {
     const fetchToday = async () => {
       setLoadingToday(true);
@@ -200,6 +202,8 @@ const LocationAttendance = ({
   }, []);
 
   const requestCoordinates = (setter, errorSetter) => {
+    if (isCapturing) return; // Prevent double clicks
+    
     if (!navigator.geolocation) {
       errorSetter("Geolocation is not supported by your browser.");
       return;
@@ -213,6 +217,7 @@ const LocationAttendance = ({
       // We still proceed just in case the browser allows it (e.g. some localhost setups)
     }
 
+    setIsCapturing(true);
     errorSetter("");
     let toastId = toast.loading("Capturing location...", {
       description: "Please allow location access if prompted."
@@ -220,6 +225,7 @@ const LocationAttendance = ({
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        setIsCapturing(false);
         toast.dismiss(toastId);
         toast.success("Location captured");
         setter({
@@ -229,6 +235,7 @@ const LocationAttendance = ({
         });
       },
       (geoError) => {
+        setIsCapturing(false);
         toast.dismiss(toastId);
         if (geoError?.code === 1) {
           const msg = "Location permission denied. Please enable location access in your browser or device settings.";
@@ -396,6 +403,7 @@ const LocationAttendance = ({
   );
 
   const handleTimeAction = async (type) => {
+    if (processing) return; // Prevent double clicks
     const isTimeIn = type === "in";
     const loc = isTimeIn ? locationIn : locationOut;
     const currentMode = isTimeIn ? mode : modeOut;
@@ -543,12 +551,12 @@ const LocationAttendance = ({
         {/* Capture button */}
         <button
           type="button"
-          disabled={!!processing}
+          disabled={!!processing || isCapturing}
           onClick={handler}
-          className={`w-full flex items-center justify-center gap-2 rounded-xl border border-[#FF7120]/40 bg-[#FF7120]/10 px-4 py-2.5 text-sm font-semibold text-[#FF7120] hover:bg-[#FF7120]/20 active:scale-[0.98] transition ${!!processing ? 'opacity-50 cursor-not-allowed' : ''}`}
+          className={`w-full flex items-center justify-center gap-2 rounded-xl border border-[#FF7120]/40 bg-[#FF7120]/10 px-4 py-2.5 text-sm font-semibold text-[#FF7120] hover:bg-[#FF7120]/20 active:scale-[0.98] transition ${!!processing || isCapturing ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <Navigation className="h-4 w-4" />
-          {location ? "Re-capture Location" : "Capture My Location"}
+          {isCapturing ? "Capturing..." : (location ? "Re-capture Location" : "Capture My Location")}
         </button>
       </div>
     );
@@ -705,13 +713,14 @@ const LocationAttendance = ({
             <div className="mt-4">
               <button
                 type="button"
-                disabled={!canTimeOut || processing === "out"}
+                disabled={!canTimeOut || !!processing}
                 onClick={() => {
+                  if (processing) return;
                   handleTimeAction("out");
                 }}
                 className={[
                   "w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold text-white transition shadow-[0_12px_24px_rgba(0,0,0,0.22)]",
-                  !canTimeOut || processing === "out"
+                  !canTimeOut || !!processing
                     ? "bg-white/10 text-white/40 cursor-not-allowed"
                     : "bg-[#FF7120] hover:brightness-95 active:scale-[0.98]",
                 ].join(" ")}
@@ -782,13 +791,14 @@ const LocationAttendance = ({
           <div className="mt-6">
             <button
               type="button"
-              disabled={!canTimeIn || processing === "in"}
+              disabled={!canTimeIn || !!processing}
               onClick={() => {
+                if (processing) return;
                 handleTimeAction("in");
               }}
               className={[
                 "w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3.5 font-semibold text-white transition shadow-[0_12px_24px_rgba(0,0,0,0.22)]",
-                !canTimeIn || processing === "in"
+                !canTimeIn || !!processing
                   ? "bg-white/10 text-white/40 cursor-not-allowed"
                   : "bg-[#FF7120] hover:brightness-95 active:scale-[0.98]",
               ].join(" ")}
