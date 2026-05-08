@@ -9,7 +9,7 @@ const ProfilePage = ({ user, token, onLogout, onNavigate }) => {
       <PublicNavigation onNavigate={onNavigate} currentPage="profile" user={user} />
 
       <div className="pt-40 sm:pt-28 px-3 sm:px-6 pb-6 w-full">
-        <div className="max-w-1400px mx-auto px-2 sm:px-10">
+        <div className="w-full px-2 sm:px-10">
           <Profile 
             token={token} 
             user={user} 

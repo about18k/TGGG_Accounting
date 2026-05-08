@@ -187,7 +187,7 @@ const AttendanceDashboard = ({
   const sectionTitle = "text-white font-semibold tracking-tight text-[clamp(0.95rem,2.4vw,1.1rem)]";
   const containerClass = embedded || hasSidebar
     ? "max-w-full mx-auto flex flex-col lg:flex-row gap-4 lg:gap-6"
-    : "max-w-[1400px] mx-auto";
+    : "w-full";
   const mainClass = embedded || hasSidebar
     ? "flex-1 min-w-0 space-y-5 sm:space-y-8"
     : "px-2 sm:px-10 space-y-5 sm:space-y-8";

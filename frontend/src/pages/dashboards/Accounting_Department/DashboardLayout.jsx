@@ -289,7 +289,7 @@ export function DashboardLayout({
       </header>
 
       <div className="relative pt-40 sm:pt-24 px-3 sm:px-6 pb-10">
-        <div className="max-w-[1600px] mx-auto">
+        <div className="w-full">
           <div className="flex flex-col lg:flex-row gap-6">
             <aside className="w-64 shrink-0 hidden lg:block">
               <AccountingSidebar

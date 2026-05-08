@@ -66,7 +66,7 @@ const JuniorDesignerHub = ({ user, token, onLogout, onNavigate }) => {
       <PublicNavigation onNavigate={onNavigate} currentPage="designer-hub" user={user} />
 
       <div className="pt-28 px-3 sm:px-6 pb-6 w-full">
-        <div className="max-w-7xl mx-auto px-2 sm:px-10">
+        <div className="w-full px-2 sm:px-10">
           <div className="mb-6">
             <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2">
               Junior Designer Studio
