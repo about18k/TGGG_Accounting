@@ -7,6 +7,7 @@ from datetime import datetime
 from django.conf import settings
 import boto3
 from botocore.exceptions import ClientError
+from core.storage_utils import build_storage_public_url
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -87,7 +88,7 @@ class SupabaseStorageManager:
                 ExtraArgs={'ContentType': file_obj.content_type, 'ACL': 'public-read'}
             )
             
-            file_url = f"{settings.AWS_S3_ENDPOINT_URL}/{bucket_name}/{file_path}"
+            file_url = build_storage_public_url(bucket_name, file_path)
             
             return {
                 'success': True,
@@ -117,7 +118,7 @@ class SupabaseStorageManager:
     
     @classmethod
     def get_public_url(cls, file_path: str, bucket_name: str = "work-attachments") -> str:
-        return f"{settings.AWS_S3_ENDPOINT_URL}/{bucket_name}/{file_path}"
+        return build_storage_public_url(bucket_name, file_path)
 
     @classmethod
     def list_work_documentation_files(
@@ -140,7 +141,7 @@ class SupabaseStorageManager:
                     
                     file_path = item['Key']
                     filename = file_path.split('/')[-1]
-                    file_url = f"{settings.AWS_S3_ENDPOINT_URL}/{bucket_name}/{file_path}"
+                    file_url = build_storage_public_url(bucket_name, file_path)
                     
                     files.append({
                         'filename': filename,

@@ -281,6 +281,7 @@ AWS_S3_ENDPOINT_URL = config('MINIO_ENDPOINT', default='http://localhost:9000')
 
 # Optional Custom Domain for generating frontend-accessible URLs
 AWS_S3_CUSTOM_DOMAIN = config('MINIO_CUSTOM_DOMAIN', default='localhost:9000')
+MINIO_PUBLIC_ENDPOINT = config('MINIO_PUBLIC_ENDPOINT', default='')
 
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = 'public-read'
@@ -339,4 +340,3 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(hour=17, minute=30),
     },
 }
-

@@ -3,6 +3,7 @@ import json
 from decimal import Decimal, InvalidOperation
 from django.conf import settings
 import boto3
+from core.storage_utils import build_storage_public_url, extract_object_key_from_url
 
 from django.db.models import Q
 from rest_framework import permissions, status, viewsets
@@ -124,7 +125,7 @@ def upload_matreq_img_to_supabase(file_obj, user_id):
             ExtraArgs={'ContentType': file_obj.content_type, 'ACL': 'public-read'}
         )
         
-        return f"{settings.AWS_S3_ENDPOINT_URL}/matrequest-img/{file_path}"
+        return build_storage_public_url('matrequest-img', file_path)
     except Exception as e:
         raise Exception(f"Failed to upload image to S3: {str(e)}")
 
@@ -139,8 +140,9 @@ def remove_matreq_img_from_supabase(public_url):
             aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
             aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
         )
-        old_path = public_url.split("matrequest-img/")[-1]
-        s3.delete_object(Bucket='matrequest-img', Key=old_path)
+        old_path = extract_object_key_from_url(public_url, 'matrequest-img')
+        if old_path:
+            s3.delete_object(Bucket='matrequest-img', Key=old_path)
     except Exception as e:
         print(f"Failed to delete old material request image: {e}")
 
@@ -163,47 +165,9 @@ def upload_accounting_receipt_to_supabase(file_obj, user_id):
             ExtraArgs={'ContentType': file_obj.content_type, 'ACL': 'public-read'}
         )
         
-        return f"{settings.AWS_S3_ENDPOINT_URL}/accounting-receipt/{file_path}"
+        return build_storage_public_url('accounting-receipt', file_path)
     except Exception as e:
         raise Exception(f"Failed to upload receipt to S3: {str(e)}")
-
-def remove_matreq_img_from_supabase(public_url):
-    if not public_url or "supabase.co/storage/v1/object/public/matrequest-img/" not in public_url:
-        return
-    supabase_url = getattr(settings, 'SUPABASE_URL', None)
-    supabase_key = getattr(settings, 'SUPABASE_KEY', None)
-    if not supabase_url or not supabase_key:
-        return
-    
-    supabase: Client = create_client(supabase_url, supabase_key)
-    try:
-        old_path = public_url.split("matrequest-img/")[-1]
-        supabase.storage.from_('matrequest-img').remove([old_path])
-    except Exception as e:
-        print(f"Failed to delete old material request image: {e}")
-
-def upload_accounting_receipt_to_supabase(file_obj, user_id):
-    supabase_url = getattr(settings, 'SUPABASE_URL', None)
-    supabase_key = getattr(settings, 'SUPABASE_KEY', None)
-    if not supabase_url or not supabase_key:
-        return None
-    
-    supabase: Client = create_client(supabase_url, supabase_key)
-    file_extension = file_obj.name.split('.')[-1]
-    file_path = f"{user_id}/receipt_{uuid.uuid4().hex}.{file_extension}"
-    
-    file_content = file_obj.read()
-    try:
-        supabase.storage.from_('accounting-receipt').upload(
-            file=file_content,
-            path=file_path,
-            file_options={'content-type': file_obj.content_type, 'upsert': 'true'}
-        )
-    except Exception as e:
-        raise Exception(f"Failed to upload receipt to Supabase: {str(e)}")
-        
-    public_url = supabase.storage.from_('accounting-receipt').get_public_url(file_path)
-    return public_url
 
 
 class MaterialRequestViewSet(viewsets.ModelViewSet):

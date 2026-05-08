@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import BimDocumentation, BimDocumentationFile, BimDocumentationComment
+from core.storage_utils import build_storage_public_url
 
 
 class BimDocumentationFileSerializer(serializers.ModelSerializer):
@@ -22,19 +23,14 @@ class BimDocumentationFileSerializer(serializers.ModelSerializer):
 
     def get_file_url(self, obj):
         """
-        Return the Supabase Storage public URL for the file.
-        If file_url is stored in DB, use it directly (it's already a public URL from Supabase).
+        Return public URL for BIM file.
         """
         if obj.file_url:
             return obj.file_url
         
-        # Fallback: if only file_path exists, generate URL based on file_path
+        # Fallback: if only file_path exists, generate MinIO URL.
         if obj.file_path:
-            # Supabase Storage URL format: https://<project-id>.supabase.co/storage/v1/object/public/<bucket>/<path>
-            from decouple import config
-            supabase_url = config('SUPABASE_URL', default='')
-            if supabase_url:
-                return f"{supabase_url}/storage/v1/object/public/bim-docs/{obj.file_path}"
+            return build_storage_public_url('bim-docs', obj.file_path)
         
         return None
 

@@ -15,8 +15,8 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from supabase import create_client, Client
 from todos.services import NotificationService
+from core.storage_utils import build_storage_public_url, extract_object_key_from_url
 from .models import CustomUser, Department, ROLE_CHOICES
 from .serializers import CustomUserSerializer, PendingUserSerializer
 
@@ -327,11 +327,11 @@ def upload_profile_picture(request):
             ExtraArgs={'ContentType': profile_pic.content_type, 'ACL': 'public-read'}
         )
 
-        public_url = f"{settings.AWS_S3_ENDPOINT_URL}/profile-picture/{file_path}"
+        public_url = build_storage_public_url('profile-picture', file_path)
 
         if user.profile_picture and "/profile-picture/" in user.profile_picture:
             try:
-                old_path = user.profile_picture.split("profile-picture/")[-1]
+                old_path = extract_object_key_from_url(user.profile_picture, 'profile-picture')
                 s3.delete_object(Bucket='profile-picture', Key=old_path)
             except Exception as e:
                 print(f"Failed to delete old profile picture: {e}")
@@ -381,16 +381,16 @@ def upload_profile_signature(request):
         except Exception as e:
             return Response({'error': f"Failed to upload to user-signature bucket. Details: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-        public_url = f"{settings.AWS_S3_ENDPOINT_URL}/user-signature/{file_path}"
+        public_url = build_storage_public_url('user-signature', file_path)
 
         # Remove the old signature from either the old bucket or the new bucket
         if user.signature_image:
             try:
                 if "/user-signature/" in user.signature_image:
-                    old_path = user.signature_image.split("user-signature/")[-1]
+                    old_path = extract_object_key_from_url(user.signature_image, 'user-signature')
                     s3.delete_object(Bucket='user-signature', Key=old_path)
                 elif "/profile-picture/" in user.signature_image:
-                    old_path = user.signature_image.split("profile-picture/")[-1]
+                    old_path = extract_object_key_from_url(user.signature_image, 'profile-picture')
                     s3.delete_object(Bucket='profile-picture', Key=old_path)
             except Exception as e:
                 print(f"Failed to delete old signature: {e}")

@@ -8,11 +8,12 @@ from datetime import datetime
 from django.conf import settings
 import boto3
 from botocore.exceptions import ClientError
+from core.storage_utils import build_storage_public_url
 
 logger = logging.getLogger(__name__)
 
-# S3 configuration
-SUPABASE_BUCKET = config('SUPABASE_STORAGE_BUCKET', default='bim-docs')
+# S3/MinIO configuration (kept env fallback for compatibility)
+SUPABASE_BUCKET = config('MINIO_BIM_BUCKET', default=config('SUPABASE_STORAGE_BUCKET', default='bim-docs'))
 
 def get_s3_client():
     return boto3.client(
@@ -40,7 +41,7 @@ def upload_file_to_supabase(file_obj, doc_id):
             ExtraArgs={'ContentType': file_obj.content_type or 'application/octet-stream', 'ACL': 'public-read'}
         )
         
-        public_url = f"{settings.AWS_S3_ENDPOINT_URL}/{SUPABASE_BUCKET}/{file_path}"
+        public_url = build_storage_public_url(SUPABASE_BUCKET, file_path)
         
         return {
             'success': True,
@@ -66,3 +67,7 @@ def delete_file_from_supabase(file_path):
     except Exception as e:
         return {'success': False, 'error': str(e)}
 
+
+def get_supabase_client():
+    """Backward-compatible alias."""
+    return get_s3_client()
