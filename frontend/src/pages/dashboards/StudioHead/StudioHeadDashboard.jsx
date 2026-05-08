@@ -60,7 +60,7 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate, curren
 
       <PublicNavigation onNavigate={onNavigate} currentPage={activeTab} user={user} />
 
-      <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
+      <div className="relative pt-28 px-3 sm:px-6 pb-10">
         <div className="w-full">
           <MessageBanner message={message} onClose={() => setMessage('')} />
 

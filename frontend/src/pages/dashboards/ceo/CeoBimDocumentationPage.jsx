@@ -436,7 +436,7 @@ const CeoBimDocumentationPage = ({
 
             <PublicNavigation onNavigate={onNavigate} currentPage={navigationCurrentPage} user={user} onLogout={onLogout} />
 
-            <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
+            <div className="relative pt-28 px-3 sm:px-6 pb-10">
                 <div className="w-full flex flex-col lg:flex-row gap-6">
                     <aside className="hidden lg:block lg:w-64 shrink-0">
                         <CeoSidebar currentPage={sidebarCurrentPage} onNavigate={onNavigate} />

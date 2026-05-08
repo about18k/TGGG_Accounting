@@ -279,7 +279,7 @@ export default function SiteEngineerDashboard({ user, onNavigate }) {
 
       <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
 
-      <div className="relative pt-40 sm:pt-28 px-3 sm:px-6 pb-10">
+      <div className="relative pt-28 px-3 sm:px-6 pb-10">
         <div className="w-full flex flex-col lg:flex-row gap-6">
           <aside className="w-64 shrink-0 hidden lg:block">
             <SiteEngineerSidebar currentPage="attendance" onNavigate={onNavigate} activeSection="attendance" onSelectSection={() => { }} />

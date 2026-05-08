@@ -8,7 +8,7 @@ const ProfilePage = ({ user, token, onLogout, onNavigate }) => {
     <div className="min-h-screen" style={{ background: '#00273C' }}>
       <PublicNavigation onNavigate={onNavigate} currentPage="profile" user={user} />
 
-      <div className="pt-40 sm:pt-28 px-3 sm:px-6 pb-6 w-full">
+      <div className="pt-28 px-3 sm:px-6 pb-6 w-full">
         <div className="w-full px-2 sm:px-10">
           <Profile 
             token={token} 

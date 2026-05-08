@@ -93,7 +93,7 @@ export default function CeoEmployeeDirectoryPage({ user, onNavigate, onLogout })
     <div className="min-h-screen bg-[#00273C]">
       <PublicNavigation onNavigate={onNavigate} currentPage="ceo-employees" user={user} onLogout={onLogout} />
 
-      <div className="pt-40 sm:pt-28 px-4 sm:px-6 pb-10">
+      <div className="pt-28 px-4 sm:px-6 pb-10">
         <div className="w-full flex flex-col lg:flex-row gap-6">
           <aside className="hidden lg:block lg:w-64 shrink-0">
             <CeoSidebar currentPage="ceo-employees" onNavigate={onNavigate} />
