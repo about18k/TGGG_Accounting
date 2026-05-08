@@ -168,7 +168,7 @@ export default function Login({ onLoginSuccess }) {
                 animation: 'bounce 2s ease-in-out infinite'
               }}>
                 <img
-                  src="/logo.png"
+                  src="/logo.webp"
                   alt="Triple G Logo"
                   style={{
                     width: '110px',

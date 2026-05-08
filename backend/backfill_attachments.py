@@ -28,7 +28,7 @@ def backfill_attachments():
     
     updated_count = 0
     client = SupabaseStorageManager.get_client()
-    bucket_name = "work_attachments"
+    bucket_name = "work-attachments"
     
     for i, record in enumerate(records, 1):
         folder_path = f"work-docs/{record.employee_id}/{record.date}/"

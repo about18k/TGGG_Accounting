@@ -227,7 +227,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
         <body>
           <div class="form-container">
             <div class="header">
-              <img src="/formlogo.png" alt="Company Logo" class="logo" />
+              <img src="/formlogo.webp" alt="Company Logo" class="logo" />
               <div><div class="form-title">OT Request Form</div></div>
             </div>
             <div class="section">
@@ -616,7 +616,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
               <div className="px-10 pb-10 pt-0 flex-1 flex flex-col">
                 {/* Company Logo */}
                 <div className="flex flex-col items-center justify-center mb-0">
-                  <img src="/formlogo.png" alt="Triple G Logo" className="h-24 w-auto object-contain mb-0" />
+                  <img src="/formlogo.webp" alt="Triple G Logo" className="h-24 w-auto object-contain mb-0" />
                   <h2 className="text-2xl font-black text-center border-b-2 border-black pb-0.5 tracking-[0.25em] uppercase">OT REQUEST FORM</h2>
                 </div>
 

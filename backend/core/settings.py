@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'storages',
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
@@ -93,8 +94,9 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# Check if using Supabase or SQLite
+# Check if using Supabase, Local Postgres, or SQLite
 USE_SUPABASE = config('USE_SUPABASE', default='False') == 'True'
+USE_LOCAL_POSTGRES = config('USE_LOCAL_POSTGRES', default='True') == 'True'
 SUPABASE_URL = config('SUPABASE_URL', default='')
 SUPABASE_KEY = config('SUPABASE_KEY', default='')
 
@@ -124,6 +126,17 @@ if USE_SUPABASE:
     if is_supabase_pooler:
         # Recommended with transaction poolers.
         DISABLE_SERVER_SIDE_CURSORS = config('DISABLE_SERVER_SIDE_CURSORS', default='True') == 'True'
+elif USE_LOCAL_POSTGRES:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': config('LOCAL_DB_NAME', default='TRIPLEGACCOUNTING'),
+            'USER': config('LOCAL_DB_USER', default='postgres'),
+            'PASSWORD': config('LOCAL_DB_PASSWORD', default='M@steryii38'),
+            'HOST': config('LOCAL_DB_HOST', default='127.0.0.1'),
+            'PORT': config('LOCAL_DB_PORT', default='5432'),
+        }
+    }
 else:
     DATABASES = {
         'default': {
@@ -260,6 +273,20 @@ import os
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
+
+# S3 / MinIO Configuration
+AWS_ACCESS_KEY_ID = config('MINIO_ACCESS_KEY', default='minioadmin')
+AWS_SECRET_ACCESS_KEY = config('MINIO_SECRET_KEY', default='minioadminsecret')
+AWS_S3_ENDPOINT_URL = config('MINIO_ENDPOINT', default='http://localhost:9000')
+
+# Optional Custom Domain for generating frontend-accessible URLs
+AWS_S3_CUSTOM_DOMAIN = config('MINIO_CUSTOM_DOMAIN', default='localhost:9000')
+
+AWS_S3_FILE_OVERWRITE = False
+AWS_DEFAULT_ACL = 'public-read'
+
+# Set default storage
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Base URL for generating absolute URLs to uploaded media
 BASE_URL = config('BASE_URL', default='http://localhost:8000')

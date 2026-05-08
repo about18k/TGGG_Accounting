@@ -122,7 +122,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between w-full mx-auto px-2 sm:px-4 gap-2 lg:gap-0">
         {/* Logo & Title: Row 1 on mobile, Left side on desktop */}
         <div className="flex items-center gap-2 sm:gap-4">
-          <img src="/logo.png" alt="TripleG AOC" className="h-8 sm:h-10" />
+          <img src="/logo.webp" alt="TripleG AOC" className="h-8 sm:h-10" />
           <span className="text-lg sm:text-2xl font-semibold text-white">
             Triple<span className="text-[#FF7120]">G</span> AOC
           </span>

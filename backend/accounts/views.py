@@ -300,48 +300,42 @@ def user_profile(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def upload_profile_picture(request):
-    """Upload user profile picture to Supabase Storage."""
+    """Upload user profile picture to MinIO Storage via boto3."""
+    import boto3
+    import uuid
     user = request.user
     profile_pic = request.FILES.get('profile_pic')
 
     if not profile_pic:
         return Response({'error': 'No image provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Initialize Supabase client
-    supabase_url = getattr(settings, 'SUPABASE_URL', None)
-    supabase_key = getattr(settings, 'SUPABASE_KEY', None)
-
-    if not supabase_url or not supabase_key:
-        return Response({'error': 'Supabase configuration is missing in the backend.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
     try:
-        supabase: Client = create_client(supabase_url, supabase_key)
+        s3 = boto3.client(
+            's3',
+            endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
         
-        # Generate unique filename
         file_extension = profile_pic.name.split('.')[-1]
         file_path = f"{user.id}/avatar_{uuid.uuid4().hex}.{file_extension}"
 
-        # Upload to Supabase Storage bucket 'profile_picture'
-        # read the file content
-        file_content = profile_pic.read()
-        res = supabase.storage.from_('profile_picture').upload(
-            file=file_content,
-            path=file_path,
-            file_options={'content-type': profile_pic.content_type, 'upsert': 'true'}
+        s3.upload_fileobj(
+            profile_pic,
+            'profile-picture',
+            file_path,
+            ExtraArgs={'ContentType': profile_pic.content_type, 'ACL': 'public-read'}
         )
 
-        # Get the public URL
-        public_url = supabase.storage.from_('profile_picture').get_public_url(file_path)
+        public_url = f"{settings.AWS_S3_ENDPOINT_URL}/profile-picture/{file_path}"
 
-        # Remove the previous picture from storage if it exists to save space
-        if user.profile_picture and "supabase.co/storage/v1/object/public/profile_picture/" in user.profile_picture:
+        if user.profile_picture and "/profile-picture/" in user.profile_picture:
             try:
-                old_path = user.profile_picture.split("profile_picture/")[-1]
-                supabase.storage.from_('profile_picture').remove([old_path])
+                old_path = user.profile_picture.split("profile-picture/")[-1]
+                s3.delete_object(Bucket='profile-picture', Key=old_path)
             except Exception as e:
                 print(f"Failed to delete old profile picture: {e}")
 
-        # Update user profile
         user.profile_picture = public_url
         user.save()
 
@@ -364,41 +358,42 @@ def upload_profile_signature(request):
     if not signature_file:
         return Response({'error': 'No signature image provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
-    supabase_url = getattr(settings, 'SUPABASE_URL', None)
-    supabase_key = getattr(settings, 'SUPABASE_KEY', None)
-
-    if not supabase_url or not supabase_key:
-        return Response({'error': 'Supabase configuration is missing in the backend.'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
     try:
-        supabase: Client = create_client(supabase_url, supabase_key)
+        import boto3
+        import uuid
+        s3 = boto3.client(
+            's3',
+            endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+        )
 
         file_extension = signature_file.name.split('.')[-1]
         file_path = f"{user.id}/signature_{uuid.uuid4().hex}.{file_extension}"
 
-        file_content = signature_file.read()
         try:
-            supabase.storage.from_('user_signature').upload(
-                file=file_content,
-                path=file_path,
-                file_options={'content-type': signature_file.content_type, 'upsert': 'true'}
+            s3.upload_fileobj(
+                signature_file,
+                'user-signature',
+                file_path,
+                ExtraArgs={'ContentType': signature_file.content_type, 'ACL': 'public-read'}
             )
         except Exception as e:
-            return Response({'error': f"Failed to upload to user_signature bucket. Please ensure RLS policies are set up. Details: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f"Failed to upload to user-signature bucket. Details: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
-        public_url = supabase.storage.from_('user_signature').get_public_url(file_path)
+        public_url = f"{settings.AWS_S3_ENDPOINT_URL}/user-signature/{file_path}"
 
         # Remove the old signature from either the old bucket or the new bucket
         if user.signature_image:
             try:
-                if "supabase.co/storage/v1/object/public/user_signature/" in user.signature_image:
-                    old_path = user.signature_image.split("user_signature/")[-1]
-                    supabase.storage.from_('user_signature').remove([old_path])
-                elif "supabase.co/storage/v1/object/public/profile_picture/" in user.signature_image:
-                    old_path = user.signature_image.split("profile_picture/")[-1]
-                    supabase.storage.from_('profile_picture').remove([old_path])
+                if "/user-signature/" in user.signature_image:
+                    old_path = user.signature_image.split("user-signature/")[-1]
+                    s3.delete_object(Bucket='user-signature', Key=old_path)
+                elif "/profile-picture/" in user.signature_image:
+                    old_path = user.signature_image.split("profile-picture/")[-1]
+                    s3.delete_object(Bucket='profile-picture', Key=old_path)
             except Exception as e:
-                print(f"Failed to delete old signature image: {e}")
+                print(f"Failed to delete old signature: {e}")
 
         user.signature_image = public_url
         user.save(update_fields=['signature_image'])

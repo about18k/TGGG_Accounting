@@ -336,7 +336,7 @@ function OvertimeRequests({ token }) {
           <div class="form-container">
             <!-- Header with Logo -->
             <div class="header">
-              <img src="/imgs/formlogo.png" alt="Company Logo" class="logo" />
+              <img src="/imgs/formlogo.webp" alt="Company Logo" class="logo" />
               <div class="header-text">
                 <div class="form-title">OT Request Form</div>
               </div>
