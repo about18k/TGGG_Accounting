@@ -1,4 +1,4 @@
-import { Crown, Mail, Briefcase, MapPin, Edit2, ShieldAlert, Trash2 } from 'lucide-react';
+import { Crown, Mail, Briefcase } from 'lucide-react';
 
 export default function UserRow({
   user,
@@ -7,19 +7,9 @@ export default function UserRow({
   onToggleUserStatus,
   onDeleteUser,
 }) {
-  const handleEdit = () => {
-    onEditUser?.(user);
-  };
-
-  const handleToggleStatus = () => {
-    onToggleUserStatus?.(user.id, !user.is_active);
-  };
-
-  const handleDelete = () => {
-    const confirmed = window.confirm(`Delete user ${user.email}? This cannot be undone.`);
-    if (!confirmed) return;
-    onDeleteUser?.(user.id);
-  };
+  const handleEdit = () => onEditUser?.(user);
+  const handleToggleStatus = () => onToggleUserStatus?.(user.id, !user.is_active);
+  const handleDelete = () => onDeleteUser?.(user);
 
   const startedDate = user.date_hired || 'Not set';
 

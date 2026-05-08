@@ -10,7 +10,6 @@ import { preloadDashboardAssets, renderDashboard } from './routes/routeConfig';
 import * as notifService from './services/notificationService';
 import { getMyAttendance, getTodayAttendance } from './services/attendanceService';
 import { getMyOvertime } from './services/overtimeService';
-import { getDepartmentTasks, getTodos } from './services/todoService';
 import { configureToastConsistency } from './utils/toastUtils';
 
 // AdminDashboard removed. Use StudioHeadDashboard instead.
@@ -134,23 +133,9 @@ export default function App() {
         notifService.getNotifications(),
       ];
 
-      // Only prefetch todo/overtime when not already on their pages.
-      if (currentPage !== 'todo') {
-        warmups.push(getTodos('personal'));
-      }
+      // Only prefetch overtime when not already on that page.
       if (currentPage !== 'overtime') {
         warmups.push(getMyOvertime());
-      }
-
-      const normalizedRole = String(user.role || '').toLowerCase();
-      const normalizedDepartment = String(user.department_name || '').toLowerCase();
-      const isAccountingContext = normalizedRole === 'accounting' || (
-        normalizedRole === 'employee' &&
-        (normalizedDepartment === 'accounting department' || normalizedDepartment === 'accounting')
-      );
-
-      if (isAccountingContext) {
-        warmups.push(getDepartmentTasks());
       }
 
       Promise.allSettled(warmups);
