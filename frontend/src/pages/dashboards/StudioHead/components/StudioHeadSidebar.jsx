@@ -15,7 +15,6 @@ const DOCUMENTATION_LINKS = [
 const DASHBOARD_LINKS = [
   { id: 'approvals', label: 'User Approvals', icon: UserCheck, page: 'approvals' },
   { id: 'users', label: 'Manage Users', icon: Users, page: 'users' },
-  { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge, page: 'coordination' },
 ];
 
 export default function StudioHeadSidebar({

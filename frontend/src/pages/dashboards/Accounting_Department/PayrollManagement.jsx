@@ -673,6 +673,7 @@ export function PayrollManagement() {
       setEmployeeContributions((prev) => [...prev, data]);
       setNewContributionName('');
       setNewContributionAmount('');
+      toast.success('Contribution Added', { description: 'Employee contribution added successfully.' });
     } catch (error) {
       const message = error.response?.data?.error || 'Failed to save contribution.';
       toast.error('Update Failed', { description: message });
@@ -683,17 +684,29 @@ export function PayrollManagement() {
 
   const handleDeleteEmployeeContribution = async (contributionId) => {
     if (!selectedContributionEmployee) return;
-    const confirmed = window.confirm('Delete this contribution?');
-    if (!confirmed) return;
 
-    try {
-      await deleteEmployeeContribution(selectedContributionEmployee, contributionId);
-      setEmployeeContributions((prev) => prev.filter((item) => item.id !== contributionId));
-    } catch (error) {
-      const message = error.response?.data?.error || 'Failed to delete contribution.';
-      setContributionError(message);
-      toast.error('Delete Failed', { description: message });
-    }
+    toast('Delete Contribution?', {
+      description: 'This action cannot be undone.',
+      action: {
+        label: 'Delete',
+        onClick: async () => {
+          try {
+            await deleteEmployeeContribution(selectedContributionEmployee, contributionId);
+            setEmployeeContributions((prev) => prev.filter((item) => item.id !== contributionId));
+            toast.success('Contribution Deleted', { description: 'Employee contribution deleted successfully.' });
+          } catch (error) {
+            const message = error.response?.data?.error || 'Failed to delete contribution.';
+            toast.error('Delete Failed', { description: message });
+          }
+        },
+      },
+      cancel: {
+        label: 'Cancel',
+        onClick: () => {
+          toast.dismiss();
+        },
+      },
+    });
   };
 
   const handleCloseModal = () => {
