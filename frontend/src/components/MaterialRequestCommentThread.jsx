@@ -7,8 +7,7 @@ const ROLE_STYLE = {
     site_coordinator: { bg: 'bg-cyan-500/20', text: 'text-cyan-300', label: 'Site Coordinator' },
     studio_head:    { bg: 'bg-purple-500/20', text: 'text-purple-300', label: 'Studio Head' },
     ceo:            { bg: 'bg-amber-500/20', text: 'text-amber-300', label: 'CEO' },
-    president:      { bg: 'bg-amber-500/20', text: 'text-amber-300', label: 'President' },
-    admin:          { bg: 'bg-white/10', text: 'text-white/60', label: 'Admin' },
+
 };
 
 const RoleBadge = ({ role }) => {

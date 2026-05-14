@@ -49,11 +49,9 @@ export function useStudioHeadDashboard() {
     { value: 'bim_specialist', label: 'BIM Specialist' },
     { value: 'intern', label: 'Intern' },
     { value: 'junior_architect', label: 'Junior Architect' },
-    { value: 'president', label: 'President' },
     { value: 'site_engineer', label: 'Site Engineer' },
     { value: 'site_coordinator', label: 'Site Coordinator' },
     { value: 'studio_head', label: 'Studio Head' },
-    { value: 'admin', label: 'Admin' },
     { value: 'ceo', label: 'CEO' },
   ]), []);
 

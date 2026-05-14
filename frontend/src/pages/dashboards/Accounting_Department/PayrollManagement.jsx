@@ -194,7 +194,7 @@ export function PayrollManagement() {
   );
 
   const topManagementUser = useMemo(
-    () => employees.find((employee) => ['ceo', 'president'].includes(String(employee.role || '').toLowerCase())),
+    () => employees.find((employee) => ['ceo'].includes(String(employee.role || '').toLowerCase())),
     [employees]
   );
 

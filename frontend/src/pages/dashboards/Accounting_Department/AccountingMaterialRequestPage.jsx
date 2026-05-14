@@ -600,8 +600,9 @@ const AccountingMaterialRequestPage = ({ user }) => {
                           {/* Table header */}
                           <div className="grid grid-cols-12 gap-2 px-4 py-3 border-b border-white/10 bg-white/[0.03] text-[10px] uppercase tracking-[0.12em] text-white/40 font-semibold">
                             <div className="col-span-1">#</div>
-                            <div className="col-span-4">Requester</div>
-                            <div className="col-span-3">Date of Request</div>
+                            <div className="col-span-3">Requester</div>
+                            <div className="col-span-2">Date of Request</div>
+                            <div className="col-span-2 text-right">Allocated</div>
                             <div className="col-span-2 text-right">Total</div>
                             <div className="col-span-2 text-center">Form</div>
                           </div>
@@ -620,11 +621,14 @@ const AccountingMaterialRequestPage = ({ user }) => {
                                       {idx + 1}
                                     </span>
                                   </div>
-                                  <div className="col-span-4 min-w-0">
+                                  <div className="col-span-3 min-w-0">
                                     <p className="text-white font-medium truncate">{req.created_by_name || req.created_by_email || 'Unknown'}</p>
                                   </div>
-                                  <div className="col-span-3 text-white/60">
+                                  <div className="col-span-2 text-white/60">
                                     {formatDate(req.request_date)}
+                                  </div>
+                                  <div className="col-span-2 text-right text-emerald-400 font-medium">
+                                    ₱{req.budget_allocated ? Number(req.budget_allocated).toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '0.00'}
                                   </div>
                                   <div className="col-span-2 text-right text-white font-medium">
                                     ₱{itemsTotal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}

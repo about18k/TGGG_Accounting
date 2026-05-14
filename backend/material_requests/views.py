@@ -25,7 +25,7 @@ def _notify_ceo_material_request_forwarded(material_request, actor):
     """Notify all active CEO/President users when Studio Head forwards a request."""
     recipients = (
         CustomUser.objects
-        .filter(is_active=True, role__in=['ceo', 'president'])
+        .filter(is_active=True, role__in=['ceo'])
         .exclude(id=actor.id)
     )
 
@@ -67,7 +67,7 @@ def _notify_studio_head_material_request_submitted(material_request, actor):
 
 
 def _notify_accounting_material_request_ceo_approved(material_request, actor):
-    """Notify active Accounting users when CEO/president gives final approval."""
+    """Notify active Accounting users when CEO gives final approval."""
     recipients = (
         CustomUser.objects
         .filter(is_active=True, role='accounting')
@@ -209,12 +209,10 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             queryset = MaterialRequest.objects.filter(
                 Q(status__in=['pending_review', 'approved', 'rejected'])
             )
-        elif user.role in ['ceo', 'president']:
+        elif user.role in ['ceo']:
             queryset = self._visible_to_ceo_queryset()
         elif user.role == 'accounting':
             queryset = MaterialRequest.objects.filter(status='approved')
-        elif user.role == 'admin':
-            queryset = MaterialRequest.objects.all()
 
         return queryset.select_related(
             'created_by',
@@ -411,7 +409,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK,
             )
 
-        if user.role in ['ceo', 'president']:
+        if user.role in ['ceo']:
             if material_request.status != 'pending_review':
                 return Response(
                     {'error': 'Material request must be pending review.'},
@@ -489,22 +487,22 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        item_discounts_raw = request.data.get('item_discounts', [])
-        if isinstance(item_discounts_raw, str):
+        item_updates_raw = request.data.get('item_updates', request.data.get('item_discounts', []))
+        if isinstance(item_updates_raw, str):
             try:
-                item_discounts_raw = json.loads(item_discounts_raw)
+                item_updates_raw = json.loads(item_updates_raw)
             except (TypeError, ValueError):
                 return Response(
-                    {'error': 'Invalid item_discounts payload.'},
+                    {'error': 'Invalid item_updates payload.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        if item_discounts_raw is None:
-            item_discounts_raw = []
+        if item_updates_raw is None:
+            item_updates_raw = []
 
-        if not isinstance(item_discounts_raw, list):
+        if not isinstance(item_updates_raw, list):
             return Response(
-                {'error': 'item_discounts must be a list.'},
+                {'error': 'item_updates must be a list.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -513,10 +511,10 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         updated_items_count = 0
         total_discount_value = Decimal('0.00')
 
-        for entry in item_discounts_raw:
+        for entry in item_updates_raw:
             if not isinstance(entry, dict):
                 return Response(
-                    {'error': 'Each item_discounts entry must be an object.'},
+                    {'error': 'Each item_updates entry must be an object.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -535,8 +533,41 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+            item = request_items_by_id[item_id]
+
+            # Parse quantity
             try:
-                discount_val = Decimal(str(entry.get('discount', '0')))
+                if 'quantity' in entry and entry['quantity'] is not None:
+                    qty_val = Decimal(str(entry.get('quantity')))
+                else:
+                    qty_val = item.quantity
+            except (InvalidOperation, TypeError, ValueError):
+                return Response(
+                    {'error': f'Invalid quantity value for item id {item_id}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Parse price
+            try:
+                if 'price' in entry and entry['price'] is not None:
+                    price_val = Decimal(str(entry.get('price')))
+                else:
+                    price_val = item.price
+            except (InvalidOperation, TypeError, ValueError):
+                return Response(
+                    {'error': f'Invalid price value for item id {item_id}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if qty_val < 0 or price_val < 0:
+                return Response(
+                    {'error': f'Quantity and price cannot be negative for item id {item_id}.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Parse discount
+            try:
+                discount_val = Decimal(str(entry.get('discount', item.discount)))
             except (InvalidOperation, TypeError, ValueError):
                 return Response(
                     {'error': f'Invalid discount value for item id {item_id}.'},
@@ -549,8 +580,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            item = request_items_by_id[item_id]
-            gross_total = item.quantity * item.price
+            gross_total = qty_val * price_val
             if discount_val > gross_total:
                 return Response(
                     {'error': f'Discount cannot exceed gross total for "{item.name}".'},
@@ -558,10 +588,15 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 )
 
             new_total = gross_total - discount_val
-            if item.discount != discount_val or item.total != new_total:
+            
+            # Check if anything changed
+            if (item.quantity != qty_val or item.price != price_val or 
+                item.discount != discount_val or item.total != new_total):
+                item.quantity = qty_val
+                item.price = price_val
                 item.discount = discount_val
                 item.total = new_total
-                item.save(update_fields=['discount', 'total'])
+                item.save(update_fields=['quantity', 'price', 'discount', 'total'])
                 updated_items_count += 1
 
             total_discount_value += discount_val
@@ -596,9 +631,9 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
 
         # Create system comment for audit trail
         discount_note = (
-            f" Item discounts updated: {updated_items_count} item(s), "
+            f" Items updated: {updated_items_count} item(s) modified, "
             f"total discount ₱{total_discount_value:,.2f}."
-            if item_discounts_raw else ""
+            if item_updates_raw else ""
         )
         MaterialRequestComment.objects.create(
             material_request=material_request,
@@ -639,7 +674,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Comment content cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check permissions for commenting
-        allowed_roles = ['studio_head', 'ceo', 'president', 'site_coordinator', 'site_engineer']
+        allowed_roles = ['studio_head', 'ceo', 'site_coordinator', 'site_engineer']
         if request.user.role not in allowed_roles:
             return Response(
                 {'error': 'You do not have permission to comment on this request.'},
@@ -726,7 +761,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if user.role in self.creator_roles:
             # Site Engineers and Coordinators can see all projects (for visibility across the site)
             return Project.objects.all().select_related('created_by').distinct()
-        elif user.role in ['studio_head', 'ceo', 'president', 'accounting', 'admin']:
+        elif user.role in ['studio_head', 'ceo', 'accounting']:
             # See all projects that have at least one submitted mat req
             return Project.objects.filter(
                 material_requests__status__in=['pending_review', 'approved', 'rejected']

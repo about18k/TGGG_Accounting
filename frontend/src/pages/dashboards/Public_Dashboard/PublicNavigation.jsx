@@ -15,8 +15,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
     user?.role === 'site_engineer' ||
     user?.role === 'site_coordinator' ||
     user?.role === 'intern' ||
-    user?.role === 'ceo' ||
-    user?.role === 'president';
+    user?.role === 'ceo';
   const [notificationFilter, setNotificationFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('newest');
   const [notifications, setNotifications] = useState([]);
@@ -318,7 +317,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
             
           {/* Mobile Menu Trigger: Grip Icon for Sidebar roles */}
           <div className="flex items-center justify-end lg:hidden mt-2 lg:mt-0">
-            {(user?.role === 'studio_head' || user?.role === 'admin' || isSidebarDrivenRole || user?.role === 'employee') && (
+            {(user?.role === 'studio_head' || isSidebarDrivenRole || user?.role === 'employee') && (
               <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                 <PopoverTrigger asChild>
                   <button
@@ -343,7 +342,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                   <div className="flex flex-col gap-1">
                     {(() => {
                       let sections = [];
-                      if (user?.role === 'studio_head' || user?.role === 'admin') {
+                      if (user?.role === 'studio_head') {
                         sections = [
                           {
                             title: 'Personal',
@@ -459,7 +458,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                             ]
                           }
                         ];
-                      } else if (user?.role === 'ceo' || user?.role === 'president') {
+                      } else if (user?.role === 'ceo') {
                         sections = [
                           {
                             title: 'Personal',

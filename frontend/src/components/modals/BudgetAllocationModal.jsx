@@ -67,10 +67,10 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
   const totalDiscount = computedItems.reduce((sum, item) => sum + item.discount, 0);
   const totalRequested = computedItems.reduce((sum, item) => sum + item.total, 0);
 
-  const updateItemDiscount = (itemId, value) => {
+  const updateItemField = (itemId, field, value) => {
     setEditableItems((current) => current.map((item) => {
       if (item.id !== itemId) return item;
-      return { ...item, discount: value };
+      return { ...item, [field]: value };
     }));
   };
 
@@ -90,8 +90,10 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
 
     setIsSubmitting(true);
     let payload;
-    const discountsPayload = computedItems.map((item) => ({
+    const updatesPayload = computedItems.map((item) => ({
       id: item.id,
+      quantity: item.quantity,
+      price: item.price,
       discount: item.discount.toFixed(2),
     }));
     
@@ -99,13 +101,13 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
       payload = new FormData();
       payload.append('budget_allocated', budgetAllocated);
       payload.append('accounting_notes', accountingNotes);
-      payload.append('item_discounts', JSON.stringify(discountsPayload));
+      payload.append('item_updates', JSON.stringify(updatesPayload));
       payload.append('accounting_receipt', receiptFile);
     } else {
       payload = {
         budget_allocated: budgetAllocated,
         accounting_notes: accountingNotes,
-        item_discounts: discountsPayload,
+        item_updates: updatesPayload,
       };
     }
 
@@ -177,11 +179,31 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
                     {computedItems.map((item) => (
                       <tr key={item.id} className="border-t border-[#10344d]">
                         <td className="px-3 py-2 text-white">{item.name || '-'}</td>
-                        <td className="px-3 py-2 text-right text-white/80">
-                          {item.quantity.toLocaleString('en-PH', { minimumFractionDigits: 2 })} {item.unit}
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.quantity}
+                              onChange={(e) => updateItemField(item.id, 'quantity', e.target.value)}
+                              className="w-20 rounded-lg border border-[#10344d] bg-[#041e30] px-2 py-1.5 text-white text-right outline-none focus:border-[#FF7120]/60"
+                            />
+                            <span className="text-white/80 text-xs w-6 text-left">{item.unit}</span>
+                          </div>
                         </td>
-                        <td className="px-3 py-2 text-right text-white/80">
-                          ₱{item.price.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                        <td className="px-3 py-2 text-right">
+                          <div className="flex items-center justify-end">
+                            <span className="text-[#547C97] mr-1">₱</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={item.price}
+                              onChange={(e) => updateItemField(item.id, 'price', e.target.value)}
+                              className="w-24 rounded-lg border border-[#10344d] bg-[#041e30] px-2 py-1.5 text-white text-right outline-none focus:border-[#FF7120]/60"
+                            />
+                          </div>
                         </td>
                         <td className="px-3 py-2 text-right text-white/80">
                           ₱{item.gross.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
@@ -192,7 +214,7 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
                             min="0"
                             step="0.01"
                             value={item.discount}
-                            onChange={(e) => updateItemDiscount(item.id, e.target.value)}
+                            onChange={(e) => updateItemField(item.id, 'discount', e.target.value)}
                             className="w-32 ml-auto rounded-lg border border-[#10344d] bg-[#041e30] px-3 py-1.5 text-white text-right outline-none focus:border-[#FF7120]/60"
                           />
                         </td>

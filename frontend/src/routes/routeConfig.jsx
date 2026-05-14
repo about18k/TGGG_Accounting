@@ -255,8 +255,8 @@ export function renderDashboard({
 }) {
     if (!user) return null;
 
-    // Studio head / admin
-    if (user.role === 'studio_head' || user.role === 'admin') {
+    // Studio head
+    if (user.role === 'studio_head') {
         if (currentPage === 'attendance') return <StudioHeadAttendance user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'calendar') return <SuspendedCalendarPage user={user} onNavigate={handleNavigate} />;
         if (currentPage === 'overtime') return <StudioHeadOvertimePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
@@ -343,8 +343,8 @@ export function renderDashboard({
         return <BimSpecialistAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
     }
 
-    // CEO / President
-    if (user.role === 'president' || user.role === 'ceo') {
+    // CEO
+    if (user.role === 'ceo') {
         if (currentPage === 'ceo-dashboard') return <CeoDashboardPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'ceo-calendar') return <CeoCalendarPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
         if (currentPage === 'ceo-employees') return <CeoEmployeeDirectoryPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;

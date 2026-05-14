@@ -18,6 +18,12 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline =
 
   const overallTotal = (request.items || []).reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
 
+  const formatNumber = (val) => {
+    if (val == null || val === '') return '';
+    const num = Number(val);
+    return isNaN(num) ? val : num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const content = (
         <div className={`bg-white text-black w-full ${inline ? 'rounded-xl overflow-hidden' : 'max-w-[1150px] min-h-[800px] my-8 shadow-2xl rounded-xl'} flex flex-col print:my-0 print:shadow-none print:rounded-none print:max-w-none print:w-full print:min-h-0 print:text-black print-container`}>
         
@@ -98,15 +104,15 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline =
                 <tr key={item.id} className="border-b border-black h-6 leading-tight">
                   <td className="border-r-2 border-black text-center text-xs">{item.name ? index + 1 : ''}</td>
                   <td className="border-r-2 border-black px-3 font-bold uppercase text-[11px]">{item.name}</td>
-                  <td className="border-r-2 border-black text-center text-xs font-bold">{item.name ? `${item.quantity} ${item.unit}` : ''}</td>
-                  <td className="border-r-2 border-black text-center text-xs">{item.name ? item.price : ''}</td>
-                  <td className="border-r-2 border-black text-center text-xs">{item.name ? item.discount : ''}</td>
-                  <td className="text-center text-xs">{item.name ? item.total : ''}</td>
+                  <td className="border-r-2 border-black text-center text-xs font-bold">{item.name ? `${formatNumber(item.quantity)} ${item.unit}` : ''}</td>
+                  <td className="border-r-2 border-black text-center text-xs">{item.name ? formatNumber(item.price) : ''}</td>
+                  <td className="border-r-2 border-black text-center text-xs">{item.name ? formatNumber(item.discount) : ''}</td>
+                  <td className="text-center text-xs">{item.name ? formatNumber(item.total) : ''}</td>
                 </tr>
               ))}
               <tr className="h-10 font-bold border-t-2 border-black">
                 <td colSpan={5} className="border-r-2 border-black px-4 text-right align-middle text-xs font-bold">TOTAL :</td>
-                <td className="text-center text-xs">{overallTotal > 0 ? overallTotal.toFixed(2) : ''}</td>
+                <td className="text-center text-xs">{overallTotal > 0 ? formatNumber(overallTotal) : ''}</td>
               </tr>
             </tbody>
           </table>

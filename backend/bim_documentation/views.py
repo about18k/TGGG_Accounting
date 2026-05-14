@@ -186,7 +186,7 @@ def _notify_ceo_documentation_forwarded(doc, actor):
 
     recipients = (
         CustomUser.objects
-        .filter(is_active=True, role__in=['ceo', 'president'])
+        .filter(is_active=True, role__in=['ceo'])
         .exclude(id=actor.id)
     )
 
@@ -213,7 +213,7 @@ def _notify_documentation_rejected(doc, actor):
         'bim_specialist': 'BIM Specialist',
         'studio_head': 'Studio Head',
         'ceo': 'CEO',
-        'president': 'CEO',
+
     }.get(actor.role, 'Reviewer')
     NotificationService.create_notification(
         recipient=creator,
@@ -347,10 +347,8 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 | Q(status__in=['pending_studio_head_review', 'pending_ceo_review', 'approved'])
                 | Q(status='rejected', reviewed_by_studio_head__isnull=False)
             )
-        elif user.role in ['ceo', 'president']:
+        elif user.role in ['ceo']:
             queryset = self._visible_to_ceo_queryset()
-        elif user.role == 'admin':
-            queryset = BimDocumentation.objects.all()
 
         if created_by_role:
             role_filters = self._normalize_junior_role_filter(created_by_role)
@@ -765,7 +763,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 )
         
         # CEO Review
-        elif user.role in ['ceo', 'president']:
+        elif user.role in ['ceo']:
             if doc.status != 'pending_ceo_review' or not doc.bim_review_satisfied or doc.reviewed_by_studio_head_id is None:
                 return Response(
                     {'error': 'Documentation must be pending CEO review'},
@@ -879,7 +877,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 )
                 | Q(status='pending_studio_head_review')
             )
-        elif user.role in ['ceo', 'president']:
+        elif user.role in ['ceo']:
             docs = BimDocumentation.objects.filter(
                 Q(status='pending_ceo_review', reviewed_by_bim__isnull=False, reviewed_by_studio_head__isnull=False)
                 | Q(status='pending_ceo_review', reviewed_by_studio_head__isnull=False, created_by__role='bim_specialist')
