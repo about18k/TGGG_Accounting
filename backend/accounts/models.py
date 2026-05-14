@@ -6,12 +6,10 @@ from django.utils import timezone
 # Updated roles for the new flow
 ROLE_CHOICES = [
     ('studio_head', 'Studio Head'),
-    ('admin', 'Admin'),
     ('accounting', 'Accounting'),
     ('bim_specialist', 'BIM Specialist'),
     ('intern', 'Intern'),
     ('junior_architect', 'Junior Architect'),
-    ('president', 'President'),
     ('site_engineer', 'Site Engineer'),
     ('site_coordinator', 'Site Coordinator'),
     ('ceo', 'CEO'),

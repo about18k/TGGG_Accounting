@@ -24,11 +24,9 @@ from .models import DeductionType, PaySlip, PayrollProcessing, EmployeeContribut
 PAYROLL_MANAGER_ROLES = {
     'accounting',
     'studio_head',
-    'admin',
 }
 PAYROLL_VIEW_ROLES = {
     'ceo',
-    'president',
 }
 
 PAYROLL_CACHE_VERSION_KEY = 'payroll:cache-version'
@@ -559,7 +557,7 @@ def process_payroll(request):
 
     top_management_user = (
         CustomUser.objects
-        .filter(is_active=True, role__in=['ceo', 'president'])
+        .filter(is_active=True, role__in=['ceo'])
         .order_by('last_name', 'first_name', 'email')
         .first()
     )
@@ -717,7 +715,7 @@ def process_payroll(request):
 
     if email_result and email_result.get('sent'):
         period_label = f"{period_start.strftime('%b %d, %Y')} to {period_end.strftime('%b %d, %Y')}"
-        is_executive = (employee.role in ['ceo', 'president'])
+        is_executive = (employee.role in ['ceo'])
         _notify_employee(
             recipient=employee,
             actor=request.user,

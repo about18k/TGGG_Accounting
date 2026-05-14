@@ -25,7 +25,7 @@ def _notify_ceo_material_request_forwarded(material_request, actor):
     """Notify all active CEO/President users when Studio Head forwards a request."""
     recipients = (
         CustomUser.objects
-        .filter(is_active=True, role__in=['ceo', 'president'])
+        .filter(is_active=True, role__in=['ceo'])
         .exclude(id=actor.id)
     )
 
@@ -67,7 +67,7 @@ def _notify_studio_head_material_request_submitted(material_request, actor):
 
 
 def _notify_accounting_material_request_ceo_approved(material_request, actor):
-    """Notify active Accounting users when CEO/president gives final approval."""
+    """Notify active Accounting users when CEO gives final approval."""
     recipients = (
         CustomUser.objects
         .filter(is_active=True, role='accounting')
@@ -209,12 +209,10 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             queryset = MaterialRequest.objects.filter(
                 Q(status__in=['pending_review', 'approved', 'rejected'])
             )
-        elif user.role in ['ceo', 'president']:
+        elif user.role in ['ceo']:
             queryset = self._visible_to_ceo_queryset()
         elif user.role == 'accounting':
             queryset = MaterialRequest.objects.filter(status='approved')
-        elif user.role == 'admin':
-            queryset = MaterialRequest.objects.all()
 
         return queryset.select_related(
             'created_by',
@@ -411,7 +409,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK,
             )
 
-        if user.role in ['ceo', 'president']:
+        if user.role in ['ceo']:
             if material_request.status != 'pending_review':
                 return Response(
                     {'error': 'Material request must be pending review.'},
@@ -639,7 +637,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             return Response({'error': 'Comment content cannot be empty'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check permissions for commenting
-        allowed_roles = ['studio_head', 'ceo', 'president', 'site_coordinator', 'site_engineer']
+        allowed_roles = ['studio_head', 'ceo', 'site_coordinator', 'site_engineer']
         if request.user.role not in allowed_roles:
             return Response(
                 {'error': 'You do not have permission to comment on this request.'},
@@ -726,7 +724,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
         if user.role in self.creator_roles:
             # Site Engineers and Coordinators can see all projects (for visibility across the site)
             return Project.objects.all().select_related('created_by').distinct()
-        elif user.role in ['studio_head', 'ceo', 'president', 'accounting', 'admin']:
+        elif user.role in ['studio_head', 'ceo', 'accounting']:
             # See all projects that have at least one submitted mat req
             return Project.objects.filter(
                 material_requests__status__in=['pending_review', 'approved', 'rejected']

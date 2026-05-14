@@ -143,11 +143,10 @@ ROLE_NORMALIZATION_ALIASES = {
     'site engineer': 'site_engineer',
     'site coordinator': 'site_coordinator',
     'junior designer': 'junior_architect',
-    'administrator': 'admin',
 }
-APPROVER_ROLES = {'studio_head', 'admin'}
+APPROVER_ROLES = {'studio_head'}
 ACCOUNTING_ACCESS_ROLES = APPROVER_ROLES.union({'accounting'})
-EXECUTIVE_VIEW_ROLES = {'ceo', 'president'}
+EXECUTIVE_VIEW_ROLES = {'ceo'}
 
 
 def normalize_role_input(raw_role):

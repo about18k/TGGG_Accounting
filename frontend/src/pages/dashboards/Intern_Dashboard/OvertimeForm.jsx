@@ -307,7 +307,7 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
     const validationError = validateForm();
 
     if (validationError) {
-      toast.error('Validation Error', { description: validationError });
+      toast.error('Action Required', { description: validationError });
       return;
     }
     setSaving(true);

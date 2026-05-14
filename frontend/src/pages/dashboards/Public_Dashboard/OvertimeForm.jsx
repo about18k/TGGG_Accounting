@@ -321,7 +321,7 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (validationError) {
-      toast.error('Validation Error', { description: validationError });
+      toast.error('Action Required', { description: validationError });
       return;
     }
     setSaving(true);
@@ -704,23 +704,20 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
               </div>
 
               <div className="overtime-submit">
-                {validationError ? (
-                  <p className="overtime-submit-error">{validationError}</p>
-                ) : null}
                 <button
                   type="submit"
-                  disabled={saving || Boolean(validationError)}
+                  disabled={saving}
                   style={{
                     transition: 'all 0.2s'
                   }}
                   onMouseEnter={(e) => {
-                    if (!saving && !validationError) {
+                    if (!saving) {
                       e.currentTarget.style.transform = 'translateY(-1px)';
                       e.currentTarget.style.boxShadow = '0 4px 12px rgba(255, 113, 32, 0.25)';
                     }
                   }}
                   onMouseLeave={(e) => {
-                    if (!saving && !validationError) {
+                    if (!saving) {
                       e.currentTarget.style.transform = 'translateY(0)';
                       e.currentTarget.style.boxShadow = 'none';
                     }
