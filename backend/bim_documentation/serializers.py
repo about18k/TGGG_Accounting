@@ -59,6 +59,7 @@ class BimDocumentationSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True
     )
+    created_by_role = serializers.CharField(source='created_by.role', read_only=True, allow_null=True)
     files = BimDocumentationFileSerializer(many=True, read_only=True)
     
     class Meta:
@@ -72,6 +73,7 @@ class BimDocumentationSerializer(serializers.ModelSerializer):
             'created_by',
             'created_by_name',
             'created_by_email',
+            'created_by_role',
             'status',
             'reviewed_by_bim',
             'reviewed_by_bim_name',
@@ -134,6 +136,7 @@ class BimDocumentationListSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True
     )
+    created_by_role = serializers.CharField(source='created_by.role', read_only=True, allow_null=True)
     files = BimDocumentationFileSerializer(many=True, read_only=True)
     file_count = serializers.SerializerMethodField()
     
@@ -148,6 +151,7 @@ class BimDocumentationListSerializer(serializers.ModelSerializer):
             'created_by',
             'created_by_name',
             'created_by_email',
+            'created_by_role',
             'status',
             'reviewed_by_bim',
             'reviewed_by_bim_name',

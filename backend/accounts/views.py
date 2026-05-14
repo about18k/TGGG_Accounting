@@ -279,11 +279,17 @@ def register_view(request):
 def user_profile(request):
     """Get current user profile"""
     user = request.user
+    
+    # Capitalize first and last names for display
+    first_name = user.first_name.title() if user.first_name else ''
+    last_name = user.last_name.title() if user.last_name else ''
+    
     return Response({
         'id': user.id,
         'email': user.email,
-        'first_name': user.first_name,
-        'last_name': user.last_name,
+        'first_name': first_name,
+        'last_name': last_name,
+        'full_name': f"{first_name} {last_name}".strip() or user.email,
         'employee_id': user.employee_id,
         'phone_number': user.phone_number,
         'department': user.department.id if user.department else None,

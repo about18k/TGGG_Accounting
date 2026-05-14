@@ -277,13 +277,6 @@ export function DashboardOverview({ user, onNavigate }) {
             {loading ? 'Refreshing data…' : 'Live from database'}
           </div>
         </div>
-        <div className="absolute top-0 right-0 w-64 h-32 opacity-20">
-          <ImageWithFallback
-            src="https://images.unsplash.com/photo-1594892342285-9b86df3ad47a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBvZmZpY2UlMjB0ZWFtJTIwd29ya3NwYWNlfGVufDF8fHx8MTc1ODc2ODAyNXww&ixlib=rb-4.1.0&q=80&w=1080"
-            alt="Team workspace"
-            className="w-full h-full object-cover rounded-lg"
-          />
-        </div>
       </div>
 
       {/* Key Metrics */}

@@ -12,7 +12,14 @@ const getTodayDate = () => {
 
 const formatJobPosition = (value) => {
   if (!value) return '';
-  return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+  // Replace underscores with spaces and capitalize each word
+  return String(value)
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 };
 
 const TIME_SLOTS = [
@@ -92,9 +99,18 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
       setLoading(true);
       try {
         const data = await getProfile();
+        
+        // Capitalize names for display
+        const firstName = (data.first_name || '').trim();
+        const lastName = (data.last_name || '').trim();
+        const fullName = data.full_name || `${firstName} ${lastName}`.trim();
+        const capitalizedName = fullName.split(' ').map(word => 
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join(' ');
+        
         setForm(prev => ({
           ...prev,
-          employee_name: data.full_name || `${data.first_name} ${data.last_name}`.trim() || prev.employee_name,
+          employee_name: capitalizedName || prev.employee_name,
           job_position: formatJobPosition(data.role_name || data.role || prev.job_position),
           department: mapRoleToDepartment(data.role) || prev.department,
           employee_signature: data.signature_image || ''

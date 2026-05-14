@@ -224,7 +224,7 @@ const BimSpecialistDocumentationPage = ({ user, onNavigate }) => {
     };
 
     const isForwardedToCeo = (doc) => {
-        return doc?.status === 'pending_ceo_review' && !!doc?.reviewed_by_studio_head && !!doc?.reviewed_by_bim;
+        return doc?.status === 'pending_ceo_review' && !!doc?.reviewed_by_studio_head;
     };
 
     const getStatusColor = (doc) => {

@@ -13,7 +13,6 @@ const TABS = [
   { id: 'approvals', label: 'User Approvals', icon: ClipboardCheck },
   { id: 'users', label: 'Manage Users', icon: Users },
   { id: 'reviews', label: 'Design Reviews', icon: FileText },
-  { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge },
 ];
 
 export default function StudioHeadDashboard({ user, onLogout, onNavigate, currentPage = 'approvals' }) {

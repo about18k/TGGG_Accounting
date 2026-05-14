@@ -119,18 +119,17 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
 
   return (
     <nav className="fixed top-0 w-full z-50 px-3 sm:px-6 py-2 sm:py-4" style={{ background: '#001f35' }}>
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between w-full mx-auto px-2 sm:px-4 gap-2 lg:gap-0">
-        {/* Logo & Title: Row 1 on mobile, Left side on desktop */}
-        <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex flex-row items-start lg:items-center justify-between w-full mx-auto px-2 sm:px-4 gap-2 lg:gap-0">
+        {/* Logo & Title: Left side */}
+        <div className="flex items-center gap-2 sm:gap-4 mt-1 lg:mt-0">
           <img src="/logo.webp" alt="TripleG AOC" className="h-8 sm:h-10" />
-          <span className="text-lg sm:text-2xl font-semibold text-white">
+          <span className="text-lg sm:text-[1.3rem] font-semibold text-white whitespace-nowrap">
             Triple<span className="text-[#FF7120]">G</span> AOC
           </span>
         </div>
 
-
-        {/* Actions & Menu Trigger: Row 2 on mobile, Right side on desktop */}
-        <div className="flex items-center justify-between lg:justify-end w-full lg:w-auto lg:gap-4">
+        {/* Right side container */}
+        <div className="flex flex-col lg:flex-row items-end lg:items-center w-auto gap-2 lg:gap-4">
           {/* Desktop Navigation Links: Only for Intern role */}
           {(user?.role === 'intern' || user?.role === 'employee') && (
             <div className="hidden lg:flex items-center gap-1 lg:order-1">
@@ -186,8 +185,10 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
             </div>
           )}
 
-          {/* Notifications & Profile - Left side on mobile, Right side on desktop */}
-          <div className="flex items-center gap-2 sm:gap-4 lg:order-2">
+          {/* Right actions wrapper */}
+          <div className="flex flex-col items-end gap-2 lg:flex-row lg:items-center lg:gap-4 lg:order-2">
+            {/* Notifications & Profile - Left side on mobile, Right side on desktop */}
+            <div className="flex items-center gap-2 sm:gap-4">
             <Popover>
               <PopoverTrigger asChild>
                 <button
@@ -314,9 +315,9 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
               <User className="h-4 w-4" style={{ transition: 'color 0.2s' }} />
             </button>
           </div>
-
+            
           {/* Mobile Menu Trigger: Grip Icon for Sidebar roles */}
-          <div className="flex items-center gap-2 lg:hidden">
+          <div className="flex items-center justify-end lg:hidden mt-2 lg:mt-0">
             {(user?.role === 'studio_head' || user?.role === 'admin' || isSidebarDrivenRole || user?.role === 'employee') && (
               <Popover open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                 <PopoverTrigger asChild>
@@ -365,7 +366,6 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
                               { id: 'material-requests', label: 'Material Request', icon: ClipboardList, path: 'studio-head-material-requests' },
                               { id: 'approvals', label: 'User Approvals', icon: ClipboardCheck, path: 'approvals' },
                               { id: 'users', label: 'Manage Users', icon: Users, path: 'users' },
-                              { id: 'coordination', label: 'Coordinator Panel', icon: GitMerge, path: 'coordination' },
                             ]
                           }
                         ];
@@ -514,6 +514,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
               </Popover>
             )}
           </div>
+        </div>
         </div>
       </div>
     </nav>

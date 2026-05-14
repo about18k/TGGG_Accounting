@@ -76,7 +76,11 @@ def attendance_overview(request):
 
 
 def _display_name(user):
-    return f"{user.first_name} {user.last_name}".strip() or user.email
+    """Get properly formatted display name for user."""
+    full_name = f"{user.first_name} {user.last_name}".strip()
+    if full_name:
+        return full_name.title()
+    return user.email
 
 
 def _notify_overtime_submitted(overtime_request, actor):
@@ -546,13 +550,23 @@ def _serialize_overtime_request(request_obj):
     valid_until = _overtime_request_last_valid_day(request_obj)
     is_expired = _is_overtime_request_expired(request_obj)
     completion_info = _overtime_request_completion_info(request_obj)
+    
+    # Capitalize employee name and job position for display
+    employee_name = request_obj.employee_name or _display_name(request_obj.employee)
+    job_position = request_obj.job_position or ''
+    
+    # Ensure proper capitalization
+    if employee_name:
+        employee_name = employee_name.title()
+    if job_position:
+        job_position = job_position.title()
 
     return {
         'id': request_obj.id,
         'employee_id': request_obj.employee_id,
-        'employee_name': request_obj.employee_name or _display_name(request_obj.employee),
+        'employee_name': employee_name,
         'full_name': _display_name(request_obj.employee),
-        'job_position': request_obj.job_position,
+        'job_position': job_position,
         'date_completed': request_obj.date_completed,
         'department': request_obj.department,
         'anticipated_hours': str(request_obj.anticipated_hours),
@@ -1179,10 +1193,14 @@ def overtime_list_create(request):
     if not explanation:
         return Response({'error': 'Explanation is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
+    # Get properly formatted employee name and job position from user profile
+    employee_name = _display_name(request.user)
+    job_position = request.user.get_role_display() if request.user.role else ''
+    
     overtime_request = OvertimeRequest.objects.create(
         employee=request.user,
-        employee_name=(payload.get('employee_name') or _display_name(request.user)).strip(),
-        job_position=(payload.get('job_position') or (request.user.get_role_display() if request.user.role else '')).strip(),
+        employee_name=employee_name,
+        job_position=job_position,
         date_completed=date_completed,
         department=(payload.get('department') or (request.user.department.name if request.user.department else '')).strip(),
         anticipated_hours=anticipated_hours,

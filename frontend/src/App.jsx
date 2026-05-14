@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { Toaster } from 'sonner';
+import { Toaster } from './components/ui/sonner';
 
 // Extracted modules
 import { isTokenExpired, getPageFromPath, getDefaultPage } from './utils/authUtils';
@@ -178,29 +178,7 @@ export default function App() {
 
   return (
     <>
-      <Toaster
-        theme="dark"
-        position="top-right"
-        toastOptions={{
-          style: {
-            background: '#001f35',
-            border: '1px solid rgba(255,255,255,0.1)',
-            color: '#fff',
-          },
-          classNames: {
-            title: 'text-white font-semibold text-sm leading-5',
-            description: 'text-white/80 font-medium text-sm leading-5',
-            success: 'border-emerald-400/35 bg-[#001f35]',
-            error: 'border-rose-400/35 bg-[#001f35]',
-            warning: 'border-amber-400/35 bg-[#001f35]',
-            info: 'border-sky-400/35 bg-[#001f35]',
-          },
-        }}
-        richColors={false}
-        expand={false}
-        closeButton
-        style={{ zIndex: 99999 }}
-      />
+      <Toaster position="top-right" richColors={false} expand={false} closeButton />
       <Routes>
       <Route
         path="/login"

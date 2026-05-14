@@ -132,19 +132,19 @@ export function DashboardLayout({
       </div>
 
       <header className="fixed top-0 w-full z-50 px-3 sm:px-6 py-3 sm:py-4" style={{ background: '#001f35' }}>
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 lg:gap-0 w-full mx-auto px-2 sm:px-4">
-          {/* Logo & Title: Row 1 on mobile, Left side on desktop */}
-          <div className="flex items-center justify-start gap-2 sm:gap-4">
+        <div className="flex flex-row items-start lg:items-center justify-between gap-4 lg:gap-0 w-full mx-auto px-2 sm:px-4">
+          {/* Logo & Title: Left side */}
+          <div className="flex items-center justify-start gap-2 sm:gap-4 mt-1 lg:mt-0">
             <img src="/logo.webp" alt="TripleG AOC" className="h-8 sm:h-10" />
             <span className="text-lg sm:text-2xl font-semibold text-white">
               Triple<span className="text-[#FF7120]">G</span> AOC
             </span>
           </div>
 
-          {/* Bottom Row on mobile, Right side on desktop */}
-          <div className="flex items-center justify-between lg:justify-end w-full lg:w-auto lg:gap-4">
-            {/* Left side on mobile, Right side on desktop: Notifications & Profile */}
-            <div className="flex items-center gap-2 sm:gap-4 lg:order-2">
+          {/* Right side container */}
+          <div className="flex flex-col lg:flex-row items-end lg:items-center w-auto gap-2 lg:gap-4">
+            {/* Bell & Profile */}
+            <div className="flex items-center gap-2 sm:gap-4">
               <Popover>
                 <PopoverTrigger asChild>
                   <button
@@ -257,8 +257,8 @@ export function DashboardLayout({
               </button>
             </div>
 
-            {/* Right side on mobile, Hidden on desktop: Hamburger Menu Trigger */}
-            <div className="flex items-center lg:hidden lg:order-1">
+            {/* Grip Icon (Mobile): Below Bell & Profile */}
+            <div className="flex items-center justify-end lg:hidden">
               <Popover open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
                 <PopoverTrigger asChild>
                   <button

@@ -278,6 +278,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     def _visible_to_ceo_queryset():
         return BimDocumentation.objects.filter(
             Q(status='pending_ceo_review', reviewed_by_bim__isnull=False, reviewed_by_studio_head__isnull=False)
+            | Q(status='pending_ceo_review', reviewed_by_studio_head__isnull=False, created_by__role='bim_specialist')
             | Q(status='approved', reviewed_by_ceo__isnull=False)
             | Q(status='rejected', reviewed_by_ceo__isnull=False)
         )
@@ -731,7 +732,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                         is_system_comment=True,
                     )
 
-                if doc.reviewed_by_bim_id is not None:
+                if doc.bim_review_satisfied:
                     try:
                         _notify_ceo_documentation_forwarded(doc, user)
                     except Exception as exc:
@@ -740,7 +741,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                     {
                         'message': (
                             'Documentation approved and forwarded to CEO'
-                            if doc.reviewed_by_bim_id is not None
+                            if doc.bim_review_satisfied
                             else 'Documentation approved by Studio Head; waiting for BIM approval'
                         )
                     },
@@ -765,7 +766,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         
         # CEO Review
         elif user.role in ['ceo', 'president']:
-            if doc.status != 'pending_ceo_review' or doc.reviewed_by_bim_id is None or doc.reviewed_by_studio_head_id is None:
+            if doc.status != 'pending_ceo_review' or not doc.bim_review_satisfied or doc.reviewed_by_studio_head_id is None:
                 return Response(
                     {'error': 'Documentation must be pending CEO review'},
                     status=status.HTTP_400_BAD_REQUEST
@@ -880,9 +881,8 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
             )
         elif user.role in ['ceo', 'president']:
             docs = BimDocumentation.objects.filter(
-                status='pending_ceo_review',
-                reviewed_by_bim__isnull=False,
-                reviewed_by_studio_head__isnull=False,
+                Q(status='pending_ceo_review', reviewed_by_bim__isnull=False, reviewed_by_studio_head__isnull=False)
+                | Q(status='pending_ceo_review', reviewed_by_studio_head__isnull=False, created_by__role='bim_specialist')
             )
         else:
             return Response(
