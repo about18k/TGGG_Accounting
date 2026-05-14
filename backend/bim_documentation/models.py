@@ -85,6 +85,15 @@ class BimDocumentation(models.Model):
     def __str__(self):
         return f"{self.title} - {self.created_by}"
 
+    @property
+    def bim_review_satisfied(self):
+        """BIM review is satisfied if: (a) a BIM specialist already reviewed it,
+        or (b) the creator IS a BIM specialist (self-authored)."""
+        if self.reviewed_by_bim_id is not None:
+            return True
+        creator_role = str(getattr(self.created_by, 'role', '') or '').strip().lower()
+        return creator_role == 'bim_specialist'
+
     def approve_bim(self, user, comments=''):
         """Mark as approved by BIM Specialist; advance to CEO only when Studio Head has approved too."""
         self.reviewed_by_bim = user
@@ -94,11 +103,11 @@ class BimDocumentation(models.Model):
         self.save()
     
     def approve_studio_head(self, user, comments=''):
-        """Mark as approved by Studio Head; advance to CEO only when BIM has approved too."""
+        """Mark as approved by Studio Head; advance to CEO when BIM review is satisfied."""
         self.reviewed_by_studio_head = user
         self.studio_head_reviewed_at = timezone.now()
         self.studio_head_comments = comments
-        self.status = 'pending_ceo_review' if self.reviewed_by_bim_id else 'pending_bim_review'
+        self.status = 'pending_ceo_review' if self.bim_review_satisfied else 'pending_bim_review'
         self.save()
     
     def approve_ceo(self, user, comments=''):

@@ -60,7 +60,7 @@ const getStatusMeta = (doc) => {
     }
 
     if (doc.status === 'pending_bim_review') {
-        if (doc.reviewed_by_studio_head && !doc.reviewed_by_bim) {
+        if (doc.reviewed_by_studio_head && !doc.reviewed_by_bim && doc.created_by_role !== 'bim_specialist') {
             return {
                 tabId: 'pending',
                 label: 'Awaiting BIM Approval',
@@ -325,7 +325,7 @@ const StudioHeadBimDocumentationPage = ({
             setForwardedDocs(docs.filter((doc) => (
                 doc.status === 'pending_ceo_review'
                 && !!doc.reviewed_by_studio_head
-                && !!doc.reviewed_by_bim
+                && (!!doc.reviewed_by_bim || doc.created_by_role === 'bim_specialist')
             )));
             setApprovedDocs(docs.filter((doc) => doc.status === 'approved'));
             setRejectedDocs(docs.filter((doc) => doc.status === 'rejected'));
@@ -352,7 +352,7 @@ const StudioHeadBimDocumentationPage = ({
             updatedDoc = {
                 ...found,
                 status: action === 'approve'
-                    ? (found.reviewed_by_bim ? 'pending_ceo_review' : 'pending_bim_review')
+                    ? ((found.reviewed_by_bim || found.created_by_role === 'bim_specialist') ? 'pending_ceo_review' : 'pending_bim_review')
                     : 'rejected',
                 reviewed_by_studio_head: user?.id || found.reviewed_by_studio_head || true,
                 reviewed_by_studio_head_name: reviewerName,
