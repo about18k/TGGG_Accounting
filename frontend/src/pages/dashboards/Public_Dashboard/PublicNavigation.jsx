@@ -65,7 +65,8 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
     }
 
     // Only todo-specific notifications should open the Todo page.
-    const type = notif.type || '';
+    const type = String(notif.type || '').toLowerCase();
+    const role = String(user?.role || '').toLowerCase();
     const departmentTaskTypes = [
       'dept_task_suggested',
       'dept_task_grabbed',
@@ -94,13 +95,59 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user }) => {
       return;
     }
 
+    if (type === 'user_pending_approval' && role === 'studio_head') {
+      onNavigate('approvals');
+      return;
+    }
+
+    if (type === 'matreq_submitted_to_sh' && role === 'studio_head') {
+      onNavigate('studio-head-material-requests');
+      return;
+    }
+
+    if (type === 'bim_submitted_to_sh' && role === 'studio_head') {
+      onNavigate('studio-head-bim-docs');
+      return;
+    }
+
+    if (type === 'matreq_forwarded_to_ceo' && role === 'ceo') {
+      onNavigate('ceo-material-requests');
+      return;
+    }
+
+    if (type === 'bim_forwarded_to_ceo' && role === 'ceo') {
+      onNavigate('ceo-bim-docs');
+      return;
+    }
+
+    if (type === 'ceo_payroll_processed' && role === 'ceo') {
+      onNavigate('ceo-payroll');
+      return;
+    }
+
+    if (type === 'matreq_rejected') {
+      if (role === 'site_engineer') {
+        onNavigate('engineer-hub');
+        return;
+      }
+      if (role === 'site_coordinator') {
+        onNavigate('coordinator-hub');
+        return;
+      }
+    }
+
+    if (type === 'bim_rejected' && (role === 'bim_specialist' || role === 'junior_architect')) {
+      onNavigate('documentation');
+      return;
+    }
+
     if (type.startsWith('ot_')) {
       onNavigate('overtime');
       return;
     }
 
     if (type.startsWith('calendar_')) {
-      onNavigate('calendar');
+      onNavigate(role === 'ceo' ? 'ceo-calendar' : 'calendar');
     }
   };
 

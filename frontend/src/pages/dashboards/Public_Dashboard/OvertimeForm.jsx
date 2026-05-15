@@ -128,10 +128,33 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
+  const syncSameDateFields = (period, field, value, index) => {
+    if (field !== 'start_date' && field !== 'end_date') {
+      return { ...period, [field]: value };
+    }
+
+    const nextPeriod = { ...period, [field]: value };
+    const otherField = field === 'start_date' ? 'end_date' : 'start_date';
+
+    if (value === '') {
+      nextPeriod[otherField] = '';
+      return nextPeriod;
+    }
+
+    if (nextPeriod[otherField] && nextPeriod[otherField] !== value) {
+      toast.error('Date Mismatch', {
+        description: `Period ${index + 1} must start and end on the same date.`
+      });
+    }
+
+    nextPeriod[otherField] = value;
+    return nextPeriod;
+  };
+
   const updatePeriod = (index, field, value) => {
     setPeriods(prev => {
       const next = [...prev];
-      next[index] = { ...next[index], [field]: value };
+      next[index] = syncSameDateFields(next[index], field, value, index);
       const duplicateIndex = getDuplicatePeriodIndex(next, index);
       if (duplicateIndex !== -1) {
         toast.error('Duplicate Period', {
@@ -274,6 +297,9 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
       const hasEntry = period.start_date || period.end_date || period.start_time || period.end_time;
       if (!hasEntry) {
         continue;
+      }
+      if (period.start_date && period.end_date && period.start_date !== period.end_date) {
+        return `Period ${index + 1} must have the same start and end date.`;
       }
       if (!period.start_date || !period.end_date || !period.start_time || !period.end_time) {
         return `Period ${index + 1} is incomplete. Please fill all date and time fields.`;

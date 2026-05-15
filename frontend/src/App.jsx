@@ -39,13 +39,54 @@ export default function App() {
     }
   }, []);
 
+  const handleNavigate = (page) => {
+    const rawTarget = String(page || 'attendance').trim().replace(/^\//, '') || 'attendance';
+    const [nextPage = 'attendance', ...queryParts] = rawTarget.split('?');
+    const nextQuery = queryParts.join('?');
+    const targetPath = nextQuery ? `/dashboard/${nextPage}?${nextQuery}` : `/dashboard/${nextPage}`;
+    setCurrentPage(nextPage || 'attendance');
+    navigate(targetPath);
+  };
+
+  const resolveNotificationTarget = (notif) => {
+    if (!notif) return '';
+    const role = String(user?.role || '').toLowerCase();
+    const dept = String(user?.department_name || user?.department || '').toLowerCase();
+    const isAccountingUser = role === 'accounting' || dept === 'accounting' || dept === 'accounting department';
+    const type = String(notif.type || '').toLowerCase();
+
+    if (isAccountingUser) {
+      if (type === 'user_verified') return 'employees';
+      if (type === 'matreq_ceo_approved') return 'material-requests';
+      if (type === 'payroll_processed' || type === 'contribution_added' || type === 'contribution_updated') return 'payroll';
+      if (type === 'ot_submitted' || type === 'ot_rejected' || type === 'ot_fully_approved') return 'otrequest';
+      if (type === 'calendar_non_work_day') return 'events';
+      if (type.startsWith('task_') || type.startsWith('dept_task_')) return 'todo';
+    }
+
+    return '';
+  };
+
   const markNotificationRead = useCallback(async (notif) => {
-    if (notif.is_read) return;
-    try {
-      await notifService.markNotificationRead(notif.id);
-      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
-    } catch (err) { /* ignore */ }
-  }, []);
+    const target = resolveNotificationTarget(notif);
+    const type = String(notif?.type || '').toLowerCase();
+    if (!notif?.is_read) {
+      try {
+        await notifService.markNotificationRead(notif.id);
+        setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+      } catch (err) { /* ignore */ }
+    }
+    if (target) {
+      if (target === 'todo') {
+        if (type.startsWith('dept_') || type.startsWith('dept_task_')) {
+          localStorage.setItem('todoActiveTab', 'department');
+        } else if (type.startsWith('task_') || type.startsWith('completion_')) {
+          localStorage.setItem('todoActiveTab', 'team');
+        }
+      }
+      handleNavigate(target);
+    }
+  }, [handleNavigate, resolveNotificationTarget]);
 
   const markAllNotificationsRead = useCallback(async () => {
     try {
@@ -161,15 +202,6 @@ export default function App() {
     navigate('/login', { replace: true });
   };
 
-  const handleNavigate = (page) => {
-    const rawTarget = String(page || 'attendance').trim().replace(/^\//, '') || 'attendance';
-    const [nextPage = 'attendance', ...queryParts] = rawTarget.split('?');
-    const nextQuery = queryParts.join('?');
-    const targetPath = nextQuery ? `/dashboard/${nextPage}?${nextQuery}` : `/dashboard/${nextPage}`;
-    setCurrentPage(nextPage || 'attendance');
-    navigate(targetPath);
-  };
-
   if (loading) {
     return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#021B2C', color: 'white' }}>Loading...</div>;
   }
@@ -178,7 +210,7 @@ export default function App() {
 
   return (
     <>
-      <Toaster position="top-right" richColors={false} expand={false} closeButton />
+      <Toaster position="top-right" richColors={false} expand visibleToasts={4} closeButton />
       <Routes>
       <Route
         path="/login"
