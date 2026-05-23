@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { getAccountingEmployees, addAccountingEmployee, updateAccountingEmployee } from '../../../services/adminService';
 import { getAllAttendance } from '../../../services/attendanceService';
+import { getAllOvertime } from '../../../services/overtimeService';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
@@ -92,6 +93,7 @@ export function EmployeeManagement() {
   const [isExporting, setIsExporting] = useState(false);
   const [isAddingEmployee, setIsAddingEmployee] = useState(false);
   const [showTemporaryPassword, setShowTemporaryPassword] = useState(false);
+  const [overtimeRequests, setOvertimeRequests] = useState([]);
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -128,13 +130,18 @@ export function EmployeeManagement() {
     const fetchAttendanceRecords = async () => {
       setIsAttendanceLoading(true);
       try {
-        const data = await getAllAttendance();
+        const [attendanceData, otData] = await Promise.allSettled([
+          getAllAttendance(),
+          getAllOvertime({ force: true }),
+        ]);
         if (!isActive) return;
-        setAttendanceRecords(Array.isArray(data) ? data : []);
+        setAttendanceRecords(Array.isArray(attendanceData.value) ? attendanceData.value : []);
+        setOvertimeRequests(Array.isArray(otData.value) ? otData.value : []);
       } catch (error) {
-        console.error('Failed to fetch attendance records:', error);
+        console.error('Failed to fetch attendance/overtime records:', error);
         if (isActive) {
           setAttendanceRecords([]);
+          setOvertimeRequests([]);
         }
       } finally {
         if (isActive) {
@@ -458,6 +465,32 @@ export function EmployeeManagement() {
     return summary;
   }, [attendanceRecords]);
 
+  // Build per-employee sum of actual_hours from approved OT requests logged by accounting
+  const otRequestActualHoursMap = useMemo(() => {
+    const map = new Map();
+    for (const req of overtimeRequests) {
+      if (!req.management_signature || req.actual_hours == null) continue;
+      const empId = String(req.employee_id);
+      const hrs = parseFloat(req.actual_hours) || 0;
+      map.set(empId, (map.get(empId) || 0) + hrs);
+    }
+    return map;
+  }, [overtimeRequests]);
+
+  // Count of approved OT requests per employee (with and without actual hours entered)
+  const otRequestCountMap = useMemo(() => {
+    const map = new Map();
+    for (const req of overtimeRequests) {
+      if (!req.management_signature) continue;
+      const empId = String(req.employee_id);
+      const existing = map.get(empId) || { total: 0, withHours: 0 };
+      existing.total += 1;
+      if (req.actual_hours != null) existing.withHours += 1;
+      map.set(empId, existing);
+    }
+    return map;
+  }, [overtimeRequests]);
+
   const getStatusBadge = (status) => {
     const variants = {
       'Active': 'bg-primary/10 text-primary border-primary',
@@ -698,7 +731,22 @@ export function EmployeeManagement() {
                 </div>
                 <div className="bg-[#001f35] rounded-lg px-2.5 py-2 h-16">
                   <p className="text-[10px] text-white/60">Total Overtime</p>
-                  <p className="mt-1 text-lg font-semibold tracking-tight leading-none text-[#FF6B00] truncate" title={isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalOvertime)}>{isAttendanceLoading ? '...' : formatDurationFromHours(attendanceMetrics.totalOvertime)}</p>
+                  {(() => {
+                    const otFromRequests = otRequestActualHoursMap.get(String(employee.id)) || 0;
+                    const otFromAttendance = attendanceMetrics.totalOvertime || 0;
+                    const combined = otFromRequests + otFromAttendance;
+                    const display = combined > 0
+                      ? formatDurationFromHours(combined)
+                      : formatDurationFromHours(otFromAttendance);
+                    return (
+                      <p
+                        className="mt-1 text-lg font-semibold tracking-tight leading-none text-[#FF6B00] truncate"
+                        title={isAttendanceLoading ? '...' : display}
+                      >
+                        {isAttendanceLoading ? '...' : display}
+                      </p>
+                    );
+                  })()}
                 </div>
               </div>
             </CardContent>

@@ -250,6 +250,58 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
         </div>
         {onTabChange && renderTabs()}
       </div>
+
+      {/* Total Overtime Hours Banner */}
+      {(() => {
+        const approvedWithActual = requests.filter(r => !!r.management_signature && r.actual_hours != null);
+        const totalActual = approvedWithActual.reduce((sum, r) => sum + parseFloat(r.actual_hours || 0), 0);
+        const approvedCount = requests.filter(r => !!r.management_signature).length;
+        if (approvedCount === 0) return null;
+        return (
+          <div style={{
+            margin: '0 0 1.25rem',
+            padding: '1rem 1.5rem',
+            background: 'linear-gradient(135deg, rgba(255,113,32,0.12) 0%, rgba(255,113,32,0.04) 100%)',
+            border: '1px solid rgba(255,113,32,0.3)',
+            borderRadius: '12px',
+            display: 'flex',
+            gap: '2rem',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <span style={{
+                width: '38px', height: '38px', borderRadius: '10px',
+                background: 'rgba(255,113,32,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '1.2rem', flexShrink: 0,
+              }}>⏱</span>
+              <div>
+                <div style={{ color: '#a0a4a8', fontSize: '0.75rem', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Total Actual OT Hours</div>
+                <div style={{ color: '#FF7120', fontSize: '1.6rem', fontWeight: '800', lineHeight: 1.1 }}>
+                  {totalActual % 1 === 0 ? totalActual : totalActual.toFixed(1)}
+                  <span style={{ fontSize: '0.85rem', color: '#a0a4a8', fontWeight: '500', marginLeft: '4px' }}>hrs</span>
+                </div>
+                {approvedWithActual.length < approvedCount && (
+                  <div style={{ color: '#6b7280', fontSize: '0.72rem', marginTop: '2px' }}>
+                    {approvedCount - approvedWithActual.length} approved request{approvedCount - approvedWithActual.length > 1 ? 's' : ''} pending hour entry by Accounting
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#a0a4a8', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Approved</div>
+                <div style={{ color: '#4ade80', fontSize: '1.15rem', fontWeight: '700' }}>{approvedCount}</div>
+              </div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ color: '#a0a4a8', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Pending</div>
+                <div style={{ color: '#eab308', fontSize: '1.15rem', fontWeight: '700' }}>{requests.filter(r => !r.management_signature).length}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
       <div className="attendance-table">
         <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <h3 style={{ margin: 0 }}>My OT Requests</h3>
@@ -263,7 +315,8 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
                 <tr>
                   <th>Date Submitted</th>
                   <th>Department</th>
-                  <th>Total Hours</th>
+                  <th>Anticipated Hrs</th>
+                  <th>Actual Hrs</th>
                   <th>Explanation</th>
                   <th>Status</th>
                   <th>Action</th>
@@ -282,6 +335,21 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
                       <td>{req.date_completed || '-'}</td>
                       <td>{req.department || '-'}</td>
                       <td>{req.anticipated_hours || '-'}</td>
+                      <td>
+                        {req.actual_hours != null ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '3px',
+                            background: 'rgba(255,113,32,0.15)', color: '#FF7120',
+                            border: '1px solid rgba(255,113,32,0.35)',
+                            borderRadius: '20px', padding: '2px 9px',
+                            fontSize: '0.78rem', fontWeight: '700',
+                          }}>
+                            ✓ {req.actual_hours} hrs
+                          </span>
+                        ) : (
+                          <span style={{ color: '#6b7280', fontSize: '0.82rem' }}>—</span>
+                        )}
+                      </td>
                       <td style={{ maxWidth: '320px', whiteSpace: 'normal' }}>
                         {req.explanation || '-'}
                       </td>
@@ -371,8 +439,14 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
                 <div style={{ color: '#e8eaed' }}>{selectedForView.date_completed || '-'}</div>
               </div>
               <div>
-                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Total Hours</label>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Total Hours (Anticipated)</label>
                 <div style={{ color: '#e8eaed' }}>{selectedForView.anticipated_hours || '-'}</div>
+              </div>
+              <div>
+                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Actual Hours Worked</label>
+                <div style={{ color: selectedForView.actual_hours != null ? '#FF7120' : '#6b7280', fontWeight: selectedForView.actual_hours != null ? '700' : '400' }}>
+                  {selectedForView.actual_hours != null ? `${selectedForView.actual_hours} hrs` : '— (Accounting has not entered hours yet)'}
+                </div>
               </div>
               <div>
                 <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Approval Date</label>

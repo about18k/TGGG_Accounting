@@ -175,6 +175,11 @@ class OvertimeRequest(models.Model):
     management_name = models.CharField(max_length=255, blank=True, null=True)
     approval_date = models.DateField(blank=True, null=True)
     periods = models.JSONField(default=list, blank=True)
+    actual_hours = models.DecimalField(
+        max_digits=8, decimal_places=2,
+        null=True, blank=True,
+        help_text="Actual overtime hours worked, entered manually by Accounting after completion."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

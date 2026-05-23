@@ -570,6 +570,7 @@ def _serialize_overtime_request(request_obj):
         'date_completed': request_obj.date_completed,
         'department': request_obj.department,
         'anticipated_hours': str(request_obj.anticipated_hours),
+        'actual_hours': str(request_obj.actual_hours) if request_obj.actual_hours is not None else None,
         'explanation': request_obj.explanation,
         'employee_signature': request_obj.employee_signature,
         'supervisor_signature': request_obj.supervisor_signature,
@@ -1346,6 +1347,43 @@ def delete_overtime_request(request, request_id):
 
     overtime_request.delete()
     return Response({'message': 'Overtime request removed.'}, status=status.HTTP_200_OK)
+
+
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def set_overtime_actual_hours(request, request_id):
+    """Allow accounting to manually record the actual hours an employee worked for an approved OT request."""
+    if not _can_review_overtime(request.user):
+        return Response({'error': 'Not authorized to set actual overtime hours.'}, status=status.HTTP_403_FORBIDDEN)
+
+    overtime_request = OvertimeRequest.objects.select_related('employee').filter(id=request_id).first()
+    if not overtime_request:
+        return Response({'error': 'Overtime request not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    if not _is_overtime_fully_approved(overtime_request):
+        return Response(
+            {'error': 'Actual hours can only be entered for fully approved OT requests.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    raw_hours = request.data.get('actual_hours')
+    if raw_hours is None:
+        return Response({'error': 'actual_hours is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Support clearing the value by passing null
+    if raw_hours in ['', 'null', None] or (isinstance(raw_hours, str) and raw_hours.strip() == ''):
+        overtime_request.actual_hours = None
+    else:
+        try:
+            parsed = Decimal(str(raw_hours))
+            if parsed < 0:
+                return Response({'error': 'actual_hours cannot be negative.'}, status=status.HTTP_400_BAD_REQUEST)
+            overtime_request.actual_hours = parsed
+        except (InvalidOperation, ValueError):
+            return Response({'error': 'actual_hours must be a valid number.'}, status=status.HTTP_400_BAD_REQUEST)
+
+    overtime_request.save(update_fields=['actual_hours', 'updated_at'])
+    return Response(_serialize_overtime_request(overtime_request))
 
 
 # ============================================================================

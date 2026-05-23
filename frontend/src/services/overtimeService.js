@@ -56,3 +56,10 @@ export async function removeOvertime(id) {
     invalidateRequestCache(OVERTIME_CACHE_PREFIX.all);
     return data;
 }
+
+export async function setOvertimeActualHours(id, actualHours) {
+    const { data } = await api.patch(`/overtime/${id}/actual-hours`, { actual_hours: actualHours });
+    invalidateRequestCache(OVERTIME_CACHE_PREFIX.my);
+    invalidateRequestCache(OVERTIME_CACHE_PREFIX.all);
+    return data;
+}

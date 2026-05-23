@@ -45,6 +45,7 @@ urlpatterns = [
     re_path(r'^api/overtime/all/?$', attendance_views.all_overtime_requests, name='all_overtime_requests'),
     re_path(r'^api/overtime/(?P<request_id>\d+)/?$', attendance_views.delete_overtime_request, name='delete_overtime_request'),
     re_path(r'^api/overtime/(?P<request_id>\d+)/approve/?$', attendance_views.approve_overtime_request, name='approve_overtime_request'),
+    re_path(r'^api/overtime/(?P<request_id>\d+)/actual-hours/?$', attendance_views.set_overtime_actual_hours, name='set_overtime_actual_hours'),
     # Todos app routes mounted at /api/ root to match frontend expectations
     # (frontend VITE_API_URL is http://localhost:8000/api)
     path('api/', include('todos.urls')),
