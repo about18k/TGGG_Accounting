@@ -4,21 +4,25 @@ PDF Payslip Generator using ReportLab
 import io
 from datetime import datetime
 from decimal import Decimal
+from PIL import Image
+
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.pdfgen import canvas
 from django.conf import settings
+
+# Import helper functions from image_generator to keep calculations and data format consistent
+from .image_generator import (
+    _to_decimal,
+    _fmt_period_date,
+    _extract_contributions,
+    _find_brand_logo_path,
+    _load_signature_image,
+)
 
 
 def format_currency(amount):
-    """Format amount as Philippine Peso currency"""
-    if amount is None:
-        amount = Decimal('0')
-    amount = Decimal(str(amount))
-    return f"₱{amount:,.2f}"
+    """Format amount as 1,234.56 (no currency symbol) to match sample style."""
+    return f"{_to_decimal(amount):,.2f}"
 
 
 def generate_payslip_pdf(payslip_data):
@@ -26,7 +30,7 @@ def generate_payslip_pdf(payslip_data):
     Generate a PDF payslip from payslip data.
     
     Args:
-        payslip_data: Dictionary containing payslip information with keys:
+        payslip_data: Dictionary or PaySlip model instance containing payslip information with keys:
             - employee_name: str
             - employee_email: str
             - employee_role: str
@@ -49,271 +53,395 @@ def generate_payslip_pdf(payslip_data):
     Returns:
         BytesIO object containing the PDF
     """
-    buffer = io.BytesIO()
-    
-    # Create PDF document
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=A4,
-        rightMargin=0.5 * inch,
-        leftMargin=0.5 * inch,
-        topMargin=0.5 * inch,
-        bottomMargin=0.5 * inch
-    )
-    
-    # Container for PDF elements
-    elements = []
-    
-    # Styles
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        'CustomTitle',
-        parent=styles['Heading1'],
-        fontSize=24,
-        textColor=colors.HexColor('#1e40af'),
-        spaceAfter=12,
-        alignment=TA_CENTER,
-        fontName='Helvetica-Bold'
-    )
-    
-    subtitle_style = ParagraphStyle(
-        'CustomSubtitle',
-        parent=styles['Normal'],
-        fontSize=12,
-        textColor=colors.HexColor('#64748b'),
-        spaceAfter=20,
-        alignment=TA_CENTER
-    )
-    
-    heading_style = ParagraphStyle(
-        'CustomHeading',
-        parent=styles['Heading2'],
-        fontSize=14,
-        textColor=colors.HexColor('#1e40af'),
-        spaceAfter=8,
-        fontName='Helvetica-Bold'
-    )
-    
-    # Company Header
-    elements.append(Paragraph("TGGG ACCOUNTING", title_style))
-    elements.append(Paragraph("PAYSLIP", subtitle_style))
-    elements.append(Spacer(1, 0.2 * inch))
-    
-    # Employee Information Section
-    elements.append(Paragraph("EMPLOYEE INFORMATION", heading_style))
-    
-    employee_info = [
-        ['Employee Name:', payslip_data.get('employee_name', 'N/A')],
-        ['Email:', payslip_data.get('employee_email', 'N/A')],
-        ['Position:', payslip_data.get('employee_role', 'N/A')],
-        ['Pay Period:', f"{payslip_data.get('period_start', 'N/A')} to {payslip_data.get('period_end', 'N/A')}"],
-    ]
-    
-    employee_table = Table(employee_info, colWidths=[2 * inch, 4.5 * inch])
-    employee_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#475569')),
-        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#1e293b')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    
-    elements.append(employee_table)
-    elements.append(Spacer(1, 0.3 * inch))
-    
-    # Attendance Summary
-    elements.append(Paragraph("ATTENDANCE SUMMARY", heading_style))
-    
-    attendance_info = [
-        ['Working Days:', str(payslip_data.get('working_days', 0))],
-        ['Days Present:', str(payslip_data.get('days_present', 0))],
-        ['Days Absent:', str(payslip_data.get('days_absent', 0))],
-        ['Days on Leave:', str(payslip_data.get('days_on_leave', 0))],
-    ]
-    
-    attendance_table = Table(attendance_info, colWidths=[2 * inch, 4.5 * inch])
-    attendance_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-        ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#475569')),
-        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#1e293b')),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    
-    elements.append(attendance_table)
-    elements.append(Spacer(1, 0.3 * inch))
-    
-    # Earnings Section
-    elements.append(Paragraph("EARNINGS", heading_style))
-    
+    # Robustly handle Django model instance or dict-like input
+    if not hasattr(payslip_data, 'get'):
+        # It's likely a PaySlip model instance
+        import json
+        notes_str = getattr(payslip_data, 'notes', '')
+        payslip_details = {}
+        if notes_str:
+            try:
+                payslip_details = json.loads(notes_str)
+            except Exception:
+                pass
+        
+        employee = getattr(payslip_data, 'employee', None)
+        emp_name = ""
+        emp_email = ""
+        emp_role = ""
+        if employee:
+            emp_name = f"{employee.first_name} {employee.last_name}".strip() or employee.email
+            emp_email = employee.email
+            emp_role = employee.get_role_display() if employee.role else ""
+
+        payslip_dict = {
+            'employee_name': emp_name,
+            'employee_email': emp_email,
+            'employee_role': emp_role,
+            'period_start': getattr(payslip_data, 'period_start', None),
+            'period_end': getattr(payslip_data, 'period_end', None),
+            'base_salary': getattr(payslip_data, 'base_salary', 0),
+            'allowances_total': getattr(payslip_data, 'allowances_total', 0),
+            'overtime_amount': getattr(payslip_data, 'overtime_amount', 0),
+            'bonus': getattr(payslip_data, 'bonus', 0),
+            'gross_salary': getattr(payslip_data, 'gross_salary', 0),
+            'deductions_total': getattr(payslip_data, 'deductions_total', 0),
+            'tax': getattr(payslip_data, 'tax', 0),
+            'net_salary': getattr(payslip_data, 'net_salary', 0),
+            'working_days': getattr(payslip_data, 'working_days', 0),
+            'days_present': getattr(payslip_data, 'days_present', 0),
+            'days_absent': getattr(payslip_data, 'days_absent', 0),
+            'days_on_leave': getattr(payslip_data, 'days_on_leave', 0),
+            'payslip_details': payslip_details,
+        }
+        payslip_data = payslip_dict
+
     payslip_details = payslip_data.get('payslip_details', {})
-    
-    earnings_data = [
-        ['Description', 'Amount'],
-        ['Basic Salary', format_currency(payslip_data.get('base_salary', 0))],
-        ['Regular Overtime', format_currency(payslip_details.get('regular_overtime', payslip_data.get('overtime_amount', 0)))],
-        ['Rest Day OT', format_currency(payslip_details.get('rest_day_ot', 0))],
-        ['Allowances', format_currency(payslip_details.get('payroll_allowance', payslip_data.get('allowances_total', 0)))],
-        ['Bonus', format_currency(payslip_data.get('bonus', 0))],
-    ]
-    
-    earnings_table = Table(earnings_data, colWidths=[4.5 * inch, 2 * inch])
-    earnings_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e40af')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 11),
-        ('FONTNAME', (0, 1), (0, -1), 'Helvetica'),
-        ('FONTNAME', (1, 1), (1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    
-    elements.append(earnings_table)
-    elements.append(Spacer(1, 0.15 * inch))
-    
-    # Gross Salary
-    gross_data = [['GROSS SALARY', format_currency(payslip_data.get('gross_salary', 0))]]
-    gross_table = Table(gross_data, colWidths=[4.5 * inch, 2 * inch])
-    gross_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#dbeafe')),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#1e40af')),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, -1), 10),
-    ]))
-    
-    elements.append(gross_table)
-    elements.append(Spacer(1, 0.3 * inch))
-    
-    # Deductions Section
-    elements.append(Paragraph("DEDUCTIONS", heading_style))
-    
-    government_contributions = payslip_details.get('government_contributions', [])
-    
-    deductions_data = [['Description', 'Amount']]
-    
-    # Add government contributions
-    for contrib in government_contributions:
-        deductions_data.append([
-            contrib.get('name', 'Contribution'),
-            format_currency(contrib.get('amount', 0))
-        ])
-    
-    # Add other deductions
-    late_undertime = payslip_details.get('late_undertime', 0)
-    if late_undertime and Decimal(str(late_undertime)) > 0:
-        deductions_data.append(['Late/Undertime', format_currency(late_undertime)])
-    
-    payroll_tax = payslip_details.get('payroll_tax', payslip_data.get('tax', 0))
-    if payroll_tax and Decimal(str(payroll_tax)) > 0:
-        deductions_data.append(['Payroll Tax', format_currency(payroll_tax)])
-    
-    company_loan = payslip_details.get('company_loan_cash_advance', 0)
-    if company_loan and Decimal(str(company_loan)) > 0:
-        deductions_data.append(['Company Loan/Cash Advance', format_currency(company_loan)])
-    
-    deductions_table = Table(deductions_data, colWidths=[4.5 * inch, 2 * inch])
-    deductions_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#dc2626')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 11),
-        ('FONTNAME', (0, 1), (0, -1), 'Helvetica'),
-        ('FONTNAME', (1, 1), (1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 1), (-1, -1), 10),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-    ]))
-    
-    elements.append(deductions_table)
-    elements.append(Spacer(1, 0.15 * inch))
-    
-    # Total Deductions
-    total_deductions_data = [['TOTAL DEDUCTIONS', format_currency(payslip_data.get('deductions_total', 0))]]
-    total_deductions_table = Table(total_deductions_data, colWidths=[4.5 * inch, 2 * inch])
-    total_deductions_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#fee2e2')),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#dc2626')),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
-        ('TOPPADDING', (0, 0), (-1, -1), 10),
-    ]))
-    
-    elements.append(total_deductions_table)
-    elements.append(Spacer(1, 0.4 * inch))
-    
-    # Net Salary (Final)
-    net_salary_data = [['NET SALARY', format_currency(payslip_data.get('net_salary', 0))]]
-    net_salary_table = Table(net_salary_data, colWidths=[4.5 * inch, 2 * inch])
-    net_salary_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#16a34a')),
-        ('TEXTCOLOR', (0, 0), (-1, -1), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 14),
-        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('BOX', (0, 0), (-1, -1), 2, colors.HexColor('#15803d')),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-        ('TOPPADDING', (0, 0), (-1, -1), 12),
-    ]))
-    
-    elements.append(net_salary_table)
-    elements.append(Spacer(1, 0.4 * inch))
-    
-    # Signatures
-    signature_data = [
-        ['Prepared By:', 'Approved By:'],
-        ['', ''],
-        ['', ''],
-        [payslip_details.get('prepared_by', 'Accounting Department'), payslip_details.get('approved_by_top_management', '')],
-    ]
-    
-    signature_table = Table(signature_data, colWidths=[3.25 * inch, 3.25 * inch])
-    signature_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('LINEABOVE', (0, 3), (-1, 3), 1, colors.black),
-        ('TOPPADDING', (0, 3), (-1, 3), 5),
-    ]))
-    
-    elements.append(signature_table)
-    elements.append(Spacer(1, 0.3 * inch))
-    
-    # Footer
-    footer_style = ParagraphStyle(
-        'Footer',
-        parent=styles['Normal'],
-        fontSize=8,
-        textColor=colors.HexColor('#94a3b8'),
-        alignment=TA_CENTER
+
+    employee_name = str(payslip_data.get('employee_name', 'N/A'))
+    designation = str(payslip_data.get('employee_role', 'N/A')).title()
+    period_start = _fmt_period_date(payslip_data.get('period_start'))
+    period_end = _fmt_period_date(payslip_data.get('period_end'))
+
+    basic_salary = _to_decimal(payslip_data.get('base_salary', 0))
+    regular_ot = _to_decimal(payslip_details.get('regular_overtime', payslip_data.get('overtime_amount', 0)))
+    late_undertime = _to_decimal(payslip_details.get('late_undertime', 0))
+    rest_day = _to_decimal(payslip_details.get('rest_day', 0))
+    rest_day_ot = _to_decimal(payslip_details.get('rest_day_ot', 0))
+    holiday = _to_decimal(payslip_details.get('holiday', 0))
+    payroll_allowance = _to_decimal(payslip_details.get('payroll_allowance', payslip_data.get('allowances_total', 0)))
+    company_loan = _to_decimal(payslip_details.get('company_loan_cash_advance', 0))
+
+    gross_salary = _to_decimal(payslip_data.get('gross_salary', 0))
+    total_deductions = _to_decimal(payslip_details.get('total_deductions', payslip_data.get('deductions_total', 0)))
+    payroll_tax = _to_decimal(payslip_details.get('payroll_tax', payslip_data.get('tax', 0)))
+    net_salary = _to_decimal(payslip_data.get('net_salary', 0))
+
+    sss, philhealth, pagibig = _extract_contributions(payslip_details)
+    net_taxable_salary = _to_decimal(
+        payslip_details.get('net_taxable_salary', gross_salary - (sss + philhealth + pagibig))
     )
-    
-    footer_text = f"Generated on {datetime.now().strftime('%B %d, %Y at %I:%M %p')}<br/>This is a computer-generated payslip and does not require a signature."
-    elements.append(Paragraph(footer_text, footer_style))
-    
-    # Build PDF
-    doc.build(elements)
-    
-    # Get PDF bytes
+
+    prepared_by = str(payslip_details.get('prepared_by', 'Accounting Department')).upper()
+    approved_by = str(payslip_details.get('approved_by_top_management', 'Top Management')).upper()
+    prepared_by_signature_url = str(payslip_details.get('prepared_by_signature', '')).strip()
+    approved_by_signature_url = str(payslip_details.get('approved_by_signature', '')).strip()
+
+    # Base Dimensions
+    sheet_left, sheet_top, sheet_right, sheet_bottom = 65, 51, 890, 774
+
+    header_top, header_bottom = sheet_top, 295
+    strip_top, strip_bottom = 295, 313
+    body_top, body_bottom = 313, 641
+    net_bar_top, net_bar_bottom = 607, 641
+
+    brand_blue = '#0F3A5C'
+    brand_orange = '#F39C3D'
+    black = '#000000'
+    white = '#FFFFFF'
+    text_gray = '#1A1A1A'
+
+    # Fonts
+    font_regular = 'Helvetica'
+    font_bold = 'Helvetica-Bold'
+
+    label_font_sz = 12.5
+    value_font_sz = 12.5
+    section_font_sz = 13.5
+    row_font_sz = 14.5
+    row_bold_font_sz = 14.8
+    strip_font_sz = 12.8
+    net_font_sz = 16
+    sign_label_font_sz = 12.5
+    sign_name_font_sz = 13.2
+    sign_role_font_sz = 11.8
+    tagline_font_sz = 15.5
+
+    # ReportLab scaling math to center perfectly on A4 Landscape
+    a4_w, a4_h = 841.89, 595.27
+    f = 595.27 / 804.0
+    dx = (a4_w - 960.0 * f) / 2
+    dy = 0.0
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=(a4_w, a4_h))
+
+    # Helper function: Draw text using PIL coordinate alignment and sizing
+    def draw_text_pil(canvas_obj, x_pil, y_pil, text, font_name, font_size_unscaled, color_hex, anchor='la'):
+        font_size = font_size_unscaled * f
+        canvas_obj.setFillColor(colors.HexColor(color_hex))
+        
+        # Determine coordinates
+        x_pdf = dx + x_pil * f
+        y_pdf = dy + (804.0 - y_pil) * f
+        
+        w = canvas_obj.stringWidth(text, font_name, font_size)
+        
+        # Horizontal alignment
+        h_align = anchor[0]
+        if h_align == 'm':
+            x_base = x_pdf - w / 2.0
+        elif h_align == 'r':
+            x_base = x_pdf - w
+        else:  # 'l'
+            x_base = x_pdf
+            
+        # Vertical alignment (offset to baseline)
+        v_align = anchor[1]
+        if v_align == 'm':
+            y_base = y_pdf - font_size * 0.35
+        elif v_align in ('a', 't'):
+            y_base = y_pdf - font_size * 0.8
+        elif v_align == 'b':
+            y_base = y_pdf
+        elif v_align == 'd':
+            y_base = y_pdf + font_size * 0.2
+        else:
+            y_base = y_pdf - font_size * 0.8  # default to ascender
+            
+        canvas_obj.setFont(font_name, font_size)
+        canvas_obj.drawString(x_base, y_base, text)
+
+    # Helper function: Draw lines
+    def draw_line_pil(canvas_obj, x1_pil, y1_pil, x2_pil, y2_pil, color_hex, line_width_unscaled):
+        canvas_obj.setStrokeColor(colors.HexColor(color_hex))
+        canvas_obj.setLineWidth(line_width_unscaled * f)
+        canvas_obj.line(
+            dx + x1_pil * f,
+            dy + (804.0 - y1_pil) * f,
+            dx + x2_pil * f,
+            dy + (804.0 - y2_pil) * f
+        )
+
+    # Helper function: Draw rectangle
+    def draw_rect_pil(canvas_obj, x1_pil, y1_pil, x2_pil, y2_pil, fill_hex=None, outline_hex=None, outline_width_unscaled=1):
+        if fill_hex:
+            canvas_obj.setFillColor(colors.HexColor(fill_hex))
+            fill = 1
+        else:
+            fill = 0
+            
+        if outline_hex:
+            canvas_obj.setStrokeColor(colors.HexColor(outline_hex))
+            canvas_obj.setLineWidth(outline_width_unscaled * f)
+            stroke = 1
+        else:
+            stroke = 0
+            
+        w_rect = (x2_pil - x1_pil) * f
+        h_rect = (y2_pil - y1_pil) * f
+        x_rect = dx + x1_pil * f
+        y_rect = dy + (804.0 - y2_pil) * f
+        
+        canvas_obj.rect(x_rect, y_rect, w_rect, h_rect, stroke=stroke, fill=fill)
+
+    # Draw Outer Sheet
+    draw_rect_pil(c, sheet_left, sheet_top, sheet_right, sheet_bottom, fill_hex=white, outline_hex=black, outline_width_unscaled=2)
+
+    # Draw Header Block
+    draw_rect_pil(c, sheet_left, header_top, sheet_right, header_bottom, fill_hex=brand_blue, outline_hex=black, outline_width_unscaled=2)
+
+    # Draw Brand Logo
+    logo_path = _find_brand_logo_path()
+    logo_drawn = False
+    if logo_path:
+        try:
+            logo = Image.open(logo_path)
+            logo_w, logo_h = logo.size
+            header_w = sheet_right - sheet_left
+            header_h = header_bottom - header_top
+            
+            max_w = header_w * 0.88
+            max_h = header_h * 0.75
+            
+            ratio = min(max_w / logo_w, max_h / logo_h)
+            target_w = logo_w * ratio
+            target_h = logo_h * ratio
+            
+            x_pil = sheet_left + (header_w - target_w) / 2
+            y_pil = header_top + header_h * 0.12
+            
+            x_pdf = dx + x_pil * f
+            y_pdf = dy + (804.0 - (y_pil + target_h)) * f
+            c.drawImage(str(logo_path), x_pdf, y_pdf, width=target_w * f, height=target_h * f, mask='auto')
+            logo_drawn = True
+        except Exception:
+            pass
+
+    if not logo_drawn:
+        center_x = (sheet_left + sheet_right) / 2
+        draw_text_pil(c, center_x, header_top + 85, 'TRIPLE G', font_bold, 40, white, anchor='mm')
+        draw_text_pil(c, center_x, header_top + 125, 'DESIGN STUDIO + CONSTRUCTION', font_bold, 16, white, anchor='mm')
+
+    # Header tagline
+    draw_text_pil(
+        c,
+        (sheet_left + sheet_right) / 2,
+        header_bottom - 26,
+        '"We\'re in business to help develop the built environment and change the world."',
+        font_bold,
+        tagline_font_sz,
+        white,
+        anchor='mm',
+    )
+
+    # Period strip
+    draw_rect_pil(c, sheet_left, strip_top, sheet_right, strip_bottom, fill_hex=brand_orange, outline_hex=black, outline_width_unscaled=1)
+    draw_text_pil(
+        c,
+        (sheet_left + sheet_right) / 2,
+        (strip_top + strip_bottom) / 2,
+        f'TGGG PAYSLIP  {period_start} to {period_end}',
+        font_bold,
+        strip_font_sz,
+        black,
+        anchor='mm',
+    )
+
+    # Main body region
+    draw_rect_pil(c, sheet_left, body_top, sheet_right, body_bottom, fill_hex=white, outline_hex=black, outline_width_unscaled=2)
+
+    # Employee metadata row
+    draw_text_pil(c, 72, 321, 'Employee Name:', font_regular, label_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, 258, 321, employee_name, font_bold, value_font_sz, black, anchor='la')
+
+    draw_text_pil(c, 72, 344, 'Designation:', font_regular, label_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, 258, 344, designation, font_bold, value_font_sz, black, anchor='la')
+
+    draw_text_pil(c, 605, 344, 'Monthly', font_regular, label_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, 882, 344, format_currency(basic_salary), font_bold, value_font_sz, black, anchor='ra')
+
+    # Section Headers
+    draw_text_pil(c, 238, 364, 'Earnings:', font_regular, section_font_sz, black, anchor='la')
+    draw_text_pil(c, 638, 364, 'Deductions:', font_regular, section_font_sz, black, anchor='la')
+
+    # Earnings & Deductions Tables
+    left_label_x = 113
+    left_value_x = 422
+    right_label_x = 546
+    right_value_x = 818
+    row_start_y = 384
+    row_step = 19.5
+
+    earnings_rows = [
+        ('Basic Salary', basic_salary),
+        ('Regular Overtime', regular_ot),
+        ('Late/Undertime', late_undertime),
+        ('Rest Day', rest_day),
+        ('Rest Day OT', rest_day_ot),
+        ('Holiday', holiday),
+    ]
+    for index, (label, amount) in enumerate(earnings_rows):
+        y_pos = row_start_y + (index * row_step)
+        draw_text_pil(c, left_label_x, y_pos, label, font_regular, row_font_sz, text_gray, anchor='la')
+        draw_text_pil(c, left_value_x, y_pos, format_currency(amount), font_regular, row_font_sz, black, anchor='ra')
+
+    deductions_rows = [
+        ('SSS', sss, False),
+        ('Philhealth', philhealth, False),
+        ('Pag-ibig', pagibig, False),
+        ('NET Taxable Salary', net_taxable_salary, True),
+        ('Payroll Tax', payroll_tax, False),
+        ('Total Deductions', total_deductions, False),
+    ]
+    for index, (label, amount, is_bold) in enumerate(deductions_rows):
+        y_pos = row_start_y + (index * row_step)
+        font = font_bold if is_bold else font_regular
+        draw_text_pil(
+            c,
+            right_label_x,
+            y_pos,
+            label,
+            font,
+            row_bold_font_sz if is_bold else row_font_sz,
+            black if is_bold else text_gray,
+            anchor='la'
+        )
+        draw_text_pil(
+            c,
+            right_value_x,
+            y_pos,
+            format_currency(amount),
+            font,
+            row_bold_font_sz if is_bold else row_font_sz,
+            black,
+            anchor='ra'
+        )
+
+    # GROSS Amount and Allowances
+    draw_text_pil(c, left_label_x, 558, 'GROSS Amount', font_bold, row_bold_font_sz, black, anchor='la')
+    draw_text_pil(c, left_value_x, 558, format_currency(gross_salary), font_bold, row_bold_font_sz, black, anchor='ra')
+
+    draw_text_pil(c, right_label_x, 558, 'Payroll Allowance', font_regular, row_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, right_value_x, 558, format_currency(payroll_allowance), font_regular, row_font_sz, black, anchor='ra')
+
+    draw_text_pil(c, right_label_x, 580, 'Company Loan/Cash Advance', font_regular, row_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, right_value_x, 580, format_currency(company_loan), font_regular, row_font_sz, black, anchor='ra')
+
+    # Net pay strip
+    net_bar_center_y = (net_bar_top + net_bar_bottom) / 2
+    draw_rect_pil(c, sheet_left, net_bar_top, sheet_right, net_bar_bottom, fill_hex=brand_orange, outline_hex=black, outline_width_unscaled=2)
+    draw_text_pil(c, 205, net_bar_center_y, 'SALARY NET PAY', font_bold, net_font_sz, black, anchor='lm')
+    draw_text_pil(c, 718, net_bar_center_y, format_currency(net_salary), font_bold, net_font_sz, black, anchor='rm')
+
+    # Signature Block Setup
+    draw_text_pil(c, 70, 656, 'Prepared By:', font_regular, sign_label_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, 568, 656, 'Approved by:', font_regular, sign_label_font_sz, text_gray, anchor='la')
+
+    left_line_y = 704
+    right_line_y = 704
+    draw_line_pil(c, 65, left_line_y, 270, left_line_y, black, 1)
+    draw_line_pil(c, 563, right_line_y, 785, right_line_y, black, 1)
+
+    # Draw Prepared By Signature image if present
+    left_signature = _load_signature_image(
+        prepared_by_signature_url,
+        max_width=170,
+        max_height=44,
+    )
+    if left_signature:
+        try:
+            sig_w = left_signature.width
+            sig_h = left_signature.height
+            x_pil = 168 - (sig_w / 2)
+            y_pil = 675
+            
+            x_pdf = dx + x_pil * f
+            y_pdf = dy + (804.0 - (y_pil + sig_h)) * f
+            c.drawImage(left_signature, x_pdf, y_pdf, width=sig_w * f, height=sig_h * f, mask='auto')
+        except Exception:
+            pass
+
+    # Draw Approved By Signature image if present
+    right_signature = _load_signature_image(
+        approved_by_signature_url,
+        max_width=170,
+        max_height=44,
+    )
+    if right_signature:
+        try:
+            sig_w = right_signature.width
+            sig_h = right_signature.height
+            x_pil = 674 - (sig_w / 2)
+            y_pil = 675
+            
+            x_pdf = dx + x_pil * f
+            y_pdf = dy + (804.0 - (y_pil + sig_h)) * f
+            c.drawImage(right_signature, x_pdf, y_pdf, width=sig_w * f, height=sig_h * f, mask='auto')
+        except Exception:
+            pass
+
+    # Signature names and roles
+    draw_text_pil(c, 168, 692, prepared_by, font_bold, sign_name_font_sz, black, anchor='mm')
+    draw_text_pil(c, 168, 717, 'Accounting Department', font_regular, sign_role_font_sz, text_gray, anchor='mm')
+
+    draw_text_pil(c, 674, 692, approved_by, font_bold, sign_name_font_sz, black, anchor='mm')
+    draw_text_pil(c, 674, 717, 'Top Management', font_regular, sign_role_font_sz, text_gray, anchor='mm')
+
+    # Bottom margin "Approved By:" label
+    draw_text_pil(c, 70, 759, 'Approved By:', font_regular, sign_label_font_sz, text_gray, anchor='la')
+
+    c.showPage()
+    c.save()
     buffer.seek(0)
     return buffer
