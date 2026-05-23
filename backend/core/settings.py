@@ -133,7 +133,7 @@ elif USE_LOCAL_POSTGRES:
             'NAME': config('LOCAL_DB_NAME', default='TRIPLEGACCOUNTING'),
             'USER': config('LOCAL_DB_USER', default='postgres'),
             'PASSWORD': config('LOCAL_DB_PASSWORD', default='M@steryii38'),
-            'HOST': config('LOCAL_DB_HOST', default='127.0.0.1'),
+            'HOST': config('LOCAL_DB_HOST', default='217.15.167.210'),
             'PORT': config('LOCAL_DB_PORT', default='5432'),
         }
     }
