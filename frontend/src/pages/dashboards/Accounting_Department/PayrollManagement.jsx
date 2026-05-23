@@ -110,7 +110,9 @@ const createEmptyPayslipForm = () => ({
   basicSalary: '',
   regularOvertime: '',
   lateUndertime: '',
+  restDay: '',
   restDayOt: '',
+  holiday: '',
   netTaxableSalary: '',
   payrollTax: '',
   totalDeductions: '',
@@ -427,20 +429,25 @@ export function PayrollManagement() {
     const basicSalary = toNumber(formValues.basicSalary);
     const regularOvertime = toNumber(formValues.regularOvertime);
     const lateUndertime = toNumber(formValues.lateUndertime);
+    const restDay = toNumber(formValues.restDay);
     const restDayOt = toNumber(formValues.restDayOt);
+    const holiday = toNumber(formValues.holiday);
     const payrollAllowance = isSelectedEmployeeAllowanceEligible
       ? toNumber(formValues.payrollAllowance)
       : 0;
     const companyLoanCashAdvance = toNumber(formValues.companyLoanCashAdvance);
     const governmentContributionsTotal = getContributionTotal(modalEmployeeContributions);
 
-    const grossAmount = basicSalary + regularOvertime + restDayOt;
-    const netTaxableSalary = Math.max(0, grossAmount - lateUndertime);
+    const grossAmount = basicSalary + regularOvertime + restDay + restDayOt + holiday;
+    const netTaxableSalary = Math.max(
+      0,
+      grossAmount - lateUndertime - governmentContributionsTotal
+    );
     const payrollTax = 0;
     const totalDeductions = governmentContributionsTotal + payrollTax;
     const salaryNetPay = Math.max(
       0,
-      netTaxableSalary + payrollAllowance - totalDeductions - companyLoanCashAdvance
+      netTaxableSalary + payrollAllowance - companyLoanCashAdvance
     );
 
     return {
@@ -455,7 +462,9 @@ export function PayrollManagement() {
       basicSalary,
       regularOvertime,
       lateUndertime,
+      restDay,
       restDayOt,
+      holiday,
     };
   };
 
@@ -465,7 +474,9 @@ export function PayrollManagement() {
       payslipForm.basicSalary,
       payslipForm.regularOvertime,
       payslipForm.lateUndertime,
+      payslipForm.restDay,
       payslipForm.restDayOt,
+      payslipForm.holiday,
       payslipForm.payrollAllowance,
       payslipForm.companyLoanCashAdvance,
       modalEmployeeContributions,
@@ -773,7 +784,9 @@ export function PayrollManagement() {
     const basicSalary = computedPayslipValues.basicSalary;
     const regularOvertime = computedPayslipValues.regularOvertime;
     const lateUndertime = computedPayslipValues.lateUndertime;
+    const restDay = computedPayslipValues.restDay;
     const restDayOt = computedPayslipValues.restDayOt;
+    const holiday = computedPayslipValues.holiday;
     const payrollTax = computedPayslipValues.payrollTax;
     const payrollAllowance = computedPayslipValues.payrollAllowance;
     const companyLoanCashAdvance = computedPayslipValues.companyLoanCashAdvance;
@@ -827,7 +840,9 @@ export function PayrollManagement() {
       basicSalary,
       regularOvertime,
       lateUndertime,
+      restDay,
       restDayOt,
+      holiday,
       payrollTax,
       netTaxableSalary,
       grossAmount,
@@ -843,7 +858,9 @@ export function PayrollManagement() {
         basic_salary: basicSalary,
         regular_overtime: regularOvertime,
         late_undertime: lateUndertime,
+        rest_day: restDay,
         rest_day_ot: restDayOt,
+        holiday,
         net_taxable_salary: netTaxableSalary,
         payroll_tax: payrollTax,
         total_deductions: totalDeductionsAmount,
@@ -1540,7 +1557,16 @@ export function PayrollManagement() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Rest Day</Label>
+                  <Label htmlFor="restDay">Rest Day</Label>
+                  <Input
+                    id="restDay"
+                    type="number"
+                    value={payslipForm.restDay}
+                    onChange={(e) => handlePayslipFieldChange('restDay', e.target.value)}
+                    className="bg-background border-white/10 text-white"
+                    min="0"
+                    step="0.01"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="restDayOt">Rest Day OT</Label>
@@ -1555,7 +1581,16 @@ export function PayrollManagement() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Holiday</Label>
+                  <Label htmlFor="holiday">Holiday</Label>
+                  <Input
+                    id="holiday"
+                    type="number"
+                    value={payslipForm.holiday}
+                    onChange={(e) => handlePayslipFieldChange('holiday', e.target.value)}
+                    className="bg-background border-white/10 text-white"
+                    min="0"
+                    step="0.01"
+                  />
                 </div>
               </CardContent>
             </Card>
@@ -1812,8 +1847,20 @@ export function PayrollManagement() {
                         <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.regularOvertime)}</span>
                       </div>
                       <div className="flex justify-between">
+                        <span className="text-muted-foreground">Late/Undertime</span>
+                        <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.lateUndertime)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Rest Day</span>
+                        <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.restDay)}</span>
+                      </div>
+                      <div className="flex justify-between">
                         <span className="text-muted-foreground">Rest Day OT</span>
                         <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.restDayOt)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Holiday</span>
+                        <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.holiday)}</span>
                       </div>
                     </div>
                     <div className="flex justify-between pt-3 border-t border-[#AEAAAA]/20 font-semibold text-base text-green-400">
@@ -1845,29 +1892,30 @@ export function PayrollManagement() {
                         <span className="text-muted-foreground">NET Taxable Salary</span>
                         <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.netTaxableSalary)}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between pb-2 border-b border-[#AEAAAA]/20">
                         <span className="text-muted-foreground">Payroll Tax</span>
                         <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.payrollTax)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Late/Undertime</span>
-                        <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.lateUndertime)}</span>
+                      <div className="flex justify-between font-semibold pt-1">
+                        <span className="text-muted-foreground">Total Deductions</span>
+                        <span className="text-white">{formatCurrency(payslipPreviewData.totalDeductionsAmount)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Company Loan/Cash Advance</span>
-                        <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.companyLoanCashAdvance)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Payroll Allowance (Added)</span>
-                        <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.payrollAllowance)}</span>
-                      </div>
-                    </div>
-                    <div className="flex justify-between pt-3 border-t border-[#AEAAAA]/20 font-semibold text-base text-orange-400">
-                      <span>Total Deductions</span>
-                      <span>{formatCurrency(payslipPreviewData.totalDeductionsAmount)}</span>
                     </div>
                   </CardContent>
                 </Card>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="lg:col-start-2 space-y-2 text-sm px-4">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Payroll Allowance</span>
+                    <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.payrollAllowance)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Company Loan/Cash Advance</span>
+                    <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.companyLoanCashAdvance)}</span>
+                  </div>
+                </div>
               </div>
 
               {/* Net Pay */}

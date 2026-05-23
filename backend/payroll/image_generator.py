@@ -85,6 +85,7 @@ def _find_brand_logo_path():
     base_dir = Path(settings.BASE_DIR)
     project_root = base_dir.parent
     candidates = [
+        project_root / 'frontend' / 'public' / 'formlogo.webp',
         project_root / 'frontend' / 'public' / 'formlogo.png',
         project_root / 'frontend' / 'public' / 'logotripleg.png',
         project_root / 'frontend' / 'public' / 'logo.png',
