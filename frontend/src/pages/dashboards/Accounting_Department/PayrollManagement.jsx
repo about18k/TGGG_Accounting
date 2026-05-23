@@ -237,7 +237,7 @@ export function PayrollManagement() {
   const calculatePayrollDates = () => {
     const year = parseInt(selectedYear, 10);
     const month = parseInt(selectedMonth, 10);
-    
+
     let startDate, endDate;
     if (selectedPayrollPeriod === '29-13') {
       // 29th of previous month to 13th of current month
@@ -250,7 +250,7 @@ export function PayrollManagement() {
       startDate = new Date(year, month - 1, 14);
       endDate = new Date(year, month - 1, 28);
     }
-    
+
     return {
       startDate: startDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
@@ -305,7 +305,7 @@ export function PayrollManagement() {
         setIsLoadingModalContributions(false);
       }
     };
-    
+
     fetchEmployeeContributions();
   }, [selectedEmployee]);
 
@@ -886,7 +886,7 @@ export function PayrollManagement() {
     }
 
     const payload = buildPayslipPayload();
-    
+
     // Store preview data and open confirmation modal
     setPayslipPreviewData(payload);
     setIsPayslipPreviewOpen(true);
@@ -910,7 +910,7 @@ export function PayrollManagement() {
       await processPayroll(payload);
 
       toast.success('Process payroll successful.');
-      
+
       await fetchPayrollData();
       setIsPayslipPreviewOpen(false);
       handleCloseModal();
@@ -1121,62 +1121,62 @@ export function PayrollManagement() {
                 const isLoadingImage = loadingPayslipImageId === record.id;
 
                 return (
-                <div
-                  key={record.id}
-                  className={`flex flex-col p-4 rounded-lg border border-border/50 bg-card/40 transition-colors ${canViewImage ? 'hover:bg-card/60 cursor-pointer' : 'cursor-default'}`}
-                  onClick={() => {
-                    if (canViewImage && !isLoadingImage) {
-                      handleViewPayslipImage(record);
-                    }
-                  }}
-                  role={canViewImage ? 'button' : undefined}
-                  tabIndex={canViewImage ? 0 : -1}
-                  onKeyDown={(event) => {
-                    if (!canViewImage || isLoadingImage) return;
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      handleViewPayslipImage(record);
-                    }
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-4">
-                      <Avatar>
-                        <AvatarImage src={record.employee_avatar} alt={record.employee_name} />
-                        <AvatarFallback>{(record.employee_name || '?').split(' ').map(n => n[0]).join('')}</AvatarFallback>
-                      </Avatar>
+                  <div
+                    key={record.id}
+                    className={`flex flex-col p-4 rounded-lg border border-border/50 bg-card/40 transition-colors ${canViewImage ? 'hover:bg-card/60 cursor-pointer' : 'cursor-default'}`}
+                    onClick={() => {
+                      if (canViewImage && !isLoadingImage) {
+                        handleViewPayslipImage(record);
+                      }
+                    }}
+                    role={canViewImage ? 'button' : undefined}
+                    tabIndex={canViewImage ? 0 : -1}
+                    onKeyDown={(event) => {
+                      if (!canViewImage || isLoadingImage) return;
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        handleViewPayslipImage(record);
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-4">
+                        <Avatar>
+                          <AvatarImage src={record.employee_avatar} alt={record.employee_name} />
+                          <AvatarFallback>{(record.employee_name || '?').split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium">{record.employee_name}</p>
+                          <p className="text-sm text-muted-foreground">{record.employee_role || 'Employee'}</p>
+                        </div>
+                      </div>
+                      <Badge className="bg-primary/10 text-primary border-primary">
+                        {record.status_label || 'Processed'}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
                       <div>
-                        <p className="font-medium">{record.employee_name}</p>
-                        <p className="text-sm text-muted-foreground">{record.employee_role || 'Employee'}</p>
+                        <p className="text-xs text-muted-foreground">Period</p>
+                        <p className="font-semibold">{record.period_start} to {record.period_end}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Base Salary</p>
+                        <p className="font-semibold">{formatCurrency(record.base_salary)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Net Salary</p>
+                        <p className="font-semibold text-[#F27229]">{formatCurrency(record.net_salary)}</p>
                       </div>
                     </div>
-                    <Badge className="bg-primary/10 text-primary border-primary">
-                      {record.status_label || 'Processed'}
-                    </Badge>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {isLoadingImage
+                        ? 'Loading payslip image...'
+                        : canViewImage
+                          ? 'Click to view payslip image'
+                          : 'Payslip image unavailable for this record'}
+                    </p>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Period</p>
-                      <p className="font-semibold">{record.period_start} to {record.period_end}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Base Salary</p>
-                      <p className="font-semibold">{formatCurrency(record.base_salary)}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Net Salary</p>
-                      <p className="font-semibold text-[#F27229]">{formatCurrency(record.net_salary)}</p>
-                    </div>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {isLoadingImage
-                      ? 'Loading payslip image...'
-                      : canViewImage
-                        ? 'Click to view payslip image'
-                        : 'Payslip image unavailable for this record'}
-                  </p>
-                </div>
-              );
+                );
               })}
             </div>
           )}
@@ -1952,8 +1952,8 @@ export function PayrollManagement() {
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-2 pt-4 border-t">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setIsPayslipPreviewOpen(false)}
               disabled={isProcessingPayroll}
             >
