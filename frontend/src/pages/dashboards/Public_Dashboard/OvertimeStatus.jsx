@@ -323,13 +323,13 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
                   <th>Actual Hrs</th>
                   <th>Explanation</th>
                   <th>Status</th>
-                  <th>Action</th>
+                  <th className="text-center">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {requests.length === 0 ? (
                   <tr>
-                    <td colSpan="6" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
+                    <td colSpan="7" style={{ textAlign: 'center', color: '#a0a4a8', padding: '1.5rem' }}>
                       No OT requests yet.
                     </td>
                   </tr>
@@ -360,15 +360,16 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
                       <td>
                         {statusLabel(req)}
                       </td>
-                      <td>
+                      <td className="text-center">
                         <button
                           type="button"
                           onClick={(e) => { e.stopPropagation(); setSelectedForView(req); }}
                           disabled={statusLabel(req) !== 'Approved'}
-                          className={`px-3 py-1 rounded text-white text-xs font-semibold transition-all ${statusLabel(req) === 'Approved'
-                              ? 'bg-orange-500 cursor-pointer hover:bg-orange-600'
+                          className={`h-9 px-3 rounded-lg text-xs font-semibold transition-all inline-flex items-center justify-center leading-none text-white ${
+                            statusLabel(req) === 'Approved'
+                              ? 'bg-[#FF7120] hover:bg-[#ff8a3a] cursor-pointer'
                               : 'bg-gray-600 cursor-not-allowed opacity-50'
-                            }`}
+                          }`}
                         >
                           View Form
                         </button>

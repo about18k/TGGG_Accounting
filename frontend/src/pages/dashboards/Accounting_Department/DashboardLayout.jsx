@@ -301,7 +301,7 @@ export function DashboardLayout({
             </aside>
 
             <main className="flex-1 min-w-0">
-              {activeSection !== 'main' ? (
+              {activeSection !== 'main' || activeTab === 'attendance' ? (
                 children
               ) : (
                 <div className={cardClass}>
@@ -310,16 +310,6 @@ export function DashboardLayout({
                       <h1 className="text-2xl font-semibold text-white">{currentTab.title}</h1>
                       <p className="text-white/60 text-sm mt-1">{currentTab.description}</p>
                     </div>
-                    {activeTab === 'attendance' && (
-                      <Button
-                        variant="outline"
-                        className="gap-2 self-start md:self-auto"
-                        onClick={() => window.dispatchEvent(new CustomEvent('open-accounting-attendance-export'))}
-                      >
-                        <Download className="w-4 h-4" />
-                        Export Report
-                      </Button>
-                    )}
                   </div>
 
                   <div className="p-6">

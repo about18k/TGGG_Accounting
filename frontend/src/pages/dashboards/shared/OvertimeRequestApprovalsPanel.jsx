@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import ReactDOM from 'react-dom';
-import { CheckCircle2, Clock3, Search, UserRound, ArrowDownUp } from 'lucide-react';
+import { CheckCircle2, Clock3, Search, UserRound, ArrowDownUp, RefreshCcw, FileText } from 'lucide-react';
 import { approveOvertime, getAllOvertime, removeOvertime, setOvertimeActualHours } from '../../../services/overtimeService';
 import { toast } from 'sonner';
 import { getProfile } from '../../../services/profileService';
@@ -558,38 +558,68 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
   };
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-4 sm:p-6 space-y-4">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-white">OT Requests</h2>
-          <p className="text-sm text-white/60 mt-1">
-            Accounting confirmation is required before overtime time-in/time-out is allowed.
-          </p>
+    <div className="space-y-6">
+      {/* Header Card */}
+      <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
+        <div className="p-6 sm:p-8 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#FF7120]/80">Accounting Department</p>
+            <h1 className="mt-3 text-3xl sm:text-4xl font-semibold text-white">OT Requests</h1>
+            <p className="mt-3 text-sm text-white/60 max-w-2xl">
+              Accounting confirmation is required before overtime time-in/time-out is allowed.
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={loadRequests}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-white/70 hover:text-white hover:bg-white/10 transition text-sm font-semibold"
+            >
+              <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={loadRequests}
-          className="h-10 px-4 rounded-lg border border-[#FF7120]/40 text-[#FF9A5A] hover:bg-[#FF7120]/10 transition"
-        >
-          Refresh
-        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <div className="rounded-xl border border-white/10 bg-[#00273C]/60 p-4">
-          <p className="text-xs uppercase tracking-wide text-white/40">Visible Requests</p>
-          <p className="text-2xl font-semibold text-white mt-1">{stats.total}</p>
+      {/* Status Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total / Visible Requests */}
+        <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">Visible Requests</p>
+              <p className="text-2xl font-bold mt-2 text-white">{stats.total}</p>
+            </div>
+            <FileText className="w-8 h-8 text-[#FF7120]" />
+          </div>
         </div>
-        <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4">
-          <p className="text-xs uppercase tracking-wide text-emerald-200/70">Approved by Accounting</p>
-          <p className="text-2xl font-semibold text-emerald-200 mt-1">{stats.approved}</p>
-          <p className="text-xs text-emerald-200/70 mt-1">Completed: {stats.completed}</p>
+
+        {/* Approved by Accounting */}
+        <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">Approved by Accounting</p>
+              <p className="text-2xl font-bold mt-2 text-white">{stats.approved}</p>
+              <p className="text-xs text-white/45 mt-1">Completed: {stats.completed}</p>
+            </div>
+            <CheckCircle2 className="w-8 h-8 text-[#FF7120]" />
+          </div>
         </div>
-        <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 p-4">
-          <p className="text-xs uppercase tracking-wide text-amber-200/70">Needs {reviewer.label} Confirmation</p>
-          <p className="text-2xl font-semibold text-amber-200 mt-1">{stats.pendingMine}</p>
+
+        {/* Needs Confirmation */}
+        <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">Needs {reviewer.label} Confirmation</p>
+              <p className="text-2xl font-bold mt-2 text-white">{stats.pendingMine}</p>
+            </div>
+            <Clock3 className="w-8 h-8 text-[#FF7120]" />
+          </div>
         </div>
       </div>
+
+      {/* Main Table Card */}
+      <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-4 sm:p-6 space-y-4">
 
       <div className="flex flex-col sm:flex-row gap-3 items-center justify-between">
         <div className="flex p-1 space-x-1 bg-[#00273C]/60 rounded-xl border border-white/10 w-full sm:w-auto">
@@ -673,7 +703,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
               <th className="text-left font-medium px-4 py-3">Hours</th>
               <th className="text-left font-medium px-4 py-3">Status</th>
               <th className="text-left font-medium px-4 py-3">{reviewer.label}</th>
-              <th className="text-right font-medium px-4 py-3">Action</th>
+              <th className="text-center font-medium px-4 py-3">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -735,8 +765,8 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="inline-flex items-center gap-2">
+                    <td className="px-4 py-3 text-center">
+                      <div className="inline-flex items-center justify-center gap-2">
                         {alreadyConfirmed ? (
                           <button
                             type="button"
@@ -750,7 +780,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                                 printWindow.onload = () => printWindow.print();
                               }
                             }}
-                            className="h-9 px-3 rounded-lg text-xs font-semibold transition border border-gray-400/40 text-gray-200 hover:bg-gray-500/15"
+                            className="h-9 px-3 rounded-lg text-xs font-semibold transition border border-gray-400/40 text-gray-200 hover:bg-gray-500/15 inline-flex items-center justify-center leading-none"
                           >
                             Print
                           </button>
@@ -762,7 +792,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                               event.stopPropagation();
                               onRemove(requestItem);
                             }}
-                            className={`h-9 px-3 rounded-lg text-xs font-semibold transition border border-red-400/40 text-red-200 hover:bg-red-500/15 ${savingId === requestItem.id ? 'opacity-70 cursor-wait' : ''}`}
+                            className={`h-9 px-3 rounded-lg text-xs font-semibold transition border border-red-400/40 text-red-200 hover:bg-red-500/15 inline-flex items-center justify-center leading-none disabled:opacity-60 ${savingId === requestItem.id ? 'opacity-70 cursor-wait' : ''}`}
                           >
                             {savingId === requestItem.id ? 'Saving...' : 'Remove'}
                           </button>
@@ -774,9 +804,9 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                               event.stopPropagation();
                               setActualHoursTarget(requestItem);
                             }}
-                            className="h-9 px-3 rounded-lg text-xs font-semibold transition bg-[#FF7120]/15 text-[#FF7120] border border-[#FF7120]/30 hover:bg-[#FF7120]/25"
+                            className="h-9 px-3 rounded-lg text-xs font-semibold transition bg-[#FF7120] text-white hover:bg-[#ff8a3a] inline-flex items-center justify-center leading-none"
                           >
-                            {requestItem.actual_hours != null ? '✏ Edit Hours' : '+ Log Hours'}
+                            {requestItem.actual_hours != null ? 'Edit Hours' : 'Log Hours'}
                           </button>
                         )}
                         <button
@@ -785,7 +815,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                             event.stopPropagation();
                             setSelectedId(requestItem.id);
                           }}
-                          className="h-9 px-3 rounded-lg text-xs font-semibold transition bg-[#FF7120] text-white hover:bg-[#ff8a3a]"
+                          className="h-9 px-3 rounded-lg text-xs font-semibold transition bg-[#FF7120] text-white hover:bg-[#ff8a3a] inline-flex items-center justify-center leading-none"
                         >
                           View
                         </button>
@@ -813,16 +843,16 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
               <div className="flex items-center justify-between p-4 border-b border-gray-100">
                 <div className="flex items-center gap-2" />
                 <div className="flex items-center gap-3">
-                  {alreadyConfirmed && (
+                  {hasSignature(selectedRequest[reviewer.field]) && (
                     <button
                       type="button"
                       onClick={() => {
                         setSelectedId(null);
                         setActualHoursTarget(selectedRequest);
                       }}
-                      className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120]/15 text-[#FF7120] border border-[#FF7120]/30 rounded-lg font-semibold hover:bg-[#FF7120]/25 transition text-sm"
+                      className="inline-flex items-center justify-center h-10 px-4 bg-[#FF7120] text-white rounded-lg font-semibold hover:bg-[#ff8a3a] transition text-sm leading-none"
                     >
-                      {selectedRequest.actual_hours != null ? '✏ Edit Actual Hours' : '+ Log Actual Hours'}
+                      {selectedRequest.actual_hours != null ? 'Edit Actual Hours' : 'Log Actual Hours'}
                     </button>
                   )}
                   {!hasSignature(selectedRequest[reviewer.field]) && !isRequestExpired(selectedRequest) && (
@@ -1038,6 +1068,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

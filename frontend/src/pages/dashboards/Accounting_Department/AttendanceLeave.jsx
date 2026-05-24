@@ -17,6 +17,7 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardAction,
   Dialog,
   DialogContent,
   DialogHeader,
@@ -31,6 +32,12 @@ import {
 } from '../../../components/ui/accounting-ui';
 import {
   Clock,
+  RefreshCcw,
+  Users,
+  CheckCircle2,
+  UserCheck,
+  Download,
+  ArrowUpDown,
 } from 'lucide-react';
 
 const timeToMinutes = (timeValue) => {
@@ -80,6 +87,7 @@ export function AttendanceLeave() {
   const [exportEndDate, setExportEndDate] = useState('');
   const [exportEmployee, setExportEmployee] = useState('all');
   const [showDTROverlay, setShowDTROverlay] = useState(false);
+  const [sortBy, setSortBy] = useState('date-desc');
 
 
   const fetchAttendanceRecords = async () => {
@@ -152,8 +160,36 @@ export function AttendanceLeave() {
       else if (session === 'overtime') groups[key].overtime = record;
       else if (!groups[key].morning) groups[key].morning = record;
     });
-    return Object.values(groups).sort((a, b) => b.date.localeCompare(a.date));
-  }, [attendanceRecords]);
+
+    const list = Object.values(groups);
+
+    if (sortBy === 'date-desc') {
+      return list.sort((a, b) => b.date.localeCompare(a.date));
+    }
+    if (sortBy === 'date-asc') {
+      return list.sort((a, b) => a.date.localeCompare(b.date));
+    }
+    if (sortBy === 'name-asc') {
+      return list.sort((a, b) => (a.employee_name || '').localeCompare(b.employee_name || ''));
+    }
+    if (sortBy === 'name-desc') {
+      return list.sort((a, b) => (b.employee_name || '').localeCompare(a.employee_name || ''));
+    }
+    if (sortBy === 'hours-desc') {
+      return list.sort((a, b) => {
+        const getHours = (g) => [g.morning, g.afternoon, g.overtime].reduce((acc, r) => acc + (r ? getWorkedHours(r) : 0), 0);
+        return getHours(b) - getHours(a);
+      });
+    }
+    if (sortBy === 'hours-asc') {
+      return list.sort((a, b) => {
+        const getHours = (g) => [g.morning, g.afternoon, g.overtime].reduce((acc, r) => acc + (r ? getWorkedHours(r) : 0), 0);
+        return getHours(a) - getHours(b);
+      });
+    }
+
+    return list.sort((a, b) => b.date.localeCompare(a.date));
+  }, [attendanceRecords, sortBy]);
 
   const LocationDisplay = ({ record, label }) => {
     if (!record) return null;
@@ -242,18 +278,124 @@ export function AttendanceLeave() {
     setShowDTROverlay(true);
   };
 
+  const stats = useMemo(() => {
+    const total = groupedRecords.length;
+    let present = 0;
+    let late = 0;
+    let leave = 0;
+
+    attendanceRecords.forEach((r) => {
+      const status = r.status_label || r.status || '';
+      if (status === 'Present' || status === 'Approved') present++;
+      else if (status === 'Late' || status === 'Pending') late++;
+      else if (status.toLowerCase().includes('leave') || status === 'Vacation') leave++;
+    });
+
+    return { total, present, late, leave };
+  }, [attendanceRecords, groupedRecords]);
+
   return (
     <div className="space-y-6">
-      <div className="space-y-6">
-        {/* Recent Attendance */}
-        <Card className="border-0 shadow-lg bg-gradient-to-br from-card to-card/50 backdrop-blur-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="w-5 h-5 text-primary" />
-              Attendance Records
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Header Card */}
+      <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]">
+        <div className="p-6 sm:p-8 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#FF7120]/80">Accounting Department</p>
+            <h1 className="mt-3 text-3xl sm:text-4xl font-semibold text-white">Attendance Records</h1>
+            <p className="mt-3 text-sm text-white/60 max-w-2xl">
+              Monitor employee clock-ins, clock-outs, locations, and session timings.
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={fetchAttendanceRecords}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-white/70 hover:text-white hover:bg-white/10 transition text-sm font-semibold"
+            >
+              <RefreshCcw className={`h-4 w-4 ${isAttendanceLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Status Cards Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Total Days Logged */}
+        <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">Total Days Logged</p>
+              <p className="text-2xl font-bold mt-2 text-white">{stats.total}</p>
+            </div>
+            <Users className="w-8 h-8 text-[#FF7120]" />
+          </div>
+        </div>
+
+        {/* Present Entries */}
+        <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">Present Entries</p>
+              <p className="text-2xl font-bold mt-2 text-white">{stats.present}</p>
+            </div>
+            <CheckCircle2 className="w-8 h-8 text-[#FF7120]" />
+          </div>
+        </div>
+
+        {/* Late Entries */}
+        <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">Late Entries</p>
+              <p className="text-2xl font-bold mt-2 text-white">{stats.late}</p>
+            </div>
+            <Clock className="w-8 h-8 text-[#FF7120]" />
+          </div>
+        </div>
+
+        {/* Leave Entries */}
+        <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">On Leave / Vacation</p>
+              <p className="text-2xl font-bold mt-2 text-white">{stats.leave}</p>
+            </div>
+            <UserCheck className="w-8 h-8 text-[#FF7120]" />
+          </div>
+        </div>
+      </div>
+
+      {/* Main Table Card */}
+      <Card className="border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.22)] bg-[#001f35]/70 backdrop-blur-md rounded-2xl">
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <ArrowUpDown className="w-5 h-5 text-[#FF7120]" />
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger className="w-[240px] bg-[#00273C]/60 border-white/10 text-white rounded-xl">
+                <SelectValue placeholder="Sort Attendance Records" />
+              </SelectTrigger>
+              <SelectContent className="bg-[#001f35] border-white/10 text-white">
+                <SelectItem value="date-desc">Date (Newest First)</SelectItem>
+                <SelectItem value="date-asc">Date (Oldest First)</SelectItem>
+                <SelectItem value="name-asc">Employee Name (A-Z)</SelectItem>
+                <SelectItem value="name-desc">Employee Name (Z-A)</SelectItem>
+                <SelectItem value="hours-desc">Total Hours (Highest First)</SelectItem>
+                <SelectItem value="hours-asc">Total Hours (Lowest First)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <CardAction>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => setIsExportOpen(true)}
+            >
+              <Download className="w-4 h-4" />
+              Export Report
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent>
             {isAttendanceLoading ? (
                 <p className="text-sm text-muted-foreground">Loading attendance records...</p>
               ) : attendanceError ? (
@@ -335,8 +477,6 @@ export function AttendanceLeave() {
               )}
             </CardContent>
           </Card>
-
-      </div>
 
       <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
         <DialogContent className="max-w-lg">

@@ -712,7 +712,7 @@ function OvertimeRequests({ token }) {
                   <th>Anticipated Hrs</th>
                   <th>Actual Hrs</th>
                   <th>Status</th>
-                  <th>Actions</th>
+                  <th style={{ textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -763,37 +763,24 @@ function OvertimeRequests({ token }) {
                               {statusLabel(req)}
                             </span>
                           </td>
-                          <td>
-                            <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }} onClick={e => e.stopPropagation()}>
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'inline-flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center' }} onClick={e => e.stopPropagation()}>
                               {/* Enter Actual Hours button — visible only for approved requests */}
                               {canLogHours && (
                                 <button
                                   type="button"
                                   onClick={(e) => { e.stopPropagation(); setActualHoursTarget(req); }}
-                                  style={{
-                                    padding: '4px 10px',
-                                    background: req.actual_hours != null ? 'rgba(255,113,32,0.15)' : 'rgba(255,113,32,0.9)',
-                                    color: req.actual_hours != null ? '#FF7120' : 'white',
-                                    border: `1px solid ${req.actual_hours != null ? 'rgba(255,113,32,0.4)' : 'transparent'}`,
-                                    borderRadius: '6px',
-                                    fontSize: '0.75rem',
-                                    fontWeight: '700',
-                                    cursor: 'pointer',
-                                    whiteSpace: 'nowrap',
-                                    transition: 'all 0.15s',
-                                  }}
-                                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.8'; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
+                                  className="h-8 px-3 rounded text-white text-xs font-semibold transition-all bg-orange-500 hover:bg-orange-600 inline-flex items-center justify-center leading-none cursor-pointer"
                                   title={req.actual_hours != null ? `Edit actual hours (currently ${req.actual_hours} hrs)` : 'Enter actual overtime hours worked'}
                                 >
-                                  {req.actual_hours != null ? '✏ Edit Hours' : '+ Log Hours'}
+                                  {req.actual_hours != null ? 'Edit Hours' : 'Log Hours'}
                                 </button>
                               )}
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); printReport(req); }}
                                 disabled={!isApproved}
-                                className={`px-3 py-1 rounded text-white text-xs font-semibold transition-all ${isApproved
+                                className={`h-8 px-3 rounded text-white text-xs font-semibold transition-all inline-flex items-center justify-center leading-none ${isApproved
                                     ? 'bg-orange-500 cursor-pointer hover:bg-orange-600'
                                     : 'bg-gray-600 cursor-not-allowed opacity-50'
                                   }`}
@@ -907,12 +894,20 @@ function OvertimeRequests({ token }) {
                 <button
                   onClick={() => { setSelected(null); setActualHoursTarget(selected); }}
                   style={{
-                    background: 'rgba(255,113,32,0.15)', color: '#FF7120',
-                    border: '1px solid rgba(255,113,32,0.4)', borderRadius: '8px',
-                    padding: '0.5rem 1.25rem', fontWeight: '600', cursor: 'pointer', fontSize: '0.9rem',
+                    background: '#FF7120',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '0.5rem 1.25rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.9rem',
+                    transition: 'all 0.2s',
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#ff8a3a'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = '#FF7120'; }}
                 >
-                  {selected.actual_hours != null ? '✏ Edit Actual Hours' : '+ Log Actual Hours'}
+                  {selected.actual_hours != null ? 'Edit Actual Hours' : 'Log Actual Hours'}
                 </button>
               )}
               <button

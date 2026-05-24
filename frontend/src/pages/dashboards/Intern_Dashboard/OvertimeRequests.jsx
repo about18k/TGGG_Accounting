@@ -549,7 +549,7 @@ function OvertimeRequests({ token }) {
                   <th>Date Completed</th>
                   <th>Hours</th>
                   <th>Status</th>
-                  <th>Action</th>
+                  <th style={{ textAlign: 'center' }}>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -571,12 +571,12 @@ function OvertimeRequests({ token }) {
                         <td>{req.date_completed || '-'}</td>
                         <td>{req.anticipated_hours || '-'}</td>
                         <td>{statusLabel(req)}</td>
-                        <td>
+                        <td style={{ textAlign: 'center' }}>
                           <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); printReport(req); }}
                             disabled={statusLabel(req) !== 'Approved'}
-                            className={`px-3 py-1 rounded text-white text-xs font-semibold transition-all ${statusLabel(req) === 'Approved'
+                            className={`h-8 px-3 rounded text-white text-xs font-semibold transition-all inline-flex items-center justify-center leading-none ${statusLabel(req) === 'Approved'
                                 ? 'bg-orange-500 cursor-pointer hover:bg-orange-600'
                                 : 'bg-gray-600 cursor-not-allowed opacity-50'
                               }`}
