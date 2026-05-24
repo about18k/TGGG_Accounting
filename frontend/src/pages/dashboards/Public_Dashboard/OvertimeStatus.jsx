@@ -77,7 +77,6 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
         <tr>
           <td class="period-cell">${period ? escapeHtml(period.start_date || '') : ''}</td>
           <td class="period-cell">${period ? escapeHtml(period.start_time || '') : ''}</td>
-          <td class="period-cell">${period ? escapeHtml(period.end_date || '') : ''}</td>
           <td class="period-cell">${period ? escapeHtml(period.end_time || '') : ''}</td>
         </tr>
       `);
@@ -143,10 +142,15 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
             <div class="section">
               <div class="section-title">Overtime Schedule</div>
               <table class="periods-table">
-                <thead><tr><th style="width:25%;">Start Date</th><th style="width:25%;">Start Time</th><th style="width:25%;">End Date</th><th style="width:25%;">End Time</th></tr></thead>
+                <thead><tr><th style="width:40%;">Date</th><th style="width:30%;">Start Time</th><th style="width:30%;">End Time</th></tr></thead>
                 <tbody>${periodRows.join('')}</tbody>
               </table>
-              <div style="margin-top:15px; text-align:right;"><span class="total-hours">Total Anticipated Hours: ${escapeHtml(req.anticipated_hours || '0')} hours</span></div>
+              <div style="margin-top:15px; text-align:right;">
+                ${req.actual_hours != null 
+                  ? `<span class="total-hours">Total Actual Hours: ${escapeHtml(req.actual_hours)} hours</span>`
+                  : `<span class="total-hours">Total Anticipated Hours: ${escapeHtml(req.anticipated_hours || '0')} hours</span>`
+                }
+              </div>
             </div>
             <div class="section">
               <div class="section-title">Reason / Justification for Overtime</div>
@@ -438,16 +442,23 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
                 <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Date Submitted</label>
                 <div style={{ color: '#e8eaed' }}>{selectedForView.date_completed || '-'}</div>
               </div>
-              <div>
-                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Total Hours (Anticipated)</label>
-                <div style={{ color: '#e8eaed' }}>{selectedForView.anticipated_hours || '-'}</div>
-              </div>
-              <div>
-                <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Actual Hours Worked</label>
-                <div style={{ color: selectedForView.actual_hours != null ? '#FF7120' : '#6b7280', fontWeight: selectedForView.actual_hours != null ? '700' : '400' }}>
-                  {selectedForView.actual_hours != null ? `${selectedForView.actual_hours} hrs` : '— (Accounting has not entered hours yet)'}
+              {selectedForView.actual_hours != null ? (
+                <div>
+                  <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Total Actual Hours</label>
+                  <div style={{ color: '#e8eaed', fontWeight: '700' }}>{selectedForView.actual_hours} hrs</div>
                 </div>
-              </div>
+              ) : (
+                <>
+                  <div>
+                    <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Total Hours (Anticipated)</label>
+                    <div style={{ color: '#e8eaed' }}>{selectedForView.anticipated_hours || '-'}</div>
+                  </div>
+                  <div>
+                    <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Actual Hours Worked</label>
+                    <div style={{ color: '#6b7280', fontWeight: '400' }}>— (Accounting has not entered hours yet)</div>
+                  </div>
+                </>
+              )}
               <div>
                 <label style={{ color: '#a0a4a8', fontSize: '0.85rem', display: 'block', marginBottom: '0.3rem' }}>Approval Date</label>
                 <div style={{ color: '#e8eaed' }}>{selectedForView.approval_date || '-'}</div>
@@ -481,10 +492,9 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                     <thead>
                       <tr>
-                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>Start Date</th>
-                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>Start Time</th>
-                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>End Date</th>
-                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600' }}>End Time</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600', width: '40%' }}>Date</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600', width: '30%' }}>Start Time</th>
+                        <th style={{ textAlign: 'left', padding: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#FF7120', fontWeight: '600', width: '30%' }}>End Time</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -492,7 +502,6 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
                         <tr key={`pv-${idx}`}>
                           <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_date || '-'}</td>
                           <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_time || '-'}</td>
-                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_date || '-'}</td>
                           <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_time || '-'}</td>
                         </tr>
                       ))}
