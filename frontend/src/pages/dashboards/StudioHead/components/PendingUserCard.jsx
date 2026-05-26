@@ -13,7 +13,7 @@ export default function PendingUserCard({
   const loading = approveLoading || declineLoading;
 
   return (
-    <div className="bg-[#001f35] rounded-xl border border-white/5 p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all hover:border-[#FF7120]/20 group">
+    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 transition-all hover:border-[#FF7120]/25 hover:bg-white/[0.04] group">
       <div className="flex items-center gap-4 flex-1">
         <div className="h-12 w-12 rounded-full bg-[#FF7120]/10 flex items-center justify-center text-[#FF7120] font-bold border border-[#FF7120]/30 group-hover:border-[#FF7120]/50 transition-colors shrink-0">
           {user.first_name?.[0]?.toUpperCase() || user.email[0].toUpperCase()}
@@ -41,7 +41,7 @@ export default function PendingUserCard({
           <select
             value={role}
             onChange={(e) => onChangeRole(e.target.value)}
-            className="w-full sm:w-48 bg-[#001425] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] appearance-none cursor-pointer"
+            className="w-full sm:w-48 bg-[#001425] border border-white/10 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 appearance-none cursor-pointer transition-colors"
           >
             {allowedRoles.map((r) => (
               <option key={r.value} value={r.value}>
@@ -59,7 +59,7 @@ export default function PendingUserCard({
         <button
           onClick={onApprove}
           disabled={loading}
-          className="flex items-center justify-center gap-2 bg-[#FF7120]/10 border border-[#FF7120]/30 text-[#FF7120] px-6 py-2 rounded-lg text-sm font-bold hover:bg-[#FF7120] hover:text-white transition-all disabled:opacity-50 whitespace-nowrap"
+          className="flex items-center justify-center gap-2 bg-[#FF7120]/10 border border-[#FF7120]/30 text-[#FF7120] px-6 py-2 rounded-xl text-sm font-bold hover:bg-[#FF7120] hover:text-white transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
         >
           <ShieldCheck size={16} />
           {approveLoading ? 'Approving...' : 'Approve & Notify'}
@@ -68,7 +68,7 @@ export default function PendingUserCard({
         <button
           onClick={onDecline}
           disabled={loading}
-          className="flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 text-red-300 px-6 py-2 rounded-lg text-sm font-bold hover:bg-red-500 hover:text-white transition-all disabled:opacity-50 whitespace-nowrap"
+          className="flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/30 text-red-300 px-6 py-2 rounded-xl text-sm font-bold hover:bg-red-500 hover:text-white transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
         >
           <UserX size={16} />
           {declineLoading ? 'Declining...' : 'Decline'}

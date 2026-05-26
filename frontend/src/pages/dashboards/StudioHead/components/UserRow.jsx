@@ -14,7 +14,7 @@ export default function UserRow({
   const startedDate = user.date_hired || 'Not set';
 
   return (
-    <div className="bg-[#001f35] rounded-xl border border-white/5 p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all hover:border-white/10 group">
+    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all hover:border-[#FF7120]/20 hover:bg-white/[0.04] group">
       <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           {user.profile_picture ? (
@@ -64,7 +64,7 @@ export default function UserRow({
         <button
           onClick={handleEdit}
           disabled={loading}
-          className="px-3 py-1.5 rounded-lg bg-[#FF7120]/10 border border-[#FF7120]/20 text-[#FF7120] text-xs font-medium hover:bg-[#FF7120] hover:text-white transition-all disabled:opacity-50"
+          className="px-4 py-2 rounded-xl bg-[#FF7120]/10 border border-[#FF7120]/20 text-[#FF7120] text-xs font-semibold hover:bg-[#FF7120] hover:text-white transition-all active:scale-95 disabled:opacity-50"
         >
           Edit
         </button>
@@ -72,7 +72,7 @@ export default function UserRow({
         <button
           onClick={handleToggleStatus}
           disabled={loading}
-          className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all disabled:opacity-50 ${
+          className={`px-4 py-2 rounded-xl border text-xs font-semibold transition-all disabled:opacity-50 active:scale-95 ${
             user.is_active 
               ? 'bg-[#FF7120]/5 border-[#FF7120]/10 text-[#FF7120]/60 hover:text-[#FF7120] hover:bg-[#FF7120]/10 hover:border-[#FF7120]/30'
               : 'bg-[#FF7120]/10 border-[#FF7120]/20 text-[#FF7120] hover:bg-[#FF7120] hover:text-white'
@@ -84,7 +84,7 @@ export default function UserRow({
         <button
           onClick={handleDelete}
           disabled={loading}
-          className="px-3 py-1.5 rounded-lg bg-[#FF7120]/10 border border-[#FF7120]/20 text-[#FF7120] text-xs font-medium hover:bg-orange-600 hover:text-white hover:border-orange-600 transition-all disabled:opacity-50"
+          className="px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs font-semibold hover:bg-red-500 hover:text-white transition-all active:scale-95 disabled:opacity-50"
         >
           Delete
         </button>
