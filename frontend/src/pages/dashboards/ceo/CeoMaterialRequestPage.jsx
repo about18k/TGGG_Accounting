@@ -92,31 +92,22 @@ const formatDate = (value) => {
 };
 
 const SummaryCard = ({ label, value, icon: Icon, tone, isActive, onClick }) => {
-  const toneStyles = {
-    pending: 'border-blue-500/15 bg-blue-500/8 text-blue-200',
-    approved: 'border-emerald-500/15 bg-emerald-500/8 text-emerald-200',
-    rejected: 'border-red-500/15 bg-red-500/8 text-red-200',
-    neutral: 'border-white/10 bg-white/[0.03] text-white',
-  };
-
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`${cardClass} w-full p-5 text-left transition-all duration-200 ${
+      className={`${cardClass} w-full p-6 text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] group ${
         isActive
-          ? 'border-[#FF7120]/55 bg-[#FF7120]/8 shadow-[0_0_20px_rgba(255,113,32,0.18)]'
-          : 'hover:-translate-y-0.5 hover:border-[#FF7120]/35 hover:bg-white/[0.05]'
+          ? 'border-[#FF7120]/50 bg-[#FF7120]/10 shadow-[0_0_24px_rgba(255,113,32,0.12)]'
+          : 'hover:border-[#FF7120]/30'
       }`}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <p className={`text-sm ${isActive ? 'text-white/80' : 'text-white/55'}`}>{label}</p>
-          <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
+          <p className="text-sm text-white/60 font-medium">{label}</p>
+          <p className="text-2xl font-bold mt-2 text-white">{value}</p>
         </div>
-        <div className={`grid h-11 w-11 place-items-center rounded-2xl border ${toneStyles[tone] || toneStyles.neutral}`}>
-          <Icon className="h-5 w-5" />
-        </div>
+        <Icon className="w-8 h-8 text-[#FF7120] transition-transform duration-300 group-hover:scale-110" />
       </div>
     </button>
   );
@@ -382,7 +373,8 @@ const CeoMaterialRequestPage = ({ user, onNavigate, onLogout }) => {
           </aside>
 
           <main className="flex-1 min-w-0 space-y-6">
-            <section className={`${cardClass} p-6`}>
+            {/* Header Card */}
+            <div className={`${cardClass} p-6`}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">CEO Final Review</p>
@@ -395,15 +387,17 @@ const CeoMaterialRequestPage = ({ user, onNavigate, onLogout }) => {
                 <button
                   type="button"
                   onClick={() => fetchRequests()}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white transition"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white transition font-semibold"
                 >
                   <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                   Refresh
                 </button>
               </div>
+            </div>
 
-              {/* ── Top-level page tabs ───────────────────── */}
-              <div className="mt-5 flex gap-2 border-t border-white/10 pt-5">
+            {/* Page Tabs Card */}
+            <div className={`${cardClass} p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setPageTab('material-request')}
@@ -427,7 +421,7 @@ const CeoMaterialRequestPage = ({ user, onNavigate, onLogout }) => {
                   Project Expenses
                 </button>
               </div>
-            </section>
+            </div>
 
             {/* ══════════════════════════════════════════════════
                  TAB 1: MATERIAL REQUEST (existing content)

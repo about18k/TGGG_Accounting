@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import {
   approvePendingUser,
   createUserAccount,
@@ -116,7 +117,7 @@ export function useStudioHeadDashboard() {
     const resolvedUserId = resolveUserId(userId);
 
     if (resolvedUserId === null || resolvedUserId === undefined || resolvedUserId === '') {
-      setMessage('Failed to approve user: missing user ID.');
+      toast.error('Failed to approve user: missing user ID.');
       return;
     }
 
@@ -125,11 +126,11 @@ export function useStudioHeadDashboard() {
       setApprovingUserId(resolvedUserId);
       setMessage('');
       await approvePendingUser(resolvedUserId, role);
-      setMessage('User approved successfully.');
+      toast.success('User approved successfully.');
       await fetchPending();
       await fetchUsers();
     } catch (e) {
-      setMessage(e?.response?.data?.error || e?.message || 'Failed to approve user.');
+      toast.error(e?.response?.data?.error || e?.message || 'Failed to approve user.');
     } finally {
       setApprovingUserId(null);
     }
@@ -139,7 +140,7 @@ export function useStudioHeadDashboard() {
     const resolvedUserId = resolveUserId(userId);
 
     if (resolvedUserId === null || resolvedUserId === undefined || resolvedUserId === '') {
-      setMessage('Failed to decline user: missing user ID.');
+      toast.error('Failed to decline user: missing user ID.');
       return;
     }
 
@@ -147,11 +148,11 @@ export function useStudioHeadDashboard() {
       setDecliningUserId(resolvedUserId);
       setMessage('');
       await deleteUserAccount(resolvedUserId);
-      setMessage('User declined and deleted successfully.');
+      toast.success('User declined and deleted successfully.');
       await fetchPending();
       await fetchUsers();
     } catch (e) {
-      setMessage(e?.response?.data?.error || e?.message || 'Failed to decline user.');
+      toast.error(e?.response?.data?.error || e?.message || 'Failed to decline user.');
     } finally {
       setDecliningUserId(null);
     }
@@ -161,12 +162,12 @@ export function useStudioHeadDashboard() {
     try {
       setUserActionById((prev) => ({ ...prev, [userId]: true }));
       await updateUserAccount(userId, updates);
-      setMessage('User updated successfully.');
+      toast.success('User updated successfully.');
       await fetchUsers();
       return { success: true };
     } catch (e) {
       const errorMsg = e?.response?.data?.error || e?.message || 'Failed to update user.';
-      setMessage(errorMsg);
+      toast.error(errorMsg);
       return { success: false, error: errorMsg };
     } finally {
       setUserActionById((prev) => ({ ...prev, [userId]: false }));
@@ -175,14 +176,13 @@ export function useStudioHeadDashboard() {
 
   async function addUser(payload) {
     try {
-      setMessage('');
       await createUserAccount(payload);
-      setMessage('Account created successfully.');
+      toast.success('Account created successfully.');
       await fetchUsers();
       return { success: true };
     } catch (e) {
       const errorMsg = e?.response?.data?.error || e?.message || 'Failed to create account.';
-      setMessage(errorMsg);
+      toast.error(errorMsg);
       return { success: false, error: errorMsg };
     }
   }
@@ -191,10 +191,10 @@ export function useStudioHeadDashboard() {
     try {
       setUserActionById((prev) => ({ ...prev, [userId]: true }));
       await updateUserAccount(userId, { is_active: isActive });
-      setMessage(`User ${isActive ? 'activated' : 'suspended'} successfully.`);
+      toast.success(`User ${isActive ? 'activated' : 'suspended'} successfully.`);
       await fetchUsers();
     } catch (e) {
-      setMessage(`Failed to ${isActive ? 'activate' : 'suspend'} user.`);
+      toast.error(`Failed to ${isActive ? 'activate' : 'suspend'} user.`);
     } finally {
       setUserActionById((prev) => ({ ...prev, [userId]: false }));
     }
@@ -204,10 +204,10 @@ export function useStudioHeadDashboard() {
     try {
       setUserActionById((prev) => ({ ...prev, [userId]: true }));
       await deleteUserAccount(userId);
-      setMessage('User deleted successfully.');
+      toast.success('User deleted successfully.');
       await fetchUsers({ force: true });
     } catch (e) {
-      setMessage(e?.response?.data?.error || e?.message || 'Failed to delete user.');
+      toast.error(e?.response?.data?.error || e?.message || 'Failed to delete user.');
     } finally {
       setUserActionById((prev) => ({ ...prev, [userId]: false }));
     }
@@ -217,10 +217,10 @@ export function useStudioHeadDashboard() {
     try {
       setUserActionById((prev) => ({ ...prev, [userId]: true }));
       await makeLeader(userId);
-      setMessage('User is now a leader.');
+      toast.success('User is now a leader.');
       await fetchUsers();
     } catch (e) {
-      setMessage(e?.response?.data?.error || 'Failed to make user a leader.');
+      toast.error(e?.response?.data?.error || 'Failed to make user a leader.');
     } finally {
       setUserActionById((prev) => ({ ...prev, [userId]: false }));
     }
@@ -230,11 +230,11 @@ export function useStudioHeadDashboard() {
     try {
       setUserActionById((prev) => ({ ...prev, [userId]: true }));
       await removeLeader(userId);
-      setMessage('User is no longer a leader.');
+      toast.success('User is no longer a leader.');
       await fetchUsers();
       await fetchGroups(); // In case a group's leader was removed
     } catch (e) {
-      setMessage(e?.response?.data?.error || 'Failed to remove leader status.');
+      toast.error(e?.response?.data?.error || 'Failed to remove leader status.');
     } finally {
       setUserActionById((prev) => ({ ...prev, [userId]: false }));
     }
@@ -243,11 +243,11 @@ export function useStudioHeadDashboard() {
   async function handleCreateGroup(payload) {
     try {
       await createGroup(payload);
-      setMessage('Group created successfully.');
+      toast.success('Group created successfully.');
       await fetchGroups();
       return true;
     } catch (e) {
-      setMessage(e?.response?.data?.error || 'Failed to create group.');
+      toast.error(e?.response?.data?.error || 'Failed to create group.');
       return false;
     }
   }
@@ -255,11 +255,11 @@ export function useStudioHeadDashboard() {
   async function handleDisbandGroup(groupId) {
     try {
       await disbandGroup(groupId);
-      setMessage('Group disbanded successfully.');
+      toast.success('Group disbanded successfully.');
       await fetchGroups();
       return true;
     } catch (e) {
-      setMessage(e?.response?.data?.error || 'Failed to disband group.');
+      toast.error(e?.response?.data?.error || 'Failed to disband group.');
       return false;
     }
   }

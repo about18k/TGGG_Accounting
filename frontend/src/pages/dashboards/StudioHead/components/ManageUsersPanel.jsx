@@ -6,11 +6,13 @@ import { getDepartments } from '../services/studioHeadApi';
 
 function StatCard({ title, value, icon: Icon }) {
   return (
-    <div className="bg-[#002035] rounded-xl p-6 border border-white/5 flex flex-col items-center justify-center gap-2">
-      <div className="text-3xl font-bold text-[#FF7120]">{value}</div>
-      <div className="text-sm text-[#FF7120] font-medium flex items-center gap-2">
-        <Icon size={16} />
-        {title}
+    <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] p-6 transition-all duration-300 hover:scale-[1.02] hover:border-[#FF7120]/30 group">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm text-white/60 font-medium">{title}</p>
+          <p className="text-2xl font-bold mt-2 text-white">{value}</p>
+        </div>
+        <Icon className="w-8 h-8 text-[#FF7120] transition-transform duration-300 group-hover:scale-110 shrink-0" />
       </div>
     </div>
   );
@@ -227,6 +229,8 @@ export default function ManageUsersPanel({
     setEditError(result?.error || 'Failed to update user.');
   };
 
+  const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
+
   return (
     <div className="flex flex-col gap-6">
       {/* Top Stats */}
@@ -237,7 +241,7 @@ export default function ManageUsersPanel({
       </div>
 
       {/* Main Panel */}
-      <div className="bg-[#00273C]/60 rounded-xl border border-white/10 p-4 sm:p-6">
+      <div className={`${cardClass} p-4 sm:p-6`}>
         <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4 mb-6">
           <div className="flex flex-col gap-1">
             <h2 className="text-xl font-semibold text-white">Manage Users</h2>
@@ -252,14 +256,14 @@ export default function ManageUsersPanel({
                 placeholder="Search users..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-[#001f35] border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] w-full sm:w-64"
+                className="bg-[#001f35] border border-white/10 rounded-xl pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 w-full sm:w-64"
               />
             </div>
 
             <button
               type="button"
               onClick={openAddEditor}
-              className="flex items-center justify-center gap-2 bg-[#FF7120] hover:bg-[#ff853e] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+              className="flex items-center justify-center gap-2 bg-[#FF7120] hover:bg-[#ff853e] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all hover:shadow-lg hover:shadow-[#FF7120]/20 active:scale-95 whitespace-nowrap"
             >
               <Plus size={16} />
               Add Account
@@ -268,7 +272,7 @@ export default function ManageUsersPanel({
         </div>
 
         {showAddForm && (
-          <div className="mb-6 rounded-xl border border-emerald-400/20 bg-[#001f35] p-5">
+          <div className="mb-6 rounded-xl border border-white/10 bg-white/[0.02] p-5">
             <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h3 className="text-lg font-semibold text-white">Add Account</h3>
@@ -281,7 +285,7 @@ export default function ManageUsersPanel({
                 type="button"
                 onClick={closeAddEditor}
                 disabled={addLoading}
-                className="border border-white/10 text-white/70 hover:text-white hover:border-white/20 rounded-lg px-4 py-2 text-sm transition-colors disabled:opacity-50"
+                className="border border-white/10 text-white/70 hover:text-white hover:border-white/20 rounded-xl px-4 py-2 text-sm transition-all active:scale-95 disabled:opacity-50"
               >
                 Close
               </button>
@@ -296,7 +300,7 @@ export default function ManageUsersPanel({
                     value={addForm.first_name}
                     onChange={(event) => setAddForm((prev) => ({ ...prev, first_name: event.target.value }))}
                     disabled={addLoading}
-                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50"
                   />
                 </label>
 
@@ -307,7 +311,7 @@ export default function ManageUsersPanel({
                     value={addForm.last_name}
                     onChange={(event) => setAddForm((prev) => ({ ...prev, last_name: event.target.value }))}
                     disabled={addLoading}
-                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50"
                   />
                 </label>
               </div>
@@ -320,7 +324,7 @@ export default function ManageUsersPanel({
                     value={addForm.email}
                     onChange={(event) => setAddForm((prev) => ({ ...prev, email: event.target.value }))}
                     disabled={addLoading}
-                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50"
                   />
                 </label>
 
@@ -331,7 +335,7 @@ export default function ManageUsersPanel({
                     value={addForm.password}
                     onChange={(event) => setAddForm((prev) => ({ ...prev, password: event.target.value }))}
                     disabled={addLoading}
-                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50"
                     placeholder="At least 8 characters"
                   />
                 </label>
@@ -344,7 +348,7 @@ export default function ManageUsersPanel({
                     value={addForm.role}
                     onChange={(event) => setAddForm((prev) => ({ ...prev, role: event.target.value }))}
                     disabled={addLoading}
-                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50 cursor-pointer"
                   >
                     {(allowedRoles || []).map((roleOption) => (
                       <option key={roleOption.value} value={roleOption.value}>
@@ -362,7 +366,7 @@ export default function ManageUsersPanel({
                     value={addForm.department_id}
                     onChange={(event) => setAddForm((prev) => ({ ...prev, department_id: event.target.value }))}
                     disabled={addLoading || departmentsLoading}
-                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50 cursor-pointer"
                   >
                     <option value="">Unassigned</option>
                     {departments.map((department) => (
@@ -381,7 +385,7 @@ export default function ManageUsersPanel({
                   value={addForm.date_hired}
                   onChange={(event) => setAddForm((prev) => ({ ...prev, date_hired: event.target.value }))}
                   disabled={addLoading}
-                  className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                  className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50"
                 />
               </label>
 
@@ -394,7 +398,7 @@ export default function ManageUsersPanel({
                   type="button"
                   onClick={closeAddEditor}
                   disabled={addLoading}
-                  className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/70 hover:text-white hover:border-white/20 transition-colors disabled:opacity-50"
+                  className="rounded-xl border border-white/10 px-5 py-2.5 text-sm text-white/70 hover:text-white hover:border-white/20 transition-all active:scale-95 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -402,7 +406,7 @@ export default function ManageUsersPanel({
                 <button
                   type="submit"
                   disabled={addLoading}
-                  className="rounded-lg bg-[#FF7120] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ff853e] transition-colors disabled:opacity-50"
+                  className="rounded-xl bg-[#FF7120] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#ff853e] transition-all hover:shadow-lg hover:shadow-[#FF7120]/20 active:scale-95 disabled:opacity-50"
                 >
                   {addLoading ? 'Creating...' : 'Create Account'}
                 </button>
@@ -414,7 +418,7 @@ export default function ManageUsersPanel({
         {editingUser && (
           <div
             ref={editCardRef}
-            className="mb-6 rounded-xl border border-[#FF7120]/25 bg-[#001f35] p-5"
+            className="mb-6 rounded-xl border border-[#FF7120]/20 bg-white/[0.02] p-5"
           >
             <div className="flex flex-col gap-3 mb-5 sm:flex-row sm:items-start sm:justify-between">
               <div>
@@ -428,7 +432,7 @@ export default function ManageUsersPanel({
                 type="button"
                 onClick={closeEditEditor}
                 disabled={editLoading}
-                className="border border-white/10 text-white/70 hover:text-white hover:border-white/20 rounded-lg px-4 py-2 text-sm transition-colors disabled:opacity-50"
+                className="border border-white/10 text-white/70 hover:text-white hover:border-white/20 rounded-xl px-4 py-2 text-sm transition-all active:scale-95 disabled:opacity-50"
               >
                 Close
               </button>
@@ -443,7 +447,7 @@ export default function ManageUsersPanel({
                     value={editForm.first_name}
                     onChange={(event) => setEditForm((prev) => ({ ...prev, first_name: event.target.value }))}
                     disabled={editLoading}
-                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50"
                   />
                 </label>
 
@@ -454,7 +458,7 @@ export default function ManageUsersPanel({
                     value={editForm.last_name}
                     onChange={(event) => setEditForm((prev) => ({ ...prev, last_name: event.target.value }))}
                     disabled={editLoading}
-                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50"
                   />
                 </label>
               </div>
@@ -466,7 +470,7 @@ export default function ManageUsersPanel({
                     value={editForm.role}
                     onChange={(event) => setEditForm((prev) => ({ ...prev, role: event.target.value }))}
                     disabled={editLoading}
-                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50 cursor-pointer"
                   >
                     {(allowedRoles || []).map((roleOption) => (
                       <option key={roleOption.value} value={roleOption.value}>
@@ -484,7 +488,7 @@ export default function ManageUsersPanel({
                     value={editForm.department_id}
                     onChange={(event) => setEditForm((prev) => ({ ...prev, department_id: event.target.value }))}
                     disabled={editLoading || departmentsLoading}
-                    className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                    className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50 cursor-pointer"
                   >
                     <option value="">Unassigned</option>
                     {departments.map((department) => (
@@ -503,7 +507,7 @@ export default function ManageUsersPanel({
                   value={editForm.date_hired}
                   onChange={(event) => setEditForm((prev) => ({ ...prev, date_hired: event.target.value }))}
                   disabled={editLoading}
-                  className="w-full rounded-lg border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120] disabled:opacity-50"
+                  className="w-full rounded-xl border border-white/10 bg-[#00273C] px-3 py-2 text-sm text-white focus:outline-none focus:border-[#FF7120]/50 disabled:opacity-50"
                 />
               </label>
 
@@ -516,7 +520,7 @@ export default function ManageUsersPanel({
                   type="button"
                   onClick={closeEditEditor}
                   disabled={editLoading}
-                  className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white/70 hover:text-white hover:border-white/20 transition-colors disabled:opacity-50"
+                  className="rounded-xl border border-white/15 px-5 py-2.5 text-sm text-white/70 hover:text-white hover:border-white/25 transition-all active:scale-95 disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -524,7 +528,7 @@ export default function ManageUsersPanel({
                 <button
                   type="submit"
                   disabled={editLoading}
-                  className="rounded-lg bg-[#FF7120] px-4 py-2 text-sm font-semibold text-white hover:bg-[#ff853e] transition-colors disabled:opacity-50"
+                  className="rounded-xl bg-[#FF7120] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#ff853e] transition-all hover:shadow-lg hover:shadow-[#FF7120]/20 active:scale-95 disabled:opacity-50"
                 >
                   {editLoading ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -569,7 +573,7 @@ export default function ManageUsersPanel({
       </div>
 
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.75)' }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
           <div className="bg-[#001f35] border border-white/10 rounded-2xl shadow-2xl w-full max-w-md p-6">
             <div className="flex items-start justify-between mb-5">
               <div className="flex items-center gap-3">
@@ -600,14 +604,14 @@ export default function ManageUsersPanel({
               <button
                 onClick={closeDeleteModal}
                 disabled={deleteLoading}
-                className="px-4 py-2 rounded-lg border border-white/10 text-white/70 hover:text-white hover:border-white/20 text-sm transition-colors disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl border border-white/10 text-white/70 hover:text-white hover:border-white/20 text-sm transition-all active:scale-95 disabled:opacity-50"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmDelete}
                 disabled={deleteLoading}
-                className="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+                className="px-5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-all active:scale-95 disabled:opacity-50"
               >
                 {deleteLoading ? 'Deleting...' : 'Delete Account'}
               </button>

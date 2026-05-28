@@ -2,6 +2,8 @@ import { UserCheck } from 'lucide-react';
 import PendingUserCard from './PendingUserCard';
 import EmptyState from './EmptyState';
 
+const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
+
 // Registration queue for new studio users
 
 export default function PendingApprovalsPanel({
@@ -51,7 +53,7 @@ export default function PendingApprovalsPanel({
       )}
 
       {/* Main Panel */}
-      <div className="bg-[#00273C]/60 rounded-xl border border-white/10 p-4 sm:p-6">
+      <div className={`${cardClass} p-4 sm:p-6`}>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-6">
           <div className="flex items-center gap-2">
              <UserCheck size={20} className="text-[#FF7120]" />

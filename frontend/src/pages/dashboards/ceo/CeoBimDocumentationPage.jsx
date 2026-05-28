@@ -5,6 +5,8 @@ import {
     Clock3,
     FileText,
     FolderKanban,
+    RefreshCcw,
+    Search,
     User2,
     XCircle,
 } from 'lucide-react';
@@ -153,31 +155,22 @@ const getDisplayType = (type) => DOC_TYPE_LABELS[type] || type || 'Documentation
 const normalizeText = (value) => String(value || '').trim().toLowerCase();
 
 const SummaryCard = ({ label, value, icon: Icon, tone = 'neutral', isActive = false, onClick }) => {
-    const toneStyles = {
-        pending: 'border-[#FF7120]/20 bg-[#FF7120]/10 text-[#FFBE9B]',
-        approved: 'border-emerald-500/15 bg-emerald-500/8 text-emerald-200',
-        rejected: 'border-red-500/15 bg-red-500/8 text-red-200',
-        neutral: 'border-white/10 bg-white/[0.03] text-white',
-    };
-
     return (
         <button
             type="button"
             onClick={onClick}
-            className={`${cardClass} w-full p-5 text-left transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF7120]/40 active:scale-[0.99] ${
+            className={`${cardClass} w-full p-6 text-left transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] group ${
                 isActive
-                    ? 'border-[#FF7120]/55 bg-[#FF7120]/8 shadow-[0_0_20px_rgba(255,113,32,0.18)]'
-                    : 'hover:-translate-y-0.5 hover:border-[#FF7120]/35 hover:bg-white/[0.05] hover:shadow-[0_10px_24px_rgba(0,0,0,0.25)]'
+                    ? 'border-[#FF7120]/50 bg-[#FF7120]/10 shadow-[0_0_24px_rgba(255,113,32,0.12)]'
+                    : 'hover:border-[#FF7120]/30'
             }`}
         >
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center justify-between">
                 <div>
-                    <p className={`text-sm ${isActive ? 'text-white/80' : 'text-white/55'}`}>{label}</p>
-                    <p className="mt-3 text-3xl font-semibold text-white">{value}</p>
+                    <p className="text-sm text-white/60 font-medium">{label}</p>
+                    <p className="text-2xl font-bold mt-2 text-white">{value}</p>
                 </div>
-                <div className={`grid h-12 w-12 place-items-center rounded-full border ${toneStyles[tone] || toneStyles.neutral} ${isActive ? 'ring-2 ring-[#FF7120]/40 ring-offset-2 ring-offset-[#001F35]' : ''}`}>
-                    <Icon className="h-5 w-5" />
-                </div>
+                <Icon className="w-8 h-8 text-[#FF7120] transition-transform duration-300 group-hover:scale-110" />
             </div>
         </button>
     );
@@ -250,6 +243,7 @@ const CeoBimDocumentationPage = ({
     const [loading, setLoading] = useState(false);
     const [submittingDecision, setSubmittingDecision] = useState(false);
     const [previewImage, setPreviewImage] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const reviewerName = useMemo(() => {
         const first = user?.first_name || '';
@@ -265,6 +259,17 @@ const CeoBimDocumentationPage = ({
     }), [pendingDocs, approvedDocs, rejectedDocs]);
 
     const activeDocs = docsByTab[activeTab] || [];
+    const filteredDocs = useMemo(() => {
+        if (!searchTerm.trim()) return activeDocs;
+        const term = searchTerm.toLowerCase();
+        return activeDocs.filter((doc) => {
+            const title = String(doc.title || '').toLowerCase();
+            const author = String(doc.created_by_name || '').toLowerCase();
+            const docType = String(getDisplayType(doc.doc_type) || '').toLowerCase();
+            return title.includes(term) || author.includes(term) || docType.includes(term);
+        });
+    }, [activeDocs, searchTerm]);
+
     const activeTabMeta = TAB_CONFIG.find((tab) => tab.id === activeTab) || TAB_CONFIG[0];
     const selectedDoc = useMemo(
         () => activeDocs.find((doc) => doc.id === selectedDocId) || activeDocs[0] || null,
@@ -406,6 +411,7 @@ const CeoBimDocumentationPage = ({
     const handleTabChange = (tabId) => {
         setActiveTab(tabId);
         setApprovalComments('');
+        setSearchTerm('');
     };
 
     const openImagePreview = (file) => {
@@ -444,12 +450,20 @@ const CeoBimDocumentationPage = ({
 
                     <main className="flex-1 min-w-0 space-y-6">
                         <section className={cardClass}>
-                            <div className="p-6 sm:p-8 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
+                            <div className="p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                                 <div className="max-w-3xl">
                                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#FF7120]/80">{pageEyebrow}</p>
                                     <h1 className="mt-3 text-3xl sm:text-4xl font-semibold text-white">{pageTitle}</h1>
                                     <p className="mt-3 text-sm text-white/60 max-w-2xl">{pageDescription}</p>
                                 </div>
+                                <button
+                                    type="button"
+                                    onClick={() => fetchDocumentations()}
+                                    className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/[0.03] px-4 py-2 text-sm text-white/70 hover:bg-white/10 hover:text-white transition focus:ring-2 focus:ring-[#FF7120]/40 font-semibold shrink-0"
+                                >
+                                    <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                                    Refresh
+                                </button>
                             </div>
                         </section>
 
@@ -486,6 +500,16 @@ const CeoBimDocumentationPage = ({
                                     <div className="sticky top-0 z-10 p-5 border-b border-white/10 bg-[#001f35]/95 backdrop-blur-sm">
                                         <p className="text-lg font-semibold text-white">{activeTabMeta.label}</p>
                                         <p className="mt-1 text-sm text-white/55">{activeTabMeta.description}</p>
+                                        <div className="mt-3 relative">
+                                            <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+                                            <input
+                                                type="text"
+                                                value={searchTerm}
+                                                onChange={(e) => setSearchTerm(e.target.value)}
+                                                placeholder="Search by title, type, author..."
+                                                className="w-full h-9 rounded-xl border border-white/10 bg-black/25 pl-9 pr-3 text-xs text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/45"
+                                            />
+                                        </div>
                                     </div>
 
                                     <div className="flex-1 min-h-0 overflow-y-auto p-4">
@@ -499,9 +523,17 @@ const CeoBimDocumentationPage = ({
                                                 <p className="text-xl font-semibold text-white/90">Nothing here right now</p>
                                                 <p className="mt-2 text-sm text-white/50 max-w-[200px] mx-auto">{activeTabMeta.emptyText}</p>
                                             </div>
+                                        ) : filteredDocs.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-16 px-4">
+                                                <div className="w-16 h-16 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center mb-4">
+                                                    <Search className="w-8 h-8 text-white/40" />
+                                                </div>
+                                                <p className="text-lg font-semibold text-white/80">No results found</p>
+                                                <p className="mt-2 text-sm text-white/40 max-w-[200px] mx-auto">No documents match "{searchTerm}".</p>
+                                            </div>
                                         ) : (
                                             <div className="space-y-3 pr-1">
-                                                {activeDocs.map((doc) => (
+                                                {filteredDocs.map((doc) => (
                                                     <DocumentListItem
                                                         key={doc.id}
                                                         doc={doc}
@@ -553,46 +585,58 @@ const CeoBimDocumentationPage = ({
 
                                             <div>
                                                 <h3 className="text-sm font-semibold text-white mb-3">Attached Files</h3>
-                                                {(() => {
-                                                    const imageFiles = (selectedDoc.files || []).filter((file) => {
-                                                        const fileHref = normalizeFileUrl(file.file_url || file.file || null);
-                                                        return Boolean(fileHref) && isImageFile(file);
-                                                    });
-
-                                                    if (imageFiles.length === 0) {
-                                                        return (
-                                                            <p className="text-sm text-white/50">
-                                                                No image attachments were included with this documentation.
-                                                            </p>
-                                                        );
-                                                    }
-
-                                                    return (
-                                                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                                            {imageFiles.map((file) => {
-                                                                const fileHref = normalizeFileUrl(file.file_url || file.file || null);
-                                                                const displayFileName = getAttachmentDisplayName(file.file_name);
-
-                                                                return (
+                                                {attachmentCount > 0 ? (
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                                        {(selectedDoc.files || []).map((file) => {
+                                                            const fileHref = normalizeFileUrl(file.file_url || file.file || null);
+                                                            const previewableImage = Boolean(fileHref) && isImageFile(file);
+                                                            const displayFileName = getAttachmentDisplayName(file.file_name);
+                                                            return (
+                                                                <div key={file.id} className="group relative rounded-xl border border-white/10 bg-black/20 p-2 hover:border-[#FF7120]/35 transition">
                                                                     <button
-                                                                        key={file.id}
                                                                         type="button"
-                                                                        onClick={() => openImagePreview(file)}
-                                                                        className="group overflow-hidden rounded-xl border border-white/10 bg-black/20 hover:border-[#FF7120]/35 transition"
+                                                                        onClick={() => {
+                                                                            if (previewableImage && fileHref) {
+                                                                                openImagePreview(file);
+                                                                                return;
+                                                                            }
+                                                                            if (fileHref) {
+                                                                                window.open(fileHref, '_blank', 'noopener,noreferrer');
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left"
                                                                         title={displayFileName}
                                                                     >
-                                                                        <img
-                                                                            src={fileHref}
-                                                                            alt={displayFileName}
-                                                                            className="h-32 sm:h-36 w-full object-cover transition duration-200 group-hover:scale-105"
-                                                                            loading="lazy"
-                                                                        />
+                                                                        {previewableImage && fileHref ? (
+                                                                            <img
+                                                                                src={fileHref}
+                                                                                alt={displayFileName}
+                                                                                className="h-20 w-full object-cover rounded-lg transition duration-200 group-hover:scale-105"
+                                                                            />
+                                                                        ) : (
+                                                                            <div className="h-20 w-full rounded-lg bg-white/5 grid place-items-center transition duration-200 group-hover:bg-white/10">
+                                                                                {String(file.file_name || '').toLowerCase().endsWith('.pdf') ? (
+                                                                                    <svg className="h-8 w-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                                                        <text x="7" y="17" fontSize="6" fill="currentColor" fontWeight="bold">PDF</text>
+                                                                                    </svg>
+                                                                                ) : (
+                                                                                    <svg className="h-8 w-8 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                                                        <text x="5" y="17" fontSize="5" fill="currentColor" fontWeight="bold">DOC</text>
+                                                                                    </svg>
+                                                                                )}
+                                                                            </div>
+                                                                        )}
+                                                                        <p className="mt-1.5 text-[11px] text-white/70 truncate px-1">{displayFileName}</p>
                                                                     </button>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    );
-                                                })()}
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-sm text-white/50">No attachments were included with this documentation.</p>
+                                                )}
                                             </div>
 
                                             {requiresDecision ? (

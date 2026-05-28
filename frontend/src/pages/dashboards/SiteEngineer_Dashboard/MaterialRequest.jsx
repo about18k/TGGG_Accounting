@@ -696,71 +696,119 @@ const MaterialRequest = ({ user }) => {
   };
 
   return (
-    <div className={cardClass}>
-      <div className="p-6 border-b border-white/10">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Package className="h-6 w-6 text-[#FF7120]" />
-            <div>
-              <h1 className="text-2xl font-semibold text-white">Material Request Workflow</h1>
-              <p className="text-white/60 text-sm mt-1">Create as draft, submit to Studio Head, then wait for CEO final approval.</p>
-            </div>
+    <div className="space-y-6">
+      {/* Header Card */}
+      <div className={cardClass}>
+        <div className="p-6 sm:p-8 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#FF7120]/80">Site Workflow</p>
+            <h1 className="mt-3 text-3xl sm:text-4xl font-semibold text-white">Material Request Workflow</h1>
+            <p className="mt-3 text-sm text-white/60 max-w-2xl">Create as draft, submit to Studio Head, then wait for CEO final approval.</p>
           </div>
-
-          <button
-            type="button"
-            onClick={() => fetchRequests()}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-white/70 hover:text-white hover:bg-white/10 transition"
-          >
-            <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
-          <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-            <p className="text-xs text-white/50">Total</p>
-            <p className="text-xl font-semibold text-white mt-1">{counts.total}</p>
-          </div>
-          <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
-            <p className="text-xs text-blue-200/80">Studio Head Queue</p>
-            <p className="text-xl font-semibold text-blue-100 mt-1">{counts.pendingStudioHead}</p>
-          </div>
-          <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 p-3">
-            <p className="text-xs text-cyan-200/80">CEO Queue</p>
-            <p className="text-xl font-semibold text-cyan-100 mt-1">{counts.pendingCeo}</p>
-          </div>
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3">
-            <p className="text-xs text-emerald-200/80">Approved</p>
-            <p className="text-xl font-semibold text-emerald-100 mt-1">{counts.approved}</p>
-          </div>
-          <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3">
-            <p className="text-xs text-red-200/80">Rejected</p>
-            <p className="text-xl font-semibold text-red-100 mt-1">{counts.rejected}</p>
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => fetchRequests()}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/15 text-white/70 hover:text-white hover:bg-white/10 transition text-sm font-semibold"
+            >
+              <RefreshCcw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="p-6 border-b border-white/10">
+      {/* Stats Cards Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        {/* Total Card */}
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6 transition-all duration-300 hover:scale-[1.02] hover:border-[#FF7120]/30 hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] group">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">Total Requests</p>
+              <p className="text-2xl font-bold mt-2 text-white">{counts.total}</p>
+            </div>
+            <FileText className="w-8 h-8 text-[#FF7120] transition-transform duration-300 group-hover:scale-110" />
+          </div>
+        </div>
+
+        {/* Studio Head Queue Card */}
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6 transition-all duration-300 hover:scale-[1.02] hover:border-[#FF7120]/30 hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] group">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">Studio Head Queue</p>
+              <p className="text-2xl font-bold mt-2 text-white">{counts.pendingStudioHead}</p>
+            </div>
+            <Clock3 className="w-8 h-8 text-[#FF7120] transition-transform duration-300 group-hover:scale-110" />
+          </div>
+        </div>
+
+        {/* CEO Queue Card */}
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6 transition-all duration-300 hover:scale-[1.02] hover:border-[#FF7120]/30 hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] group">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">CEO Queue</p>
+              <p className="text-2xl font-bold mt-2 text-white">{counts.pendingCeo}</p>
+            </div>
+            <Send className="w-8 h-8 text-[#FF7120] transition-transform duration-300 group-hover:scale-110" />
+          </div>
+        </div>
+
+        {/* Approved Card */}
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6 transition-all duration-300 hover:scale-[1.02] hover:border-[#FF7120]/30 hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] group">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">Approved</p>
+              <p className="text-2xl font-bold mt-2 text-white">{counts.approved}</p>
+            </div>
+            <CheckCircle2 className="w-8 h-8 text-[#FF7120] transition-transform duration-300 group-hover:scale-110" />
+          </div>
+        </div>
+
+        {/* Rejected Card */}
+        <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg p-6 transition-all duration-300 hover:scale-[1.02] hover:border-[#FF7120]/30 hover:shadow-[0_10px_20px_rgba(0,0,0,0.15)] group">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-white/60 font-medium">Rejected</p>
+              <p className="text-2xl font-bold mt-2 text-white">{counts.rejected}</p>
+            </div>
+            <XCircle className="w-8 h-8 text-[#FF7120] transition-transform duration-300 group-hover:scale-110" />
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs Card */}
+      <div className={`${cardClass} p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setActiveTab('create')}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${activeTab === 'create' ? 'bg-[#FF7120] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition ${
+              activeTab === 'create'
+                ? 'bg-[#FF7120] text-white shadow-lg shadow-[#FF7120]/20'
+                : 'border border-white/15 text-white/60 hover:bg-white/10 hover:text-white'
+            }`}
           >
             Create Request
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('manage')}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${activeTab === 'manage' ? 'bg-[#FF7120] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition ${
+              activeTab === 'manage'
+                ? 'bg-[#FF7120] text-white shadow-lg shadow-[#FF7120]/20'
+                : 'border border-white/15 text-white/60 hover:bg-white/10 hover:text-white'
+            }`}
           >
             My Requests
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('projects')}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition ${activeTab === 'projects' ? 'bg-[#FF7120] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'}`}
+            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition ${
+              activeTab === 'projects'
+                ? 'bg-[#FF7120] text-white shadow-lg shadow-[#FF7120]/20'
+                : 'border border-white/15 text-white/60 hover:bg-white/10 hover:text-white'
+            }`}
           >
             <span className="inline-flex items-center gap-1.5">
               <FolderOpen className="h-4 w-4" />
@@ -771,7 +819,7 @@ const MaterialRequest = ({ user }) => {
       </div>
 
       {activeTab === 'create' && (
-        <form onSubmit={createAndSubmit} className="p-6 space-y-6">
+        <form onSubmit={createAndSubmit} className={`${cardClass} p-6 space-y-6`}>
           {editingRequestId && (
             <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
               <p className="text-sm font-semibold text-cyan-100">
@@ -1084,7 +1132,7 @@ const MaterialRequest = ({ user }) => {
       )}
 
       {activeTab === 'manage' && (
-        <div className="p-6">
+        <div className={`${cardClass} p-6`}>
           <div className="mb-6">
             <h2 className="text-lg font-semibold text-white">My Material Requests</h2>
             <p className="text-sm text-white/50 mt-1">Manage your own material requests throughout the approval workflow.</p>
@@ -1332,7 +1380,7 @@ const MaterialRequest = ({ user }) => {
 
       {/* ── Projects Tab ────────────────────────────────────── */}
       {activeTab === 'projects' && (
-        <div className="p-6">
+        <div className={`${cardClass} p-6`}>
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-lg font-semibold text-white">All Projects</h2>

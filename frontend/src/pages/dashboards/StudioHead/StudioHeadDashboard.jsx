@@ -73,71 +73,73 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate, curren
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 min-w-0">
+            <main className="flex-1 min-w-0 space-y-6">
+              {/* Standalone Header Card */}
               <div className={cardClass}>
-                {/* Header */}
-                <div className="p-6 border-b border-white/10">
-                  <h1 className="text-2xl font-semibold text-white">
+                <div className="p-6 sm:p-8">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#FF7120]/80">Studio Head Admin</p>
+                  <h1 className="mt-3 text-3xl sm:text-4xl font-semibold text-white">
                     {TABS.find(t => t.id === activeTab)?.label || 'Studio Head Dashboard'}
                   </h1>
-                  <p className="text-white/60 text-sm mt-1">Manage users, approvals, and team coordination</p>
-                </div>
-
-                {/* Tab Content */}
-                <div className="p-6">
-
-                  {activeTab === 'approvals' && (
-                    <PendingApprovalsPanel
-                      pendingUsers={pendingUsers}
-                      pendingLoading={pendingLoading}
-                      roleByUserId={roleByUserId}
-                      setRoleByUserId={setRoleByUserId}
-                      allowedRoles={allowedRoles}
-                      approveUser={approveUser}
-                      approvingUserId={approvingUserId}
-                      declinePendingUser={declinePendingUser}
-                      decliningUserId={decliningUserId}
-                    />
-                  )}
-
-                  {activeTab === 'users' && (
-                    <ManageUsersPanel
-                      searchTerm={searchTerm}
-                      setSearchTerm={setSearchTerm}
-                      usersLoading={usersLoading}
-                      usersError={usersError}
-                      userActionById={userActionById}
-                      filteredUsers={filteredUsers}
-                      allowedRoles={allowedRoles}
-                      onAddUser={addUser}
-                      onEditUser={editUser}
-                      onToggleUserStatus={toggleUserStatus}
-                      onDeleteUser={removeUser}
-                    />
-                  )}
-
-                  {activeTab === 'reviews' && (
-                    <div className="rounded-xl border border-white/10 bg-[#00273C]/60 p-6">
-                      <p className="text-white/60 text-sm">
-                        Queue for drawings, presentations, and documentation review (connect your projects module here).
-                      </p>
-                    </div>
-                  )}
-
-                  {activeTab === 'coordination' && (
-                    <CoordinatorPanel
-                      users={filteredUsers}
-                      groups={groups}
-                      onMakeLeader={handleMakeLeader}
-                      onRemoveLeader={handleRemoveLeader}
-                      onCreateGroup={handleCreateGroup}
-                      onDisbandGroup={handleDisbandGroup}
-                      loadingAction={userActionById}
-                    />
-                  )}
-
+                  <p className="mt-3 text-sm text-white/60 max-w-2xl">
+                    {activeTab === 'approvals' && 'Review registration queue for new accounts and assign department access privileges.'}
+                    {activeTab === 'users' && 'Manage employee credentials, edit account profiles, toggle activation status, or remove users.'}
+                    {activeTab === 'reviews' && 'BIM designs, drawings, sheets packages, and project documentation log queue.'}
+                    {activeTab === 'coordination' && 'Set team leads, create groups, and organize workspace personnel.'}
+                  </p>
                 </div>
               </div>
+
+              {/* Sibling Tab Content Panels */}
+              {activeTab === 'approvals' && (
+                <PendingApprovalsPanel
+                  pendingUsers={pendingUsers}
+                  pendingLoading={pendingLoading}
+                  roleByUserId={roleByUserId}
+                  setRoleByUserId={setRoleByUserId}
+                  allowedRoles={allowedRoles}
+                  approveUser={approveUser}
+                  approvingUserId={approvingUserId}
+                  declinePendingUser={declinePendingUser}
+                  decliningUserId={decliningUserId}
+                />
+              )}
+
+              {activeTab === 'users' && (
+                <ManageUsersPanel
+                  searchTerm={searchTerm}
+                  setSearchTerm={setSearchTerm}
+                  usersLoading={usersLoading}
+                  usersError={usersError}
+                  userActionById={userActionById}
+                  filteredUsers={filteredUsers}
+                  allowedRoles={allowedRoles}
+                  onAddUser={addUser}
+                  onEditUser={editUser}
+                  onToggleUserStatus={toggleUserStatus}
+                  onDeleteUser={removeUser}
+                />
+              )}
+
+              {activeTab === 'reviews' && (
+                <div className={`${cardClass} p-6`}>
+                  <p className="text-white/60 text-sm">
+                    Queue for drawings, presentations, and documentation review (connect your projects module here).
+                  </p>
+                </div>
+              )}
+
+              {activeTab === 'coordination' && (
+                <CoordinatorPanel
+                  users={filteredUsers}
+                  groups={groups}
+                  onMakeLeader={handleMakeLeader}
+                  onRemoveLeader={handleRemoveLeader}
+                  onCreateGroup={handleCreateGroup}
+                  onDisbandGroup={handleDisbandGroup}
+                  loadingAction={userActionById}
+                />
+              )}
             </main>
           </div>
         </div>
