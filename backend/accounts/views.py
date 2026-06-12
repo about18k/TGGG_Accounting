@@ -356,7 +356,7 @@ def upload_profile_picture(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def upload_profile_signature(request):
-    """Upload user signature image to Supabase Storage."""
+    """Upload user signature image to S3/MinIO Storage."""
     user = request.user
     signature_file = request.FILES.get('signature') or request.FILES.get('signature_file')
 

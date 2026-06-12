@@ -16,6 +16,9 @@ backend/*.pyc
 /build
 frontend/build
 
+# project_context
+/project_context
+
 # misc
 .vscode/
 .DS_Store

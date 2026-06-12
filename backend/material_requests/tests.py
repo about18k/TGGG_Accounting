@@ -165,7 +165,7 @@ class MaterialRequestWorkflowTests(APITestCase):
         response = self.client.get('/api/material-requests/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data), 0)
+        self.assertEqual(len(response.data.get('results', response.data)), 0)
 
     def test_creator_can_edit_and_resubmit_after_studio_head_rejection(self):
         request_id = self._create_and_submit_request(creator=self.site_engineer)
@@ -256,7 +256,7 @@ class MaterialRequestWorkflowTests(APITestCase):
         self.client.force_authenticate(self.ceo)
         list_response = self.client.get('/api/material-requests/')
         self.assertEqual(list_response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(list_response.data), 0)
+        self.assertEqual(len(list_response.data.get('results', list_response.data)), 0)
 
         detail_response = self.client.get(f'/api/material-requests/{request_id}/')
         self.assertEqual(detail_response.status_code, status.HTTP_404_NOT_FOUND)
@@ -381,7 +381,7 @@ class MaterialRequestWorkflowTests(APITestCase):
         self.assertIsNotNone(notification)
         self.assertIn('ceo', notification.message.lower())
 
-    @patch('material_requests.views.upload_matreq_img_to_supabase', return_value='https://example.com/matreq-image.jpg')
+    @patch('material_requests.views.upload_matreq_img_to_s3', return_value='https://example.com/matreq-image.jpg')
     def test_create_material_request_with_image_only_saves_as_draft(self, _mock_upload):
         self.client.force_authenticate(self.site_engineer)
 
@@ -410,7 +410,7 @@ class MaterialRequestWorkflowTests(APITestCase):
         self.assertEqual(response.data['status'], 'draft')
         self.assertEqual(response.data['request_image'], 'https://example.com/matreq-image.jpg')
 
-    @patch('material_requests.views.upload_matreq_img_to_supabase', return_value='https://example.com/matreq-image.jpg')
+    @patch('material_requests.views.upload_matreq_img_to_s3', return_value='https://example.com/matreq-image.jpg')
     def test_create_then_submit_material_request_with_image_only(self, _mock_upload):
         self.client.force_authenticate(self.site_coordinator)
 

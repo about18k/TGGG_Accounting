@@ -94,39 +94,10 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# Check if using Supabase, Local Postgres, or SQLite
-USE_SUPABASE = config('USE_SUPABASE', default='False') == 'True'
+# Check if using Local Postgres or SQLite
 USE_LOCAL_POSTGRES = config('USE_LOCAL_POSTGRES', default='True') == 'True'
-SUPABASE_URL = config('SUPABASE_URL', default='')
-SUPABASE_KEY = config('SUPABASE_KEY', default='')
 
-if USE_SUPABASE:
-    supabase_db_host = config('SUPABASE_DB_HOST', default='')
-    is_supabase_pooler = 'pooler.supabase.com' in supabase_db_host
-    default_conn_max_age = 0 if is_supabase_pooler else 600
-
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('SUPABASE_DB_NAME', default='postgres'),
-            'USER': config('SUPABASE_DB_USER', default='postgres'),
-            'PASSWORD': config('SUPABASE_DB_PASSWORD', default=''),
-            'HOST': supabase_db_host,
-            'PORT': config('SUPABASE_DB_PORT', default='5432'),
-            'ATOMIC_REQUESTS': True,
-            # Keep DB connections short-lived when using Supabase poolers.
-            'CONN_MAX_AGE': config('SUPABASE_CONN_MAX_AGE', default=default_conn_max_age, cast=int),
-            'OPTIONS': {
-                'sslmode': config('SUPABASE_DB_SSLMODE', default='require'),
-                'connect_timeout': config('SUPABASE_DB_CONNECT_TIMEOUT', default=8, cast=int),
-            },
-        }
-    }
-
-    if is_supabase_pooler:
-        # Recommended with transaction poolers.
-        DISABLE_SERVER_SIDE_CURSORS = config('DISABLE_SERVER_SIDE_CURSORS', default='True') == 'True'
-elif USE_LOCAL_POSTGRES:
+if USE_LOCAL_POSTGRES:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',

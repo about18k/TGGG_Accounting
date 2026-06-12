@@ -13,8 +13,8 @@ from core.storage_utils import build_storage_public_url
 logger = logging.getLogger(__name__)
 
 
-class SupabaseStorageManager:
-    """Manages file uploads and retrieval from MinIO storage (originally Supabase)."""
+class S3StorageManager:
+    """Manages file uploads and retrieval from MinIO/S3 storage."""
     
     _client = None
     

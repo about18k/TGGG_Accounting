@@ -106,7 +106,7 @@ def _notify_material_request_rejected(material_request, actor):
     )
 
 
-def upload_matreq_img_to_supabase(file_obj, user_id):
+def upload_matreq_img_to_s3(file_obj, user_id):
     try:
         s3 = boto3.client(
             's3',
@@ -129,7 +129,7 @@ def upload_matreq_img_to_supabase(file_obj, user_id):
     except Exception as e:
         raise Exception(f"Failed to upload image to S3: {str(e)}")
 
-def remove_matreq_img_from_supabase(public_url):
+def remove_matreq_img_from_s3(public_url):
     if not public_url or "/matrequest-img/" not in public_url:
         return
         
@@ -146,7 +146,7 @@ def remove_matreq_img_from_supabase(public_url):
     except Exception as e:
         print(f"Failed to delete old material request image: {e}")
 
-def upload_accounting_receipt_to_supabase(file_obj, user_id):
+def upload_accounting_receipt_to_s3(file_obj, user_id):
     try:
         s3 = boto3.client(
             's3',
@@ -240,7 +240,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 # URLField expects a URL string, not file payload.
                 data.pop('request_image')
             try:
-                public_url = upload_matreq_img_to_supabase(request_image_file, request.user.id)
+                public_url = upload_matreq_img_to_s3(request_image_file, request.user.id)
                 if public_url:
                     data['request_image'] = public_url
             except Exception as e:
@@ -279,17 +279,17 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 if hasattr(data, 'pop'):
                     data.pop('request_image')
             try:
-                public_url = upload_matreq_img_to_supabase(request_image_file, request.user.id)
+                public_url = upload_matreq_img_to_s3(request_image_file, request.user.id)
                 if public_url:
                     if material_request.request_image:
-                        remove_matreq_img_from_supabase(material_request.request_image)
+                        remove_matreq_img_from_s3(material_request.request_image)
                     data['request_image'] = public_url
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         else:
             if 'request_image' in data and data['request_image'] in [None, 'null', '']:
                 if material_request.request_image:
-                    remove_matreq_img_from_supabase(material_request.request_image)
+                    remove_matreq_img_from_s3(material_request.request_image)
                 data['request_image'] = None
 
         partial = kwargs.pop('partial', False)
@@ -314,7 +314,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             )
 
         if material_request.request_image:
-            remove_matreq_img_from_supabase(material_request.request_image)
+            remove_matreq_img_from_s3(material_request.request_image)
 
         return super().destroy(request, *args, **kwargs)
 
@@ -607,7 +607,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
         accounting_receipt_file = request.FILES.get('accounting-receipt')
         if accounting_receipt_file:
             try:
-                public_url = upload_accounting_receipt_to_supabase(accounting_receipt_file, request.user.id)
+                public_url = upload_accounting_receipt_to_s3(accounting_receipt_file, request.user.id)
                 material_request.accounting_receipt = public_url
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)

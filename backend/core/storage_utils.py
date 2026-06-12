@@ -43,7 +43,7 @@ def extract_object_key_from_url(file_url: str, bucket_name: str) -> str:
     Return object key from URLs like:
     - https://minio.triplegph.com/<bucket>/<key>
     - http://minio:9000/<bucket>/<key>
-    - https://<supabase>/storage/v1/object/public/<bucket>/<key>
+    - https://<supabase>/storage/v1/object/public/<bucket>/<key> (Legacy support)
     """
     if not file_url or not bucket_name:
         return ""

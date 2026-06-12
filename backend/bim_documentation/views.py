@@ -18,7 +18,7 @@ from .serializers import (
     BimDocumentationFileSerializer,
     BimDocumentationCommentSerializer,
 )
-from .supabase_storage import upload_file_to_supabase, delete_file_from_supabase
+from .s3_storage import upload_file_to_s3, delete_file_from_s3
 from .tasks import upload_file_async
 
 logger = logging.getLogger(__name__)
@@ -384,7 +384,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         """
         Create new BIM documentation (synchronous file upload).
         BIM Specialists and Junior Architects can create documentation.
-        Files are uploaded to Supabase Storage bucket synchronously for reliability.
+        Files are uploaded to S3/MinIO Storage bucket synchronously for reliability.
         """
         if request.user.role not in ['bim_specialist', 'junior_architect', 'junior_designer']:
             return Response(
@@ -402,12 +402,12 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         upload_errors = []
         uploaded_files = []
 
-        from .supabase_storage import upload_file_to_supabase
+        from .s3_storage import upload_file_to_s3
 
         for file in files:
             file_type = request.POST.get(f'file_type_{file.name}', 'model')
             try:
-                upload_result = upload_file_to_supabase(file, doc.id)
+                upload_result = upload_file_to_s3(file, doc.id)
                 if not upload_result['success']:
                     upload_errors.append({
                         'file': file.name,
@@ -490,7 +490,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
             for file in files:
                 file_type = request.POST.get(f'file_type_{file.name}', 'image')
                 try:
-                    upload_result = upload_file_to_supabase(file, doc.id)
+                    upload_result = upload_file_to_s3(file, doc.id)
                     if not upload_result['success']:
                         upload_errors.append({
                             'file': file.name,
@@ -530,7 +530,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         """
         Delete BIM documentation (draft only).
         Only the creator can delete draft documentation.
-        Deletes associated files from Supabase Storage.
+        Deletes associated files from S3/MinIO Storage.
         """
         doc = self.get_object()
         
@@ -546,12 +546,12 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Delete all associated files from Supabase Storage
+        # Delete all associated files from S3/MinIO Storage
         for file in doc.files.all():
             if file.file_path:
-                delete_result = delete_file_from_supabase(file.file_path)
+                delete_result = delete_file_from_s3(file.file_path)
                 if not delete_result['success']:
-                    logger.warning(f"Failed to delete file from Supabase: {file.file_path} - {delete_result['error']}")
+                    logger.warning(f"Failed to delete file from S3: {file.file_path} - {delete_result['error']}")
         
         return super().destroy(request, *args, **kwargs)
     
