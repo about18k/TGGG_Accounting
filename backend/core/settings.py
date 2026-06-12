@@ -13,6 +13,10 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from celery.schedules import crontab
 from decouple import config
+import sys
+
+# Detect if running Django test suite
+TESTING = 'test' in sys.argv or 'test_coverage' in sys.argv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -97,13 +101,20 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Check if using Local Postgres or SQLite
 USE_LOCAL_POSTGRES = config('USE_LOCAL_POSTGRES', default='True') == 'True'
 
-if USE_LOCAL_POSTGRES:
+if TESTING:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db_test.sqlite3',
+        }
+    }
+elif USE_LOCAL_POSTGRES:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': config('LOCAL_DB_NAME', default='TRIPLEGACCOUNTING'),
             'USER': config('LOCAL_DB_USER', default='postgres'),
-            'PASSWORD': config('LOCAL_DB_PASSWORD', default='M@steryii38'),
+            'PASSWORD': config('LOCAL_DB_PASSWORD', default='M@steryii38' if DEBUG else None),
             'HOST': config('LOCAL_DB_HOST', default='127.0.0.1'),
             'PORT': config('LOCAL_DB_PORT', default='5432'),
         }
@@ -258,7 +269,10 @@ AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = 'public-read'
 
 # Set default storage
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+if TESTING:
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+else:
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Base URL for generating absolute URLs to uploaded media
 BASE_URL = config('BASE_URL', default='http://localhost:8000')
@@ -269,7 +283,15 @@ BASE_URL = config('BASE_URL', default='http://localhost:8000')
 CACHE_BACKEND = config('CACHE_BACKEND', default='local').strip().lower()
 REDIS_CACHE_URL = config('REDIS_CACHE_URL', default='redis://localhost:6379/1')
 
-if CACHE_BACKEND == 'redis':
+if TESTING:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'tggg-test-cache',
+            'TIMEOUT': 120,
+        }
+    }
+elif CACHE_BACKEND == 'redis':
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',

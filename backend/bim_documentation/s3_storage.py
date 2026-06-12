@@ -27,11 +27,20 @@ def upload_file_to_s3(file_obj, doc_id):
     """
     Upload a file to S3 Storage bucket.
     """
+    now = datetime.now()
+    file_path = f"{doc_id}/{now.year}/{now.month:02d}/{now.day:02d}/{file_obj.name}"
+    
+    if getattr(settings, 'TESTING', False):
+        public_url = build_storage_public_url(BIM_DOCS_BUCKET, file_path)
+        return {
+            'success': True,
+            'file_path': file_path,
+            'file_url': public_url,
+            'error': None
+        }
+
     try:
         client = get_s3_client()
-        now = datetime.now()
-        file_path = f"{doc_id}/{now.year}/{now.month:02d}/{now.day:02d}/{file_obj.name}"
-        
         logger.info(f"Uploading file to S3 bucket '{BIM_DOCS_BUCKET}' at path: {file_path}")
         
         client.upload_fileobj(
@@ -60,6 +69,8 @@ def upload_file_to_s3(file_obj, doc_id):
         }
 
 def delete_file_from_s3(file_path):
+    if getattr(settings, 'TESTING', False):
+        return {'success': True, 'error': None}
     try:
         client = get_s3_client()
         client.delete_object(Bucket=BIM_DOCS_BUCKET, Key=file_path)

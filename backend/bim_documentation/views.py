@@ -241,6 +241,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
     - POST /bim-docs/{id}/approve/ - Approve/Reject documentation
     """
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = None
     parser_classes = (MultiPartParser, FormParser, JSONParser)
     junior_architect_role_aliases = ('junior_architect', 'junior_designer')
     status_filter_aliases = {
@@ -308,7 +309,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
         return BimDocumentation.objects.filter(
             created_by__role__in=self.junior_architect_role_aliases,
             reviewed_by_bim__isnull=False,
-            status__in=['pending_bim_review', 'pending_studio_head_review', 'pending_ceo_review', 'approved'],
+            status='approved',
         )
     
     def get_queryset(self):
@@ -393,6 +394,17 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
             )
 
         files = request.FILES.getlist('files')
+        has_image = False
+        for file in files:
+            file_type = request.POST.get(f'file_type_{file.name}', '')
+            if file_type == 'image' or _is_image_upload(file):
+                has_image = True
+                break
+        if not has_image:
+            return Response(
+                {'error': 'At least one uploaded image is required to create documentation.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -577,6 +589,12 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        if not _doc_has_image_attachment(doc):
+            return Response(
+                {'error': 'At least one image is required to submit documentation.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         update_fields = ['status', 'updated_at']
         if can_resubmit_after_rejection:
             doc.reviewed_by_bim = None
@@ -663,6 +681,11 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
                         is_system_comment=True,
                     )
 
+                try:
+                    _notify_studio_head_documentation_forwarded(doc, user)
+                except Exception as exc:
+                    logger.warning('Failed to notify Studio Head for BIM doc %s forwarding: %s', doc.id, exc)
+
                 if doc.reviewed_by_studio_head_id is not None:
                     try:
                         _notify_ceo_documentation_forwarded(doc, user)
@@ -700,6 +723,7 @@ class BimDocumentationViewSet(viewsets.ModelViewSet):
             is_parallel_junior_stage = (
                 doc.status == 'pending_bim_review'
                 and str(getattr(doc.created_by, 'role', '') or '').lower() in self.junior_architect_role_aliases
+                and doc.reviewed_by_bim_id is not None
             )
             if not (doc.status == 'pending_studio_head_review' or is_parallel_junior_stage):
                 return Response(

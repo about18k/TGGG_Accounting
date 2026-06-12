@@ -164,7 +164,8 @@ class CustomUserSerializerTests(TestCase):
             'id', 'email', 'username', 'first_name', 'last_name',
             'department', 'department_name', 'role', 'role_name',
             'permissions', 'phone_number', 'is_active', 'is_leader',
-            'date_hired', 'profile_picture', 'created_at', 'updated_at'
+            'date_hired', 'profile_picture', 'created_at', 'updated_at',
+            'signature_image', 'employee_id', 'payroll_allowance_eligible'
         }
         self.assertEqual(set(data.keys()), expected_fields)
 
