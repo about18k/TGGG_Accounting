@@ -21,6 +21,7 @@ import materialRequestService from '../../../services/materialRequestService';
 import MaterialRequestFormModal from '../../../components/modals/MaterialRequestFormModal';
 import MaterialRequestCommentThread from '../../../components/MaterialRequestCommentThread';
 import BudgetAllocationModal from '../../../components/modals/BudgetAllocationModal';
+import { CardSkeleton } from '../../../components/SkeletonLoader';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -283,7 +284,12 @@ const AccountingMaterialRequestPage = ({ user }) => {
               <h2 className="text-lg font-semibold text-white">Projects</h2>
             </div>
             
-            {loading && <p className="text-sm text-white/60 py-6 text-center">Loading...</p>}
+            {loading && (
+              <div className="space-y-3">
+                <CardSkeleton />
+                <CardSkeleton />
+              </div>
+            )}
             
             {!loading && requestsByProjectMap.length === 0 && (
                <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/55 text-center">
@@ -571,7 +577,12 @@ const AccountingMaterialRequestPage = ({ user }) => {
                 <h2 className="text-lg font-semibold text-white">Projects</h2>
               </div>
 
-              {loading && <p className="text-sm text-white/60 py-6 text-center">Loading...</p>}
+              {loading && (
+                <div className="space-y-3">
+                  <CardSkeleton />
+                  <CardSkeleton />
+                </div>
+              )}
 
               {!loading && approvedByProjectMap.length === 0 && (
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/55 text-center">

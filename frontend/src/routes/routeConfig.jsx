@@ -11,6 +11,7 @@ import AccountingSidebar from '../pages/dashboards/Accounting_Department/Account
 import EmployeeAttendanceDashboard from '../pages/dashboards/Public_Dashboard/AttendanceDashboard';
 
 import { getDefaultPage } from '../layouts/sidebarConfig';
+import { PageSkeleton } from '../components/SkeletonLoader';
 
 // ── Lazy-loaded Shared Pages ─────────────────────────────────
 const CalendarPage = lazy(() => import('../pages/CalendarPage'));
@@ -116,7 +117,7 @@ export function renderAccountingDashboard({
     // Profile page is rendered outside the standard accounting tabs
     if (currentPage === 'profile') {
         return (
-            <Suspense fallback={<div className="min-h-screen bg-[#00273C] text-white flex items-center justify-center text-sm">Loading profile...</div>}>
+            <Suspense fallback={<div className="min-h-screen bg-[#00273C] p-6 sm:p-8"><PageSkeleton /></div>}>
                 <div className="min-h-screen bg-[#00273C] relative">
                     <PublicNavigation onNavigate={handleNavigate} currentPage="profile" user={user} onLogout={handleLogout} />
                     <div className="relative pt-28 px-3 sm:px-6 pb-10">
@@ -161,7 +162,7 @@ export function renderAccountingDashboard({
     };
 
     return (
-        <Suspense fallback={<div className="min-h-screen bg-[#00273C] text-white flex items-center justify-center text-sm">Loading accounting workspace...</div>}>
+        <Suspense fallback={<div className="min-h-screen bg-[#00273C] p-6 sm:p-8"><PageSkeleton /></div>}>
             <AccountingDashboardLayout
                 activeTab={activeTab}
                 activeSection={effectiveSection}
@@ -172,7 +173,7 @@ export function renderAccountingDashboard({
                 onNotificationClick={markNotificationRead}
                 onMarkAllRead={markAllNotificationsRead}
             >
-                <Suspense fallback={<div className="py-8 text-sm text-white/70">Loading page...</div>}>
+                <Suspense fallback={<PageSkeleton />}>
                     {renderContent()}
                 </Suspense>
             </AccountingDashboardLayout>
@@ -227,7 +228,7 @@ const OVERTIME_REGISTRY = {
 };
 
 const LoadingFallback = () => (
-  <div className="py-8 text-sm text-white/70">Loading...</div>
+  <PageSkeleton />
 );
 
 /**

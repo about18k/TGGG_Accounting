@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getEvents, createEvent, updateEvent, deleteEvent } from '../../../../services/attendanceService';
+import { CardSkeleton } from '../../../../components/SkeletonLoader';
 import {
   CalendarDays,
   Plus,
@@ -576,8 +577,8 @@ export default function AccountingEventsPanel() {
           </aside>
 
           {loading && (
-            <div className="xl:col-span-2 rounded-lg border border-white/10 bg-[#021B2C]/70 p-3 text-sm text-white/60">
-              Loading calendar events...
+            <div className="xl:col-span-2">
+              <CardSkeleton />
             </div>
           )}
 

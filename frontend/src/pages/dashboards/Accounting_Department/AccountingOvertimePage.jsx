@@ -47,7 +47,7 @@ const AccountingOvertimePage = ({ user, token, onNavigate, embedded = false }) =
   );
 
   const content = (
-    <>
+    <div className="w-full relative animate-fade-in space-y-6">
       {activeTab === 'ot-form' && (
         <OvertimeForm
           token={token}
@@ -62,7 +62,7 @@ const AccountingOvertimePage = ({ user, token, onNavigate, embedded = false }) =
           onTabChange={setActiveTab}
         />
       )}
-    </>
+    </div>
   );
 
   if (embedded) {
@@ -71,9 +71,6 @@ const AccountingOvertimePage = ({ user, token, onNavigate, embedded = false }) =
 
   return (
     <div className="min-h-screen bg-[#00273C] relative">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
-      </div>
 
       <PublicNavigation onNavigate={onNavigate} currentPage="overtime" user={user} />
 

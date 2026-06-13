@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import workDocumentationService from '../../../../services/workDocumentationService';
+import { CardSkeleton } from '../../../../components/SkeletonLoader';
 import './WorkDocumentationModal.css';
 
 const WorkDocumentationModal = ({ attendanceId, onClose }) => {
@@ -50,10 +51,7 @@ const WorkDocumentationModal = ({ attendanceId, onClose }) => {
     return (
       <div className="work-documentation-modal">
         <div className="modal-content">
-          <div className="loading">
-            <div className="spinner"></div>
-            <p>Loading documentation...</p>
-          </div>
+          <CardSkeleton />
         </div>
       </div>
     );

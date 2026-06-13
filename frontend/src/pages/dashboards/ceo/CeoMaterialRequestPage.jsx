@@ -20,6 +20,7 @@ import {
 import materialRequestService from '../../../services/materialRequestService';
 import MaterialRequestCommentThread from '../../../components/MaterialRequestCommentThread';
 import MaterialRequestFormModal from '../../../components/modals/MaterialRequestFormModal';
+import { CardSkeleton } from '../../../components/SkeletonLoader';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -357,16 +358,9 @@ const CeoMaterialRequestPage = ({ user, onNavigate, onLogout }) => {
   const selectedStatusMeta = getStatusMeta(selectedRequest?.status);
 
   return (
-    <div className="w-full relative animate-fade-in">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
-      </div>
-
-      
-
-
-            {/* Header Card */}
-            <div className={`${cardClass} p-6`}>
+    <div className="w-full relative animate-fade-in space-y-6">
+      {/* Header Card */}
+      <div className={`${cardClass} p-6`}>
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-[11px] uppercase tracking-[0.16em] text-white/45">CEO Final Review</p>
@@ -454,7 +448,12 @@ const CeoMaterialRequestPage = ({ user, onNavigate, onLogout }) => {
                       <h2 className="text-lg font-semibold text-white">Projects</h2>
                     </div>
 
-                    {loading && <p className="text-sm text-white/60 py-6 text-center">Loading...</p>}
+                    {loading && (
+                      <div className="space-y-3">
+                        <CardSkeleton />
+                        <CardSkeleton />
+                      </div>
+                    )}
 
                     {!loading && approvedByProjectMap.length === 0 && (
                       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/55 text-center">
@@ -717,7 +716,12 @@ const CeoMaterialRequestPage = ({ user, onNavigate, onLogout }) => {
                   <p className="text-xs text-white/50 mt-1">{activeTabMeta.description}</p>
                 </div>
 
-                {loading && <p className="text-sm text-white/60 py-6 text-center">Loading requests...</p>}
+                {loading && (
+                  <div className="space-y-3">
+                    <CardSkeleton />
+                    <CardSkeleton />
+                  </div>
+                )}
 
                 {!loading && activeRequests.length === 0 && (
                   <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/55 text-center">
@@ -927,7 +931,12 @@ const CeoMaterialRequestPage = ({ user, onNavigate, onLogout }) => {
                       <h2 className="text-lg font-semibold text-white">Projects</h2>
                     </div>
 
-                    {loading && <p className="text-sm text-white/60 py-6 text-center">Loading...</p>}
+                    {loading && (
+                      <div className="space-y-3">
+                        <CardSkeleton />
+                        <CardSkeleton />
+                      </div>
+                    )}
 
                     {!loading && expensesByProjectMap.length === 0 && (
                       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/55 text-center">

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { CardSkeleton } from '../../../components/SkeletonLoader';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -1139,7 +1140,7 @@ const MaterialRequest = ({ user }) => {
           </div>
 
           {loading && (
-            <p className="text-center text-white/60 py-8">Loading material requests...</p>
+            <CardSkeleton />
           )}
 
           {!loading && requests.length === 0 && (
@@ -1491,7 +1492,7 @@ const MaterialRequest = ({ user }) => {
                     </div>
 
                     {loadingApproved && (
-                      <p className="text-center text-white/60 py-8">Loading approved requests...</p>
+                      <CardSkeleton />
                     )}
 
                     {!loadingApproved && approvedRequests.length === 0 && (

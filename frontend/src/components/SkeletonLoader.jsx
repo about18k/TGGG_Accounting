@@ -26,3 +26,27 @@ export const CardSkeleton = () => (
     <div className="skeleton skeleton-button" style={{ marginTop: '1.5rem' }}></div>
   </div>
 );
+
+export const PageSkeleton = () => (
+  <div className="w-full space-y-6">
+    {/* Header Card Skeleton */}
+    <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md p-6 sm:p-8 space-y-4">
+      <div className="skeleton skeleton-text" style={{ width: '120px', height: '12px' }}></div>
+      <div className="skeleton skeleton-text" style={{ width: '280px', height: '32px' }}></div>
+      <div className="skeleton skeleton-text" style={{ width: '70%', height: '14px' }}></div>
+    </div>
+    
+    {/* Content Card Skeleton */}
+    <div className="rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md p-6 space-y-6">
+      <div className="flex gap-2">
+        <div className="skeleton skeleton-badge" style={{ width: '100px', height: '32px' }}></div>
+        <div className="skeleton skeleton-badge" style={{ width: '100px', height: '32px' }}></div>
+      </div>
+      <div className="space-y-3 pt-2">
+        <div className="skeleton skeleton-text" style={{ width: '100%', height: '16px' }}></div>
+        <div className="skeleton skeleton-text" style={{ width: '90%', height: '16px' }}></div>
+        <div className="skeleton skeleton-text" style={{ width: '95%', height: '16px' }}></div>
+      </div>
+    </div>
+  </div>
+);

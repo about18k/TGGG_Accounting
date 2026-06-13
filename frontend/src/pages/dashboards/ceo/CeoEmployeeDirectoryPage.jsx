@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BriefcaseBusiness, Building2, Mail, RefreshCw, Search, Users } from 'lucide-react';
 import { getAllUsers } from '../../../services/adminService';
+import { TableSkeleton } from '../../../components/SkeletonLoader';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -88,7 +89,7 @@ export default function CeoEmployeeDirectoryPage({ user, onNavigate, onLogout })
   const totalDepartments = new Set(users.map((item) => item?.department_name).filter(Boolean)).size;
 
   return (
-    <div className="w-full animate-fade-in">
+    <div className="w-full animate-fade-in space-y-6">
       
 
 
@@ -157,7 +158,9 @@ export default function CeoEmployeeDirectoryPage({ user, onNavigate, onLogout })
               ) : null}
 
               {isLoading ? (
-                <p className="mt-5 text-sm text-white/60">Loading employees...</p>
+                <div className="mt-5">
+                  <TableSkeleton />
+                </div>
               ) : filteredUsers.length === 0 ? (
                 <p className="mt-5 text-sm text-white/60">No employees matched your filter.</p>
               ) : (

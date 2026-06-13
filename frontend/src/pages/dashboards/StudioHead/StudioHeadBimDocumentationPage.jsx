@@ -13,6 +13,7 @@ import {
 import bimDocumentationService from '../../../services/bimDocumentationService';
 import CommentThread from '../../../components/CommentThread';
 import { toast } from 'sonner';
+import { CardSkeleton } from '../../../components/SkeletonLoader';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -459,15 +460,8 @@ const StudioHeadBimDocumentationPage = ({
     const attachmentCount = selectedDoc ? (selectedDoc.files?.length ?? selectedDoc.file_count ?? 0) : 0;
 
     return (
-        <div className="w-full relative animate-fade-in">
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
-            </div>
-
-            
-
-
-                        <section className={cardClass}>
+        <div className="w-full relative animate-fade-in space-y-6">
+            <section className={cardClass}>
                             <div className="p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                                 <div className="max-w-3xl">
                                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[#FF7120]/80">{pageEyebrow}</p>
@@ -540,7 +534,10 @@ const StudioHeadBimDocumentationPage = ({
 
                                     <div className="flex-1 min-h-0 overflow-y-auto p-4">
                                         {loading ? (
-                                            <p className="py-10 text-center text-sm text-white/55">Loading documentation...</p>
+                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                                <CardSkeleton />
+                                                <CardSkeleton />
+                                            </div>
                                         ) : activeDocs.length === 0 ? (
                                             <div className="flex flex-col items-center justify-center py-16 px-4">
                                                 <div className="w-16 h-16 bg-[#FF7120]/10 rounded-2xl border border-[#FF7120]/20 flex items-center justify-center mb-4">

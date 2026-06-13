@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { TableSkeleton } from '../../../components/SkeletonLoader';
 import { getAllAttendance } from '../../../services/attendanceService';
 import PrintAttendance from '../../globalattendancereport/PrintAttendance';
 import {
@@ -618,7 +619,7 @@ export function AttendanceLeave() {
         </CardHeader>
         <CardContent>
             {isAttendanceLoading ? (
-                <p className="text-sm text-muted-foreground">Loading attendance records...</p>
+                <TableSkeleton />
               ) : attendanceError ? (
                 <p className="text-sm text-red-600">{attendanceError}</p>
               ) : groupedRecords.length === 0 ? (

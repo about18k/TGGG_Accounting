@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { Toaster } from './components/ui/sonner';
+import { PageSkeleton } from './components/SkeletonLoader';
 
 // Extracted modules
 import { isTokenExpired, getPageFromPath, getDefaultPage } from './utils/authUtils';
@@ -203,7 +204,11 @@ export default function App() {
   };
 
   if (loading) {
-    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', backgroundColor: '#021B2C', color: 'white' }}>Loading...</div>;
+    return (
+      <div className="min-h-screen bg-[#00273C] p-6 sm:p-8">
+        <PageSkeleton />
+      </div>
+    );
   }
 
   const defaultDashboardPath = `/dashboard/${currentPage || 'attendance'}`;

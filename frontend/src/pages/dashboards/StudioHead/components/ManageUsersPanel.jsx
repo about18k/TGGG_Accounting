@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AlertTriangle, Plus, Search, Users, X } from 'lucide-react';
 import UserRow from './UserRow';
 import EmptyState from './EmptyState';
+import { CardSkeleton } from '../../../../components/SkeletonLoader';
 import { getDepartments } from '../services/studioHeadApi';
 
 function StatCard({ title, value, icon: Icon }) {
@@ -550,7 +551,7 @@ export default function ManageUsersPanel({
             `}
           </style>
 
-          {usersLoading && <div className="text-gray-400 text-sm py-4">Loading users...</div>}
+          {usersLoading && <CardSkeleton />}
           {usersError && <div className="text-red-400 text-sm py-4">{usersError}</div>}
 
           {!usersLoading && !usersError && users.length === 0 && (

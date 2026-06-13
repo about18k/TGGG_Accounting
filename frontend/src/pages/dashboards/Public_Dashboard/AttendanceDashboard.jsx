@@ -432,11 +432,6 @@ const AttendanceDashboard = ({
 
   return (
     <div className="min-h-screen bg-[#00273C] relative">
-      {/* Soft background glow */}
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-40 -right-40 h-130 w-130 rounded-full bg-cyan-400/10 blur-[90px]" />
-        <div className="absolute -bottom-50 left-1/2 h-130 w-130 -translate-x-1/2 rounded-full bg-white/5 blur-[110px]" />
-      </div>
 
       {NavComponent && (
         <NavComponent

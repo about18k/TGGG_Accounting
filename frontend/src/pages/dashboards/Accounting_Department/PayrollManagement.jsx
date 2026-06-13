@@ -11,6 +11,7 @@ import {
   updatePayrollAllowanceEligibility,
   deleteEmployeeContribution,
 } from '../../../services/payrollService';
+import { CardSkeleton, TableSkeleton } from '../../../components/SkeletonLoader';
 import {
   Avatar,
   AvatarFallback,
@@ -1100,7 +1101,7 @@ export function PayrollManagement() {
 
           {/* Records Display */}
           {isLoadingPayrollData ? (
-            <p className="text-sm text-muted-foreground">Loading payroll records...</p>
+            <TableSkeleton />
           ) : payrollError ? (
             <p className="text-sm text-red-600">{payrollError}</p>
           ) : filteredPayrollRecords.length === 0 ? (
@@ -1312,7 +1313,7 @@ export function PayrollManagement() {
                     <h3 className="text-sm font-semibold text-white mb-4">Current Contributions</h3>
                     {contributionError && <p className="text-xs text-red-500 mb-3">{contributionError}</p>}
                     {isLoadingEmployeeContributions ? (
-                      <p className="text-sm text-muted-foreground">Loading contributions...</p>
+                      <CardSkeleton />
                     ) : employeeContributions.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No contributions configured yet.</p>
                     ) : (
@@ -1614,7 +1615,7 @@ export function PayrollManagement() {
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Government Contributions</Label>
                   {isLoadingModalContributions ? (
-                    <p className="text-sm text-muted-foreground">Loading government contributions...</p>
+                    <CardSkeleton />
                   ) : modalEmployeeContributions.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No government contributions configured for this employee.</p>
                   ) : (

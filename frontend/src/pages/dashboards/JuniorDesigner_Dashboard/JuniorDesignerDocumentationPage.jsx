@@ -4,6 +4,7 @@ import CommentThread from '../../../components/CommentThread';
 import { FolderOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import Alert from '../../../components/Alert';
+import { CardSkeleton } from '../../../components/SkeletonLoader';
 
 const MAX_UPLOAD_FILES = 5;
 const TODAY_ISO = new Date().toISOString().split('T')[0];
@@ -418,7 +419,7 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
     };
 
     return (
-        <div className="w-full relative animate-fade-in">
+        <div className="w-full relative animate-fade-in space-y-6">
             {alertConfig.show && (
                 <Alert
                     type={alertConfig.type}
@@ -429,9 +430,6 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                     onConfirm={alertConfig.onConfirm}
                 />
             )}
-            <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
-            </div>
 
             
 
@@ -734,7 +732,12 @@ const JuniorDesignerDocumentationPage = ({ user, onNavigate }) => {
                                     </div>
                                 </div>
                                 <div className="p-4 sm:p-6">
-                                    {loading && <p className="text-center text-white/60">Loading...</p>}
+                                    {loading && (
+                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                                            <CardSkeleton />
+                                            <CardSkeleton />
+                                        </div>
+                                    )}
                                     {!loading && manageDocs.length === 0 && (
                                         <EmptyStatePanel
                                             Icon={FolderOpen}

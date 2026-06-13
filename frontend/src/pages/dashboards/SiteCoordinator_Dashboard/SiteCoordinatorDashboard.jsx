@@ -297,10 +297,6 @@ export default function SiteCoordinatorDashboard({ user, onNavigate }) {
 
   return (
     <div className="min-h-screen bg-[#00273C] relative">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-40 -right-40 h-130 w-130 rounded-full bg-cyan-400/10 blur-[90px]" />
-      </div>
-
       <PublicNavigation onNavigate={onNavigate} currentPage="attendance" user={user} />
 
       <div className="relative pt-28 px-3 sm:px-6 pb-10">

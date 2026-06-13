@@ -1,6 +1,7 @@
 import { UserCheck } from 'lucide-react';
 import PendingUserCard from './PendingUserCard';
 import EmptyState from './EmptyState';
+import { CardSkeleton } from '../../../../components/SkeletonLoader';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -62,7 +63,7 @@ export default function PendingApprovalsPanel({
           <p className="text-white/50 text-[10px] sm:text-xs">Review and verify new account access</p>
         </div>
 
-        {pendingLoading && <div className="text-gray-400 text-sm py-4">Loading pending users...</div>}
+        {pendingLoading && <CardSkeleton />}
 
         {!pendingLoading && pendingList.length === 0 && (
           <div className="py-10">

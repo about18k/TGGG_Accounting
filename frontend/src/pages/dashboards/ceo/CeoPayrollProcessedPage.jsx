@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, DollarSign, RefreshCw, Search, ShieldCheck, UserRound } from 'lucide-react';
 import { getRecentPayroll } from '../../../services/payrollService';
+import { TableSkeleton } from '../../../components/SkeletonLoader';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -90,11 +91,8 @@ export default function CeoPayrollProcessedPage({ user, onNavigate, onLogout }) 
   }, [records]);
 
   return (
-    <div className="w-full animate-fade-in">
-      
-
-
-            <section className={`${cardClass} p-5 sm:p-6`}>
+    <div className="w-full animate-fade-in space-y-6">
+      <section className={`${cardClass} p-5 sm:p-6`}>
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="text-xs uppercase tracking-[0.16em] text-white/45">Financial Oversight</p>
@@ -150,7 +148,9 @@ export default function CeoPayrollProcessedPage({ user, onNavigate, onLogout }) 
               ) : null}
 
               {isLoading ? (
-                <p className="mt-5 text-sm text-white/60">Loading payroll records...</p>
+                <div className="mt-5">
+                  <TableSkeleton />
+                </div>
               ) : filteredRecords.length === 0 ? (
                 <p className="mt-5 text-sm text-white/60">No payroll records matched your search.</p>
               ) : (

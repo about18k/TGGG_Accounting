@@ -21,6 +21,7 @@ import {
 import materialRequestService from '../../../services/materialRequestService';
 import MaterialRequestCommentThread from '../../../components/MaterialRequestCommentThread';
 import MaterialRequestFormModal from '../../../components/modals/MaterialRequestFormModal';
+import { CardSkeleton } from '../../../components/SkeletonLoader';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -401,15 +402,8 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
   const selectedStatusMeta = getStatusMeta(selectedRequest);
 
   return (
-    <div className="w-full relative animate-fade-in">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
-      </div>
-
-      
-
-
-            {/* Header Card */}
+    <div className="w-full relative animate-fade-in space-y-6">
+      {/* Header Card */}
             <div className={cardClass}>
               <div className="p-6 sm:p-8 flex flex-col xl:flex-row xl:items-end xl:justify-between gap-6">
                 <div className="max-w-3xl">
@@ -507,7 +501,12 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
                       <h2 className="text-lg font-semibold text-white">Projects</h2>
                     </div>
 
-                    {loading && <p className="text-sm text-white/60 py-6 text-center">Loading...</p>}
+                    {loading && (
+                      <div className="space-y-3">
+                        <CardSkeleton />
+                        <CardSkeleton />
+                      </div>
+                    )}
 
                     {!loading && expensesByProjectMap.length === 0 && (
                       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/55 text-center">
@@ -765,7 +764,10 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
 
                       <div className="p-4">
                           {loading ? (
-                              <p className="py-10 text-center text-sm text-white/55">Loading requests...</p>
+                               <div className="space-y-3">
+                                   <CardSkeleton />
+                                   <CardSkeleton />
+                               </div>
                           ) : activeRequests.length === 0 ? (
                               <div className="flex flex-col items-center justify-center py-16 px-4">
                                   <div className="w-16 h-16 bg-[#FF7120]/10 rounded-2xl border border-[#FF7120]/20 flex items-center justify-center mb-4">
@@ -961,7 +963,12 @@ const StudioHeadMaterialRequestPage = ({ user, onNavigate }) => {
                       <h2 className="text-lg font-semibold text-white">Projects</h2>
                     </div>
 
-                    {loading && <p className="text-sm text-white/60 py-6 text-center">Loading...</p>}
+                    {loading && (
+                      <div className="space-y-3">
+                        <CardSkeleton />
+                        <CardSkeleton />
+                      </div>
+                    )}
 
                     {!loading && expensesByProjectMap.length === 0 && (
                       <div className="rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm text-white/55 text-center">

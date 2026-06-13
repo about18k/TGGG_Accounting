@@ -47,7 +47,7 @@ const CeoOvertimePage = ({ user, token, onLogout, onNavigate }) => {
   );
 
   return (
-    <div className="w-full animate-fade-in">
+    <div className="w-full animate-fade-in space-y-6">
       
 
 

@@ -7,12 +7,12 @@ export default function CeoDashboardPage({ user, onNavigate, onLogout }) {
   }).format(new Date());
 
   return (
-    <div className="w-full animate-fade-in">
+    <div className="w-full animate-fade-in space-y-6">
       
 
 
             {/* Greeting */}
-            <div className="mb-8">
+            <div>
               <p className="text-white/40 text-sm">{todayLabel}</p>
               <h1 className="mt-1 text-2xl sm:text-3xl font-semibold text-white">
                 Good day, {user?.first_name || 'CEO'}.
