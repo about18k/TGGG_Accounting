@@ -17,12 +17,12 @@ import { PageSkeleton } from '../components/SkeletonLoader';
 const CalendarPage = lazy(() => import('../pages/CalendarPage'));
 const ProfilePage = lazy(() => import('../pages/ProfilePage'));
 const OvertimePage = lazy(() => import('../pages/OvertimePage'));
+const MaterialRequestReviewer = lazy(() => import('../pages/material-requests/MaterialRequestReviewer'));
 
 // ── Lazy-loaded Role Pages ─────────────────────────────────
 const StudioHeadDashboard = lazy(() => import('../pages/dashboards/StudioHead/StudioHeadDashboard'));
 const StudioHeadBimDocumentationPage = lazy(() => import('../pages/dashboards/StudioHead/StudioHeadBimDocumentationPage'));
 const StudioHeadJuniorArchitectDocumentationPage = lazy(() => import('../pages/dashboards/StudioHead/StudioHeadJuniorArchitectDocumentationPage'));
-const StudioHeadMaterialRequestPage = lazy(() => import('../pages/dashboards/StudioHead/StudioHeadMaterialRequestPage'));
 
 const DocumentationPage = lazy(() => import('../pages/DocumentationPage'));
 const EngineerHub = lazy(() => import('../pages/dashboards/SiteEngineer_Dashboard/EngineerHub'));
@@ -33,7 +33,6 @@ const CoordinatorHub = lazy(() => import('../pages/dashboards/SiteCoordinator_Da
 const CeoDashboardPage = lazy(() => import('../pages/dashboards/ceo/CeoDashboardPage'));
 const CeoBimDocumentationPage = lazy(() => import('../pages/dashboards/ceo/CeoBimDocumentationPage'));
 const CeoJuniorArchitectDocumentationPage = lazy(() => import('../pages/dashboards/ceo/CeoJuniorArchitectDocumentationPage'));
-const CeoMaterialRequestPage = lazy(() => import('../pages/dashboards/ceo/CeoMaterialRequestPage'));
 const CeoEmployeeDirectoryPage = lazy(() => import('../pages/dashboards/ceo/CeoEmployeeDirectoryPage'));
 const CeoPayrollProcessedPage = lazy(() => import('../pages/dashboards/ceo/CeoPayrollProcessedPage'));
 
@@ -47,7 +46,6 @@ const loadAccountingSettings = () => import('../pages/dashboards/Accounting_Depa
 const loadAccountingPersonalAttendance = () => import('../pages/dashboards/Accounting_Department/AccountingPersonalAttendance');
 const loadAccountingOvertimePage = () => import('../pages/OvertimePage');
 const loadAccountingEventsPanel = () => import('../pages/dashboards/Accounting_Department/Calendar_Events/AccountingEventsPanel');
-const loadAccountingMaterialRequestPage = () => import('../pages/dashboards/Accounting_Department/AccountingMaterialRequestPage');
 const loadAccountingOvertimeRequestsPanel = () => import('../pages/dashboards/shared/OvertimeRequestApprovalsPanel');
 
 const AccountingDashboardLayout = lazy(() => loadAccountingDashboardLayout().then((mod) => ({ default: mod.DashboardLayout })));
@@ -59,7 +57,6 @@ const AccountingSettings = lazy(() => loadAccountingSettings().then((mod) => ({ 
 const AccountingPersonalAttendance = lazy(() => loadAccountingPersonalAttendance());
 const AccountingOvertimePage = lazy(() => loadAccountingOvertimePage());
 const AccountingEventsPanel = lazy(() => loadAccountingEventsPanel());
-const AccountingMaterialRequestPage = lazy(() => loadAccountingMaterialRequestPage());
 const AccountingOvertimeRequestsPanel = lazy(() => loadAccountingOvertimeRequestsPanel());
 
 export function preloadDashboardAssets({ role, currentPage, departmentName } = {}) {
@@ -84,7 +81,7 @@ export function preloadDashboardAssets({ role, currentPage, departmentName } = {
             loadAccountingOvertimePage(),
             loadAccountingPersonalAttendance(),
             loadAccountingEventsPanel(),
-            loadAccountingMaterialRequestPage(),
+            import('../pages/material-requests/MaterialRequestReviewer'),
             loadAccountingOvertimeRequestsPanel(),
         );
     }
@@ -138,7 +135,7 @@ export function renderAccountingDashboard({
         if (effectiveSection === 'overtime') return <AccountingOvertimePage user={user} token={token} onNavigate={handleNavigate} embedded />;
         if (effectiveSection === 'events') return <AccountingEventsPanel />;
         if (effectiveSection === 'otrequest') return <AccountingOvertimeRequestsPanel reviewerRole="accounting" />;
-        if (effectiveSection === 'material-requests') return <AccountingMaterialRequestPage user={user} />;
+        if (effectiveSection === 'material-requests') return <MaterialRequestReviewer user={user} reviewerRole="accounting" onNavigate={handleNavigate} />;
         
         switch (activeTab) {
             case 'dashboard': return <AccountingDashboardOverview user={user} onNavigate={handleNavigate} />;
@@ -185,12 +182,12 @@ const PAGE_REGISTRY = {
   'ceo-payroll': { Component: CeoPayrollProcessedPage },
   'ceo-bim-docs': { Component: CeoBimDocumentationPage },
   'ceo-junior-docs': { Component: CeoJuniorArchitectDocumentationPage },
-  'ceo-material-requests': { Component: CeoMaterialRequestPage },
+  'ceo-material-requests': { Component: MaterialRequestReviewer, props: { reviewerRole: 'ceo' } },
   
   // Studio Head
   'studio-head-bim-docs': { Component: StudioHeadBimDocumentationPage },
   'studio-head-junior-docs': { Component: StudioHeadJuniorArchitectDocumentationPage },
-  'studio-head-material-requests': { Component: StudioHeadMaterialRequestPage },
+  'studio-head-material-requests': { Component: MaterialRequestReviewer, props: { reviewerRole: 'studio_head' } },
   'approvals': { Component: StudioHeadDashboard, props: { currentPage: 'approvals' } },
   'users': { Component: StudioHeadDashboard, props: { currentPage: 'users' } },
   'reviews': { Component: StudioHeadDashboard, props: { currentPage: 'reviews' } },

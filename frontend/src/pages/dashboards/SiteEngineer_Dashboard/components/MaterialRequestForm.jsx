@@ -1,5 +1,5 @@
 import React from 'react';
-import { Package, Send, Plus, Upload, X, RefreshCcw } from 'lucide-react';
+import { Package, Send, Plus, Upload, X, RefreshCcw, Trash2 } from 'lucide-react';
 
 const TODAY_ISO = new Date().toISOString().split('T')[0];
 
