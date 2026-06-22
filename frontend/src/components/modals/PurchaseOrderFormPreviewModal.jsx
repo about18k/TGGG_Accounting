@@ -17,10 +17,55 @@ import { X, Printer } from 'lucide-react';
 const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, request, userRole, inline = false }) => {
   if (!isOpen) return null;
 
-  const allPos = posProp || (po ? [po] : []);
-  if (allPos.length === 0) return null;
+  const allPosRaw = posProp || (po ? [po] : []);
+  if (allPosRaw.length === 0) return null;
 
-  const handlePrint = () => window.print();
+  const allPos = [];
+  allPosRaw.forEach((poItem) => {
+    const rawItems = poItem.items || [];
+    if (rawItems.length <= 13) {
+      allPos.push({
+        ...poItem,
+        items: rawItems,
+        originalTotal: rawItems.reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0),
+        startIndex: 0
+      });
+    } else {
+      const overallTotal = rawItems.reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
+      for (let i = 0; i < rawItems.length; i += 13) {
+        allPos.push({
+          ...poItem,
+          items: rawItems.slice(i, i + 13),
+          originalTotal: overallTotal,
+          startIndex: i
+        });
+      }
+    }
+  });
+
+  const handlePrint = () => {
+    document.body.classList.add('print-po-active');
+    window.print();
+    document.body.classList.remove('print-po-active');
+  };
+
+  React.useEffect(() => {
+    if (isOpen && !inline) {
+      const handleBeforePrint = () => {
+        document.body.classList.add('print-po-active');
+      };
+      const handleAfterPrint = () => {
+        document.body.classList.remove('print-po-active');
+      };
+      window.addEventListener('beforeprint', handleBeforePrint);
+      window.addEventListener('afterprint', handleAfterPrint);
+      return () => {
+        window.removeEventListener('beforeprint', handleBeforePrint);
+        window.removeEventListener('afterprint', handleAfterPrint);
+        document.body.classList.remove('print-po-active');
+      };
+    }
+  }, [isOpen, inline]);
 
   const formatQuantity = (val) => {
     if (val == null || val === '') return '';
@@ -34,13 +79,43 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
     return isNaN(num) ? val : `₱${num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const blankPOItems = Array.from({ length: 13 }, (_, i) => ({
+    id: `blank-po-${i}`,
+    name: '',
+    quantity: '',
+    unit: '',
+    price: '',
+    discount: '',
+    total: ''
+  }));
+
   // ── Single PO block (used as full-page or half-page half) ─────────────────
-  const renderPOBlock = (poData) => {
-    const displayItems = [...(poData.items || [])];
-    while (displayItems.length < 10) {
-      displayItems.push({ id: `empty-${displayItems.length}`, name: '', quantity: '', unit: '', price: '', discount: '', total: '' });
+  const renderPOBlock = (poData, isBlank = false) => {
+    const displayItems = isBlank ? blankPOItems : [...((poData && poData.items) || [])];
+    const itemsToUse = [...displayItems];
+    while (itemsToUse.length < 13) {
+      itemsToUse.push({ id: `empty-${itemsToUse.length}`, name: '', quantity: '', unit: '', price: '', discount: '', total: '' });
     }
-    const overallTotal = (poData.items || []).reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
+    const overallTotal = isBlank ? 0 : (poData?.originalTotal !== undefined ? poData.originalTotal : ((poData && poData.items) || []).reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0));
+
+    const projectName = isBlank ? '' : (poData?.project_name || '-');
+    const dateStr = isBlank ? '' : (poData?.date || new Date().toLocaleDateString());
+    const poNumber = isBlank ? '' : (poData?.po_number || '-');
+    const paymentTerms = isBlank ? '' : (poData?.payment_terms || '-');
+    const acctName = isBlank ? '' : (poData?.account_name || '-');
+    const mrNo = isBlank ? '' : `MR-${poData?.mr_id || poData?.mr_no || '-'}`;
+    const billTo = isBlank ? '' : (poData?.bill_to || '-');
+    const acctNo = isBlank ? '' : (poData?.account_number || '-');
+    const rfpNo = isBlank ? '' : (poData?.rfp_number || '-');
+
+    const preparedSig = isBlank ? null : (request?.created_by_signature || poData?.signatures?.prepared_by_signature);
+    const preparedName = isBlank ? '____________________' : (request?.created_by_name || request?.created_by_email || poData?.signatures?.prepared_by || '____________________');
+
+    const checkedSig = isBlank ? null : (request?.reviewed_by_studio_head_signature || poData?.signatures?.checked_by_signature);
+    const checkedName = isBlank ? '____________________' : (request?.reviewed_by_studio_head_name || poData?.signatures?.checked_by || '____________________');
+
+    const approvedSig = isBlank ? null : (request?.reviewed_by_ceo_signature || poData?.signatures?.approved_by_signature);
+    const approvedName = isBlank ? '____________________' : (request?.reviewed_by_ceo_name || poData?.signatures?.approved_by || '____________________');
 
     return (
       <div className="flex-1 flex flex-col px-8 pb-3 pt-3 min-h-0 overflow-hidden">
@@ -58,43 +133,43 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
           {/* Row 1 */}
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">Project :</span>
-            <div className="flex-1 border-b border-black h-4 uppercase px-1 truncate">{poData.project_name || '-'}</div>
+            <div className="flex-1 border-b border-black h-4 uppercase px-1 truncate">{projectName}</div>
           </div>
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">Date :</span>
-            <div className="flex-1 border-b border-black h-4 px-1 truncate">{poData.date || new Date().toLocaleDateString()}</div>
+            <div className="flex-1 border-b border-black h-4 px-1 truncate">{dateStr}</div>
           </div>
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">P.O. No. :</span>
-            <div className="flex-1 border-b border-black h-4 px-1 truncate">{poData.po_number || '-'}</div>
+            <div className="flex-1 border-b border-black h-4 px-1 truncate">{poNumber}</div>
           </div>
 
           {/* Row 2 */}
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">Payment Terms :</span>
-            <div className="flex-1 border-b border-black h-4 px-1 truncate">{poData.payment_terms || '-'}</div>
+            <div className="flex-1 border-b border-black h-4 px-1 truncate">{paymentTerms}</div>
           </div>
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">Acct Name :</span>
-            <div className="flex-1 border-b border-black h-4 px-1 truncate">{poData.account_name || '-'}</div>
+            <div className="flex-1 border-b border-black h-4 px-1 truncate">{acctName}</div>
           </div>
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">M.R. No. :</span>
-            <div className="flex-1 border-b border-black h-4 px-1 truncate">MR-{poData.mr_id || poData.mr_no || '-'}</div>
+            <div className="flex-1 border-b border-black h-4 px-1 truncate">{mrNo}</div>
           </div>
 
           {/* Row 3 */}
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">Bill to :</span>
-            <div className="flex-1 border-b border-black h-4 px-1 truncate">{poData.bill_to || '-'}</div>
+            <div className="flex-1 border-b border-black h-4 px-1 truncate">{billTo}</div>
           </div>
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">Acct No. :</span>
-            <div className="flex-1 border-b border-black h-4 px-1 truncate">{poData.account_number || '-'}</div>
+            <div className="flex-1 border-b border-black h-4 px-1 truncate">{acctNo}</div>
           </div>
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">R.F.P. No. :</span>
-            <div className="flex-1 border-b border-black h-4 px-1 truncate">{poData.rfp_number || '-'}</div>
+            <div className="flex-1 border-b border-black h-4 px-1 truncate">{rfpNo}</div>
           </div>
         </div>
 
@@ -111,9 +186,9 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
             </tr>
           </thead>
           <tbody>
-            {displayItems.map((item, index) => (
+            {itemsToUse.map((item, index) => (
               <tr key={item.id || index} className="border-b border-black leading-tight" style={{ height: '1.1rem' }}>
-                <td className="border-r-2 border-black text-center text-[10px]">{item.name ? index + 1 : ''}</td>
+                <td className="border-r-2 border-black text-center text-[10px]"></td>
                 <td className="border-r-2 border-black px-2 font-bold uppercase text-[10px]">{item.name}</td>
                 <td className="border-r-2 border-black text-center text-[10px] font-bold">
                   {item.name ? `${formatQuantity(item.quantity)} ${item.unit}` : ''}
@@ -142,13 +217,13 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
           <div className="w-1/2 flex flex-col items-start gap-0.5">
             <span className="font-bold text-[10px]">Prepared by:</span>
             <div className="pl-6 flex flex-col items-center w-56">
-              {(request?.created_by_signature || poData.signatures?.prepared_by_signature) ? (
+              {preparedSig ? (
                 <div className="h-8 flex items-end mb-[-2px]">
-                  <img src={request?.created_by_signature || poData.signatures?.prepared_by_signature} alt="Prepared by Signature" className="max-h-12 w-auto object-contain" />
+                  <img src={preparedSig} alt="Prepared by Signature" className="max-h-12 w-auto object-contain" />
                 </div>
               ) : <div className="h-8" />}
               <div className="border-b border-black w-full text-center py-0.5 font-bold uppercase text-[9px]">
-                {request?.created_by_name || request?.created_by_email || poData.signatures?.prepared_by || '____________________'}
+                {preparedName}
               </div>
             </div>
           </div>
@@ -158,13 +233,13 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
             <div className="w-full flex flex-col items-start gap-0.5">
               <span className="font-bold text-[10px]">Checked by:</span>
               <div className="pl-6 flex flex-col items-center w-56">
-                {(request?.reviewed_by_studio_head_signature || poData.signatures?.checked_by_signature) ? (
+                {checkedSig ? (
                   <div className="h-8 flex items-end mb-[-2px]">
-                    <img src={request?.reviewed_by_studio_head_signature || poData.signatures?.checked_by_signature} alt="Checked by Signature" className="max-h-12 w-auto object-contain" />
+                    <img src={checkedSig} alt="Checked by Signature" className="max-h-12 w-auto object-contain" />
                   </div>
                 ) : <div className="h-8" />}
                 <div className="border-b border-black w-full text-center py-0.5 font-bold uppercase text-[9px]">
-                  {request?.reviewed_by_studio_head_name || poData.signatures?.checked_by || '____________________'}
+                  {checkedName}
                 </div>
               </div>
             </div>
@@ -172,13 +247,13 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
             <div className="w-full flex flex-col items-start gap-0.5">
               <span className="font-bold text-[10px]">Approved by:</span>
               <div className="pl-6 flex flex-col items-center w-56">
-                {(request?.reviewed_by_ceo_signature || poData.signatures?.approved_by_signature) ? (
+                {approvedSig ? (
                   <div className="h-8 flex items-end mb-[-2px]">
-                    <img src={request?.reviewed_by_ceo_signature || poData.signatures?.approved_by_signature} alt="Approved by Signature" className="max-h-12 w-auto object-contain" />
+                    <img src={approvedSig} alt="Approved by Signature" className="max-h-12 w-auto object-contain" />
                   </div>
                 ) : <div className="h-8" />}
                 <div className="border-b border-black w-full text-center py-0.5 font-bold uppercase text-[9px]">
-                  {request?.reviewed_by_ceo_name || poData.signatures?.approved_by || '____________________'}
+                  {approvedName}
                 </div>
               </div>
             </div>
@@ -195,15 +270,15 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
     sheets.push(allPos.slice(i, Math.min(i + 2, allPos.length)));
   }
 
-  const screenLabel = allPos.length === 1
-    ? `Purchase Order Preview — ${allPos[0].po_number}`
-    : `Purchase Orders Preview — ${allPos.length} POs on ${sheets.length} sheet${sheets.length !== 1 ? 's' : ''}`;
+  const screenLabel = allPosRaw.length === 1
+    ? `Purchase Order Preview — ${allPosRaw[0].po_number}`
+    : `Purchase Orders Preview — ${allPosRaw.length} POs on ${sheets.length} sheet${sheets.length !== 1 ? 's' : ''}`;
 
   const printStyles = (
     <style dangerouslySetInnerHTML={{ __html: `
       @media print {
         @page { size: portrait; margin: 0 !important; }
-        body, body *:not(.po-print-root):not(.po-print-root *) {
+        body.print-po-active, body.print-po-active *:not(.po-print-root):not(.po-print-root *) {
           visibility: hidden !important;
           background: white !important;
           position: static !important;
@@ -219,16 +294,16 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
           width: auto !important;
           height: auto !important;
         }
-        .po-print-root {
+        body.print-po-active .po-print-root {
           visibility: visible !important;
           position: absolute !important;
           top: 0 !important; left: 0 !important;
           width: 100% !important;
           margin: 0 !important; padding: 0 !important;
         }
-        .po-print-root * { visibility: visible !important; }
+        body.print-po-active .po-print-root * { visibility: visible !important; }
         /* Each sheet = one printed A4 page */
-        .print-sheet {
+        body.print-po-active .print-sheet {
           page-break-after: always !important;
           height: 100vh !important;
           width: 100% !important;
@@ -242,38 +317,38 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
           background: white !important;
           box-shadow: none !important;
         }
-        .print-sheet:last-child { page-break-after: auto !important; }
-        .print-hidden { display: none !important; }
+        body.print-po-active .print-sheet:last-child { page-break-after: auto !important; }
+        body.print-po-active .print-hidden { display: none !important; }
       }
     `}} />
   );
 
   const sheetsContent = (
     <div className="po-print-root">
-      {sheets.map((sheetPos, sheetIdx) => (
-        <div
-          key={sheetIdx}
-          className={`print-sheet bg-white text-black shadow-2xl print:shadow-none flex flex-col ${
-            inline ? 'w-full' : 'max-w-[794px] mx-auto'
-          } ${sheetIdx > 0 ? 'mt-8 print:mt-0' : ''}`}
-          style={{ minHeight: '1123px' }}
-        >
-          {sheetPos.map((poData, idx) => (
-            <React.Fragment key={poData.id || idx}>
-              {idx > 0 && (
-                <div className="w-[95%] mx-auto border-t-[3px] border-dashed border-gray-400 shrink-0 print:border-black" />
-              )}
-              {renderPOBlock(poData)}
-            </React.Fragment>
-          ))}
-        </div>
-      ))}
+      {sheets.map((sheetPos, sheetIdx) => {
+        const hasSecond = sheetPos.length > 1;
+        return (
+          <div
+            key={sheetIdx}
+            className={`print-sheet bg-white text-black shadow-2xl print:shadow-none flex flex-col ${
+              inline ? 'w-full' : 'max-w-[794px] mx-auto'
+            } ${sheetIdx > 0 ? 'mt-8 print:mt-0' : ''}`}
+            style={{ minHeight: '1123px' }}
+          >
+            {/* Top/First PO Block */}
+            {renderPOBlock(sheetPos[0], false)}
+
+            {/* Dashed divider */}
+            <div className="w-[95%] mx-auto border-t-[3px] border-dashed border-gray-400 shrink-0 print:border-black" />
+
+            {/* Bottom/Second PO Block — either actual second PO or blank template */}
+            {hasSecond ? renderPOBlock(sheetPos[1], false) : renderPOBlock(null, true)}
+          </div>
+        );
+      })}
     </div>
   );
 
-  const isStudioHead = userRole === 'Studio Head' || userRole === 'StudioHead';
-  const hasCeoApproved = request?.reviewed_by_ceo_signature || allPos.some(po => po.signatures?.approved_by_signature);
-  const canPrint = !isStudioHead || hasCeoApproved;
 
   const content = (
     <div className="w-full min-h-full flex flex-col">
@@ -283,8 +358,7 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
           <Printer className="h-5 w-5 text-gray-500" />
           <h2 className="text-base font-bold text-gray-800">{screenLabel}</h2>
         </div>
-        <div className="flex items-center gap-3">
-          {canPrint ? (
+          <div className="flex items-center gap-3">
             <button
               onClick={handlePrint}
               className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF7120] text-white rounded-lg font-semibold hover:brightness-95 transition"
@@ -292,16 +366,6 @@ const PurchaseOrderFormPreviewModal = ({ isOpen, onClose, po, pos: posProp, requ
               <Printer className="h-4 w-4" />
               Print {allPos.length > 1 ? `${allPos.length} POs` : 'Form'}
             </button>
-          ) : (
-            <button
-              disabled
-              title="Print disabled until CEO approval"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-500 rounded-lg font-semibold cursor-not-allowed transition"
-            >
-              <Printer className="h-4 w-4" />
-              Print Pending Approval
-            </button>
-          )}
           {!inline && (
             <button
               onClick={onClose}

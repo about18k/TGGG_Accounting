@@ -15,7 +15,7 @@ import { cardClass, formatDate } from '../../components/material-requests/utils'
 const getTabConfig = (role) => {
   const base = [
     { id: 'pending', label: 'Needs Review', description: 'Waiting for decision', icon: Clock3, emptyText: 'No requests waiting for review.' },
-    { id: 'approved', label: 'Approved', description: 'Finalized by CEO', icon: CheckCircle2, emptyText: 'No approved requests.' },
+    { id: 'approved', label: 'Reviewed by CEO', description: 'Finalized by CEO', icon: CheckCircle2, emptyText: 'No approved requests.' },
     { id: 'rejected', label: 'Rejected', description: 'Returned for revision', icon: XCircle, emptyText: 'No rejected requests.' }
   ];
   if (role === 'studio_head') {
@@ -573,12 +573,12 @@ const MaterialRequestReviewer = ({ user, reviewerRole = 'ceo', onNavigate }) => 
 
         <div className="lg:col-span-2">
           {!activePO ? (
-            <div className={`${cardClass} flex flex-col items-center justify-center h-full p-8`}>
+            <div className={`${cardClass} flex flex-col items-center justify-center h-[70vh] min-h-[560px] lg:h-[740px] p-8`}>
               <Package className="w-12 h-12 text-white/20 mb-4" />
               <p className="text-white/60">Select a Purchase Order to view details and process settlement.</p>
             </div>
           ) : (
-            <div className={`${cardClass} flex flex-col h-full p-6 space-y-6 overflow-y-auto`}>
+            <div className={`${cardClass} block h-[70vh] min-h-[560px] lg:h-[740px] p-6 space-y-6 overflow-y-auto`}>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
                 <div className="text-left">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-[#FF7120]">Purchase Order Details</span>
@@ -826,11 +826,6 @@ const MaterialRequestReviewer = ({ user, reviewerRole = 'ceo', onNavigate }) => 
       <section className={`grid grid-cols-1 md:grid-cols-2 xl:grid-cols-${TAB_CONFIG.length + 1} gap-4`}>
         {TAB_CONFIG.map((tab) => {
           let tabCount = requestsByTab[tab.id]?.length || 0;
-          if (reviewerRole === 'ceo') {
-            const poStatusMap = { pending: 'pending_approval', approved: 'approved', rejected: 'rejected' };
-            const targetStatus = poStatusMap[tab.id];
-            tabCount = purchaseOrders.filter(po => po.status === targetStatus).length;
-          }
           return (
             <SummaryCard
               key={tab.id}
@@ -938,8 +933,9 @@ const MaterialRequestReviewer = ({ user, reviewerRole = 'ceo', onNavigate }) => 
     const activeGroup = mapSource.find(g => g.id === selectedId);
 
     return (
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
-        <div className="lg:col-span-1 lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]">
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div className="lg:col-span-1">
+          <div className="h-[70vh] min-h-[560px] lg:h-[740px]">
           <ProjectListSidebar 
             projects={mapSource} 
             loading={loading} 
@@ -947,10 +943,11 @@ const MaterialRequestReviewer = ({ user, reviewerRole = 'ceo', onNavigate }) => 
             onSelectProject={isExpensesMode ? setSelectedExpensesProjectId : setSelectedProjectId} 
             emptyText={isExpensesMode ? "No processed projects with expenses yet." : "No requests found."}
           />
+          </div>
         </div>
 
         <div className="lg:col-span-2">
-          <div className={`${cardClass} flex flex-col h-full p-6`}>
+          <div className={`${cardClass} block h-[70vh] min-h-[560px] lg:h-[740px] p-6 overflow-y-auto`}>
             {!activeGroup ? (
                <div className="h-full grid place-items-center text-center py-12">
                  <div>
@@ -993,7 +990,7 @@ const MaterialRequestReviewer = ({ user, reviewerRole = 'ceo', onNavigate }) => 
                        <div className="col-span-2 text-right">Approved POs</div>
                        <div className="col-span-2 text-center">Form</div>
                      </div>
-                     <div className="max-h-[50vh] overflow-y-auto">
+                     <div>
                        {activeGroup.requests.map((req, idx) => {
                          const { talliedSum, totalSum } = getRequestPOTotals(req);
                          return (
@@ -1015,7 +1012,7 @@ const MaterialRequestReviewer = ({ user, reviewerRole = 'ceo', onNavigate }) => 
                    </div>
                  ) : (
                    // Expandable List
-                   <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
+                   <div className="space-y-3 pr-1">
                      {activeGroup.requests.map((req, idx) => (
                        <RequestItemCard 
                          key={req.id}
@@ -1341,22 +1338,28 @@ const MaterialRequestReviewer = ({ user, reviewerRole = 'ceo', onNavigate }) => 
     const request = activeRequests.find(r => r.id === selectedRequestId);
 
     return (
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
-        <div className="lg:col-span-1 lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]">
-          <div className={`${cardClass} flex flex-col h-[70vh] min-h-[560px] lg:h-full overflow-hidden`}>
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+        <div className="lg:col-span-1">
+          <div className={`${cardClass} flex flex-col h-[70vh] min-h-[560px] lg:h-[740px] overflow-hidden`}>
             <div className="sticky top-0 z-10 p-5 border-b border-white/10 bg-[#001f35]/95 backdrop-blur-sm">
-              <p className="text-lg font-semibold text-white">{activeTabMeta?.label || 'Requests'}</p>
-              <p className="mt-1 text-sm text-white/55">{activeTabMeta?.description}</p>
-              <div className="mt-3 relative">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
-                <input
-                  type="text"
-                  placeholder="Search requests..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full h-9 rounded-xl border border-white/10 bg-black/25 pl-9 pr-3 text-xs text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/45"
-                />
-              </div>
+              {!(reviewerRole === 'studio_head' && activeTab === 'forwarded') && (
+                <>
+                  <p className="text-lg font-semibold text-white">{activeTabMeta?.label || 'Requests'}</p>
+                  <p className="mt-1 text-sm text-white/55">{activeTabMeta?.description}</p>
+                </>
+              )}
+              {reviewerRole !== 'studio_head' && (
+                <div className="mt-3 relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-white/40" />
+                  <input
+                    type="text"
+                    placeholder="Search requests..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full h-9 rounded-xl border border-white/10 bg-black/25 pl-9 pr-3 text-xs text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/45"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
@@ -1407,18 +1410,18 @@ const MaterialRequestReviewer = ({ user, reviewerRole = 'ceo', onNavigate }) => 
 
         <div className="lg:col-span-2">
           {!request && !loading && (
-             <div className={`${cardClass} flex flex-col items-center justify-center h-full p-8`}>
+             <div className={`${cardClass} flex flex-col items-center justify-center h-[70vh] min-h-[560px] lg:h-[740px] p-8`}>
                 <Package className="w-12 h-12 text-white/20 mb-4" />
                 <p className="text-white/60">Select a request to review details.</p>
              </div>
           )}
           {request && (
-             <div className={`${cardClass} flex flex-col h-full p-6`}>
+             <div className={`${cardClass} block h-[70vh] min-h-[560px] lg:h-[740px] p-6 overflow-y-auto`}>
                <RequestItemCard 
                  request={request}
                  index={activeRequests.findIndex(r => r.id === request.id)}
-                 isExpanded={true} // always expanded in this view
-                 onToggleExpand={() => {}} // disable collapse
+                 isExpanded={!expandedRequestIds.has(request.id)}
+                 onToggleExpand={toggleExpandRequest}
                  onOpenForm={handleOpenForm}
                  userRole={reviewerRole}
                  actionSlot={renderApprovalActions()}

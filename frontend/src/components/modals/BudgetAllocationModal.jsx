@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, DollarSign, CheckCircle2, FileText, ShoppingCart, Landmark } from 'lucide-react';
+import { X, DollarSign, CheckCircle2, FileText, ShoppingCart, Landmark, ZoomIn, ZoomOut, RotateCw, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import purchaseOrderService from '../../services/purchaseOrderService';
 
 // Helper to retrieve already funded item quantities from localStorage batches
 const getFundedQuantities = (mrId) => {
@@ -39,6 +40,101 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
 
   // Supplier details state: maps supplier name to billing details
   const [supplierDetails, setSupplierDetails] = useState({});
+  const [pastSuppliers, setPastSuppliers] = useState(['Gaza Hardware', 'Electrical Wholesaler', 'Shell Station']);
+
+  // Image manipulation states
+  const [imgScale, setImgScale] = useState(1);
+  const [imgRotation, setImgRotation] = useState(0);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setPanOffset({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  useEffect(() => {
+    const fetchPastSuppliers = async () => {
+      try {
+        const apiBillTo = [];
+        const res = await purchaseOrderService.getPurchaseOrders();
+        if (res.success && Array.isArray(res.data)) {
+          res.data.forEach(po => {
+            if (po.bill_to && po.bill_to.trim() !== '') {
+              apiBillTo.push(po.bill_to.trim());
+            }
+          });
+        }
+
+        // Extract from local storage po_batches_ and po_draft_mr_
+        const localStorageBillTo = [];
+        try {
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('po_batches_')) {
+              const raw = localStorage.getItem(key);
+              if (raw) {
+                const batches = JSON.parse(raw);
+                if (Array.isArray(batches)) {
+                  batches.forEach(batch => {
+                    if (batch.purchase_orders && Array.isArray(batch.purchase_orders)) {
+                      batch.purchase_orders.forEach(po => {
+                        if (po.bill_to && po.bill_to.trim() !== '') {
+                          localStorageBillTo.push(po.bill_to.trim());
+                        }
+                      });
+                    }
+                  });
+                }
+              }
+            }
+            if (key && key.startsWith('po_draft_mr_')) {
+              const raw = localStorage.getItem(key);
+              if (raw) {
+                const draft = JSON.parse(raw);
+                if (draft.supplierDetails) {
+                  Object.values(draft.supplierDetails).forEach(details => {
+                    if (details.bill_to && details.bill_to.trim() !== '') {
+                      localStorageBillTo.push(details.bill_to.trim());
+                    }
+                  });
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.error("Local storage lookup error:", err);
+        }
+
+        const defaultSuppliers = ['Gaza Hardware', 'Electrical Wholesaler', 'Shell Station'];
+        const uniqueSuppliers = Array.from(new Set([
+          ...defaultSuppliers,
+          ...apiBillTo,
+          ...localStorageBillTo
+        ]));
+        setPastSuppliers(uniqueSuppliers);
+      } catch (e) {
+        console.error("Failed to fetch past suppliers/vendors:", e);
+      }
+    };
+    if (isOpen) {
+      fetchPastSuppliers();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (receiptFile) {
@@ -51,6 +147,10 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
 
   useEffect(() => {
     if (isOpen && request) {
+      setImgScale(1);
+      setImgRotation(0);
+      setPanOffset({ x: 0, y: 0 });
+      setIsDragging(false);
       const requestItems = Array.isArray(request.items) ? request.items : [];
       const fundedQtyMap = getFundedQuantities(request.id);
 
@@ -95,25 +195,25 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
       // Initialize default billing details for standard suppliers
       setSupplierDetails({
         'Gaza Hardware': {
-          bill_to: 'Gazz Argao',
-          payment_terms: 'PDC - 15 Days',
-          account_name: 'Gaza Hardware Corp.',
-          account_number: '1094-8572-88',
-          rfp_number: `RFP-${Math.floor(100000 + Math.random() * 900000)}`
+          bill_to: 'Gaza Hardware',
+          payment_terms: '',
+          account_name: '',
+          account_number: '',
+          rfp_number: ''
         },
         'Electrical Wholesaler': {
-          bill_to: 'Gazz Argao',
-          payment_terms: 'COD',
-          account_name: 'Electrical Sales Inc.',
-          account_number: '8834-1104-51',
-          rfp_number: `RFP-${Math.floor(100000 + Math.random() * 900000)}`
+          bill_to: 'Electrical Wholesaler',
+          payment_terms: '',
+          account_name: '',
+          account_number: '',
+          rfp_number: ''
         },
         'Shell Station': {
-          bill_to: 'Gazz Argao',
-          payment_terms: 'Cash',
-          account_name: 'Shell Argao Station',
-          account_number: '0029-4829-12',
-          rfp_number: `RFP-${Math.floor(100000 + Math.random() * 900000)}`
+          bill_to: 'Shell Station',
+          payment_terms: '',
+          account_name: '',
+          account_number: '',
+          rfp_number: ''
         }
       });
     }
@@ -226,11 +326,11 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
         Object.keys(itemsBySupplier).forEach(supplier => {
           const supplierItems = itemsBySupplier[supplier];
           const details = supplierDetails[supplier] || {
-            bill_to: 'Gazz Argao',
-            payment_terms: 'Cash',
+            bill_to: supplier,
+            payment_terms: '',
             account_name: '',
             account_number: '',
-            rfp_number: `RFP-${Math.floor(100000 + Math.random() * 900000)}`
+            rfp_number: ''
           };
 
           const po = {
@@ -322,10 +422,12 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm overflow-y-auto">
-      <div 
-        className="w-full max-w-5xl rounded-[1.25rem] border border-[#10344d] bg-[#041e30] shadow-2xl flex flex-col my-8 max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200"
-        onClick={e => e.stopPropagation()}
-      >
+      <div className={request.request_image ? "flex flex-col lg:flex-row gap-6 w-full lg:max-w-[80vw] my-8 max-h-[90vh] items-stretch justify-center" : "w-full max-w-5xl my-8 max-h-[90vh] flex flex-col"}>
+        {/* PO Builder Card */}
+        <div 
+          className="w-full flex-1 rounded-[1.25rem] border border-[#10344d] bg-[#041e30] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+          onClick={e => e.stopPropagation()}
+        >
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-[#10344d] px-6 py-5">
           <div className="flex items-center gap-2">
@@ -359,8 +461,7 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
               </p>
             </div>
           </div>
-
-          <form id="allocation-form" onSubmit={handleSubmit} className="space-y-6">
+              <form id="allocation-form" onSubmit={handleSubmit} className="space-y-6">
             
             {/* Checklist Table */}
             <div>
@@ -370,14 +471,15 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
               
               <div className="rounded-xl border border-[#10344d] bg-[#011423] overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px] text-sm">
+                  <table className="w-full text-sm" style={{ minWidth: '950px' }}>
                     <thead className="bg-[#08263c] text-[#9ec3da] text-[10px] uppercase tracking-wider font-semibold">
                       <tr>
                         <th className="px-4 py-3 text-center w-12">Fund?</th>
                         <th className="text-left px-4 py-3">Material Description</th>
                         <th className="text-left px-4 py-3 w-44">Supplier/Vendor</th>
                         <th className="text-right px-4 py-3 w-28">Remaining Qty</th>
-                        <th className="text-right px-4 py-3 w-28">Fund Qty</th>
+                        <th className="text-center px-4 py-3 w-20">Unit</th>
+                        <th className="text-right px-4 py-3 w-24">Fund Qty</th>
                         <th className="text-right px-4 py-3 w-28">Price (₱)</th>
                         <th className="text-right px-4 py-3 w-28">Discount (₱)</th>
                         <th className="text-right px-4 py-3 w-32">Net Total (₱)</th>
@@ -397,21 +499,26 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
                                 className="h-4 w-4 rounded border-[#10344d] bg-[#041e30] text-[#FF7120] focus:ring-0 cursor-pointer disabled:cursor-not-allowed"
                               />
                             </td>
-                            <td className="px-4 py-3 font-semibold text-white">
+                            <td className="px-4 py-3 font-semibold text-white" style={{ minWidth: '180px' }}>
                               {item.name || '-'}
                             </td>
                             <td className="px-4 py-3">
                               <input
                                 type="text"
+                                list="suppliers-list"
                                 disabled={isLocked || !item.checked}
                                 value={item.supplier}
                                 onChange={(e) => updateItemField(item.id, 'supplier', e.target.value)}
                                 placeholder="Enter supplier"
+                                style={{ minWidth: '150px' }}
                                 className="w-full text-xs rounded-lg border border-[#10344d] bg-[#041e30] px-2 py-1.5 text-white outline-none focus:border-[#FF7120]/60 disabled:opacity-50"
                               />
                             </td>
-                            <td className="px-4 py-3 text-right text-white/55 font-medium">
-                              {isLocked ? 'Fully Funded' : `${item.remainingQuantity.toFixed(2)} ${item.unit}`}
+                            <td className="px-4 py-3 text-right text-white/55 font-medium" style={{ minWidth: '110px' }}>
+                              {isLocked ? 'Fully Funded' : item.remainingQuantity.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3 text-center text-white/55 font-medium" style={{ minWidth: '70px' }}>
+                              {item.unit || '-'}
                             </td>
                             <td className="px-4 py-3 text-right">
                               <input
@@ -422,7 +529,8 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
                                 disabled={isLocked || !item.checked}
                                 value={item.qtyToFund}
                                 onChange={(e) => updateItemField(item.id, 'qtyToFund', e.target.value)}
-                                className="w-20 text-xs rounded-lg border border-[#10344d] bg-[#041e30] px-2 py-1.5 text-white text-right outline-none focus:border-[#FF7120]/60 disabled:opacity-50"
+                                style={{ minWidth: '85px' }}
+                                className="w-full text-xs rounded-lg border border-[#10344d] bg-[#041e30] px-2 py-1.5 text-white text-right outline-none focus:border-[#FF7120]/60 disabled:opacity-50"
                               />
                             </td>
                             <td className="px-4 py-3 text-right">
@@ -433,6 +541,7 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
                                 disabled={isLocked || !item.checked}
                                 value={item.price}
                                 onChange={(e) => updateItemField(item.id, 'price', e.target.value)}
+                                style={{ minWidth: '95px' }}
                                 className="w-24 text-xs rounded-lg border border-[#10344d] bg-[#041e30] px-2 py-1.5 text-white text-right outline-none focus:border-[#FF7120]/60 disabled:opacity-50"
                               />
                             </td>
@@ -444,10 +553,11 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
                                 disabled={isLocked || !item.checked}
                                 value={item.discount}
                                 onChange={(e) => updateItemField(item.id, 'discount', e.target.value)}
+                                style={{ minWidth: '95px' }}
                                 className="w-24 text-xs rounded-lg border border-[#10344d] bg-[#041e30] px-2 py-1.5 text-white text-right outline-none focus:border-[#FF7120]/60 disabled:opacity-50"
                               />
                             </td>
-                            <td className="px-4 py-3 text-right font-bold text-[#FFBE9B]">
+                            <td className="px-4 py-3 text-right font-bold text-[#FFBE9B]" style={{ minWidth: '110px' }}>
                               ₱{item.checked ? item.total.toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '0.00'}
                             </td>
                           </tr>
@@ -475,7 +585,7 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
                 
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   {activeSuppliers.map((supplier) => {
-                    const details = supplierDetails[supplier] || { bill_to: '', payment_terms: '', account_name: '', account_number: '', rfp_number: '' };
+                    const details = supplierDetails[supplier] || { bill_to: supplier, payment_terms: '', account_name: '', account_number: '', rfp_number: '' };
                     return (
                       <div key={supplier} className="rounded-xl border border-[#10344d] bg-[#011423] p-5 space-y-4">
                         <div className="flex items-center gap-2 border-b border-[#10344d] pb-2">
@@ -584,9 +694,13 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
                 />
               </div>
             </div>
-
             {/* Hidden Input for allocated budget to keep form submission happy */}
             <input type="hidden" name="budget_allocated" value={budgetAllocated} />
+            <datalist id="suppliers-list">
+              {pastSuppliers.map((sup, idx) => (
+                <option key={idx} value={sup} />
+              ))}
+            </datalist>
           </form>
         </div>
 
@@ -610,6 +724,83 @@ export default function BudgetAllocationModal({ isOpen, onClose, request, onSucc
           </button>
         </div>
       </div>
+
+      {/* Reference Image Card */}
+      {request.request_image && (
+        <div 
+          className="w-full lg:flex-1 rounded-[1.25rem] border border-[#10344d] bg-[#041e30] shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between border-b border-[#10344d] px-6 py-4">
+            <h3 className="text-sm font-bold text-white tracking-wide">MR Reference Image</h3>
+            <div className="flex items-center gap-1 bg-[#011423] px-2 py-1 rounded-lg border border-[#10344d]">
+              <button 
+                type="button"
+                onClick={() => setImgScale(prev => Math.min(prev + 0.25, 3))} 
+                className="p-1 text-white/60 hover:text-white transition hover:bg-white/5 rounded"
+                title="Zoom In"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <button 
+                type="button"
+                onClick={() => setImgScale(prev => Math.max(prev - 0.25, 0.5))} 
+                className="p-1 text-white/60 hover:text-white transition hover:bg-white/5 rounded"
+                title="Zoom Out"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <button 
+                type="button"
+                onClick={() => setImgRotation(prev => (prev + 90) % 360)} 
+                className="p-1 text-white/60 hover:text-white transition hover:bg-white/5 rounded"
+                title="Rotate Clockwise"
+              >
+                <RotateCw className="h-4 w-4" />
+              </button>
+              <button 
+                type="button"
+                onClick={() => { setImgScale(1); setImgRotation(0); setPanOffset({ x: 0, y: 0 }); }} 
+                className="p-1 text-white/60 hover:text-white transition hover:bg-white/5 rounded"
+                title="Reset View"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="p-6 flex-1 flex flex-col justify-center items-center overflow-hidden bg-[#011423] relative min-h-[300px]">
+            <div 
+              className="w-full h-full flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing select-none"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
+              <img 
+                src={request.request_image} 
+                alt="Material Request Reference" 
+                draggable={false}
+                style={{ 
+                  transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${imgScale}) rotate(${imgRotation}deg)`,
+                  maxHeight: imgRotation % 180 !== 0 ? '420px' : '60vh',
+                  maxWidth: imgRotation % 180 !== 0 ? '420px' : '100%',
+                  transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.2s, max-width 0.2s' 
+                }}
+                className="w-full object-contain rounded-lg shadow-lg pointer-events-none" 
+              />
+            </div>
+            <a 
+              href={request.request_image} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 px-2.5 py-1 rounded text-[10px] text-white/70 hover:text-white transition font-medium"
+            >
+              Open Original
+            </a>
+          </div>
+        </div>
+      )}
     </div>
+  </div>
   );
 }

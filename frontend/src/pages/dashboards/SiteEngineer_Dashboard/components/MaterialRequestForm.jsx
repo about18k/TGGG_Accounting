@@ -1,5 +1,5 @@
-import React from 'react';
-import { Package, Send, Plus, Upload, X, RefreshCcw, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Package, Send, Plus, Upload, X, RefreshCcw, Trash2, CheckCircle2, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
 
 const TODAY_ISO = new Date().toISOString().split('T')[0];
 
@@ -27,8 +27,42 @@ const MaterialRequestForm = ({
   saving,
   cardClass
 }) => {
+  // Image manipulation states
+  const [imgScale, setImgScale] = useState(1);
+  const [imgRotation, setImgRotation] = useState(0);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging) return;
+    setPanOffset({
+      x: e.clientX - dragStart.x,
+      y: e.clientY - dragStart.y
+    });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Reset image manipulation state when the uploaded image preview changes
+  useEffect(() => {
+    setImgScale(1);
+    setImgRotation(0);
+    setPanOffset({ x: 0, y: 0 });
+    setIsDragging(false);
+  }, [imagePreview]);
+
   return (
-    <form onSubmit={createAndSubmit} className={`${cardClass} p-6 space-y-6`}>
+    <div className={imagePreview ? "flex flex-col lg:flex-row gap-6 w-full lg:max-w-[80vw] mx-auto items-stretch justify-center" : "w-full mx-auto flex flex-col"}>
+      <form onSubmit={createAndSubmit} className={`${cardClass} p-6 space-y-6 flex-1`}>
       {editingRequestId && (
         <div className="rounded-xl border border-cyan-400/25 bg-cyan-500/10 p-4">
           <p className="text-sm font-semibold text-cyan-100">
@@ -114,31 +148,14 @@ const MaterialRequestForm = ({
       <div>
         <h3 className="text-white font-medium mb-4">Material Items</h3>
         <div className="bg-[#001f35] rounded-lg p-4 space-y-3 border border-white/10">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <input
               type="text"
               value={currentMaterial.name}
               onChange={(event) => setCurrentMaterial((current) => ({ ...current, name: event.target.value }))}
               placeholder="Material Name"
-              className="bg-[#001f35] border border-white/10 rounded-lg px-4 py-2 text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/50"
+              className="md:col-span-1 bg-[#001f35] border border-white/10 rounded-lg px-4 py-2 text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/50"
             />
-            <select
-              value={currentMaterial.category}
-              onChange={(event) => setCurrentMaterial((current) => ({ ...current, category: event.target.value }))}
-              className="bg-[#001f35] border border-white/10 rounded-lg px-4 py-2 text-white outline-none focus:border-[#FF7120]/50"
-            >
-              <option value="" className="bg-[#002a45] text-white/40">Select Category</option>
-              <option value="cement" className="bg-[#002a45] text-white">Cement & Concrete</option>
-              <option value="steel" className="bg-[#002a45] text-white">Steel & Rebar</option>
-              <option value="lumber" className="bg-[#002a45] text-white">Lumber & Wood</option>
-              <option value="electrical" className="bg-[#002a45] text-white">Electrical</option>
-              <option value="plumbing" className="bg-[#002a45] text-white">Plumbing</option>
-              <option value="tools" className="bg-[#002a45] text-white">Tools & Equipment</option>
-              <option value="other" className="bg-[#002a45] text-white">Other</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
             <input
               type="number"
               min="0"
@@ -155,6 +172,8 @@ const MaterialRequestForm = ({
             >
               <option value="" className="bg-[#002a45] text-white/40">Unit</option>
               <option value="pcs" className="bg-[#002a45] text-white">Pieces</option>
+              <option value="set" className="bg-[#002a45] text-white">Set</option>
+              <option value="sheets" className="bg-[#002a45] text-white">Sheets</option>
               <option value="bags" className="bg-[#002a45] text-white">Bags</option>
               <option value="m3" className="bg-[#002a45] text-white">Cubic Meters</option>
               <option value="kg" className="bg-[#002a45] text-white">Kilograms</option>
@@ -162,13 +181,6 @@ const MaterialRequestForm = ({
               <option value="meters" className="bg-[#002a45] text-white">Meters</option>
               <option value="liters" className="bg-[#002a45] text-white">Liters</option>
             </select>
-            <input
-              type="text"
-              value={currentMaterial.specifications}
-              onChange={(event) => setCurrentMaterial((current) => ({ ...current, specifications: event.target.value }))}
-              placeholder="Specifications"
-              className="bg-[#001f35] border border-white/10 rounded-lg px-4 py-2 text-white placeholder:text-white/40 outline-none focus:border-[#FF7120]/50"
-            />
           </div>
 
           <button
@@ -186,13 +198,9 @@ const MaterialRequestForm = ({
             {materials.map((material) => (
               <div key={material.id} className="bg-[#001f35] rounded-lg p-4 border border-white/10 flex justify-between items-start gap-4">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="text-white font-medium">{material.name}</h4>
-                    {material.category && <span className="text-xs px-2 py-1 bg-[#FF7120]/20 text-[#FFBE9B] rounded">{material.category}</span>}
-                  </div>
+                  <h4 className="text-white font-medium">{material.name}</h4>
                   <p className="text-white/60 text-sm mt-1">
                     Quantity: {material.quantity} {material.unit}
-                    {material.specifications ? ` - ${material.specifications}` : ''}
                   </p>
                 </div>
 
@@ -233,33 +241,24 @@ const MaterialRequestForm = ({
               </label>
             </div>
           ) : (
-            <div className="relative group w-full max-w-[400px]">
-              {!imagePreviewFailed ? (
-                <img
-                  src={imagePreview}
-                  alt="Material Request"
-                  className="w-full h-auto rounded-lg border border-white/10 shadow-lg"
-                  onError={() => setImagePreviewFailed(true)}
-                />
-              ) : (
-                <div className="w-full rounded-lg border border-amber-400/25 bg-amber-500/10 p-4 text-center">
-                  <p className="text-sm text-amber-100 font-medium">Preview unavailable</p>
-                  <p className="text-xs text-amber-200/80 mt-1">
-                    Attachment exists but cannot be rendered inline.
-                  </p>
-                </div>
-              )}
-              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-3 rounded-lg">
+            <div className="flex flex-col items-center text-center p-4">
+              <div className="w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center mb-3 border border-emerald-500/20">
+                <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+              </div>
+              <p className="text-white font-semibold text-sm">Image Uploaded Successfully</p>
+              <p className="text-white/50 text-xs mt-1">You can review and manipulate the uploaded sheet on the right panel.</p>
+              <div className="flex items-center gap-3 mt-4">
                 <button
                   type="button"
                   onClick={removeImage}
-                  className="p-2 bg-red-500 text-white rounded-full hover:bg-red-600 transition"
-                  title="Remove image"
+                  className="px-4 py-2 border border-red-500/30 text-red-200 rounded-lg text-xs font-semibold hover:bg-red-500/15 transition flex items-center gap-1.5"
                 >
-                  <X className="h-5 w-5" />
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Remove
                 </button>
-                <label className="p-2 bg-[#FF7120] text-white rounded-full hover:brightness-95 transition cursor-pointer" title="Replace image">
-                  <RefreshCcw className="h-5 w-5" />
+                <label className="px-4 py-2 bg-[#FF7120] text-white rounded-lg text-xs font-semibold hover:brightness-95 transition cursor-pointer flex items-center gap-1.5">
+                  <RefreshCcw className="h-3.5 w-3.5" />
+                  Replace
                   <input
                     type="file"
                     className="hidden"
@@ -268,17 +267,6 @@ const MaterialRequestForm = ({
                   />
                 </label>
               </div>
-              {imagePreview && (
-                <a
-                  href={imagePreview}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex mt-3 text-xs text-[#FFBE9B] hover:text-[#FFD7BF] underline"
-                >
-                  Open attached image
-                </a>
-              )}
-              <p className="text-center text-white/40 text-xs mt-3">High-quality image uploaded. Verify contents are readable.</p>
             </div>
           )}
         </div>
@@ -328,7 +316,84 @@ const MaterialRequestForm = ({
               : 'Save and Submit to Studio Head')}
         </button>
       </div>
-    </form>
+      </form>
+
+      {/* Reference Image Card */}
+      {imagePreview && (
+        <div 
+          className="w-full lg:flex-1 rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+          onClick={e => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between border-b border-white/10 px-6 py-4">
+            <h3 className="text-sm font-bold text-white tracking-wide">MR Reference Image</h3>
+            <div className="flex items-center gap-1 bg-[#001f35] px-2 py-1 rounded-lg border border-white/10">
+              <button 
+                type="button"
+                onClick={() => setImgScale(prev => Math.min(prev + 0.25, 3))} 
+                className="p-1 text-white/60 hover:text-white transition hover:bg-white/5 rounded"
+                title="Zoom In"
+              >
+                <ZoomIn className="h-4 w-4" />
+              </button>
+              <button 
+                type="button"
+                onClick={() => setImgScale(prev => Math.max(prev - 0.25, 0.5))} 
+                className="p-1 text-white/60 hover:text-white transition hover:bg-white/5 rounded"
+                title="Zoom Out"
+              >
+                <ZoomOut className="h-4 w-4" />
+              </button>
+              <button 
+                type="button"
+                onClick={() => setImgRotation(prev => (prev + 90) % 360)} 
+                className="p-1 text-white/60 hover:text-white transition hover:bg-white/5 rounded"
+                title="Rotate Clockwise"
+              >
+                <RotateCw className="h-4 w-4" />
+              </button>
+              <button 
+                type="button"
+                onClick={() => { setImgScale(1); setImgRotation(0); setPanOffset({ x: 0, y: 0 }); }} 
+                className="p-1 text-white/60 hover:text-white transition hover:bg-white/5 rounded"
+                title="Reset View"
+              >
+                <RefreshCcw className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          <div className="p-6 flex-1 flex flex-col justify-center items-center overflow-hidden bg-[#011423] relative min-h-[350px]">
+            <div 
+              className="w-full h-full flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing select-none"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
+            >
+              <img 
+                src={imagePreview} 
+                alt="Material Request Reference" 
+                draggable={false}
+                style={{ 
+                  transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${imgScale}) rotate(${imgRotation}deg)`,
+                  maxHeight: imgRotation % 180 !== 0 ? '420px' : '60vh',
+                  maxWidth: imgRotation % 180 !== 0 ? '420px' : '100%',
+                  transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.2s, max-width 0.2s' 
+                }}
+                className="w-full object-contain rounded-lg shadow-lg pointer-events-none" 
+              />
+            </div>
+            <a 
+              href={imagePreview} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="absolute bottom-2 right-2 bg-black/60 hover:bg-black/80 px-2.5 py-1 rounded text-[10px] text-white/70 hover:text-white transition font-medium"
+            >
+              Open Original
+            </a>
+          </div>
+        </div>
+      )}
+    </div>
   );
 };
 

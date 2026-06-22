@@ -12,13 +12,29 @@ import { X, Printer } from 'lucide-react';
 const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline = false }) => {
   if (!isOpen || !request) return null;
 
-  const handlePrint = () => window.print();
+  const handlePrint = () => {
+    document.body.classList.add('print-mr-active');
+    window.print();
+    document.body.classList.remove('print-mr-active');
+  };
 
-  // Always pad to at least 13 rows
-  const displayItems = [...(request.items || [])];
-  while (displayItems.length < 13) {
-    displayItems.push({ id: `empty-${displayItems.length}`, name: '', quantity: '', unit: '', price: '', discount: '', total: '' });
-  }
+  React.useEffect(() => {
+    if (isOpen && !inline) {
+      const handleBeforePrint = () => {
+        document.body.classList.add('print-mr-active');
+      };
+      const handleAfterPrint = () => {
+        document.body.classList.remove('print-mr-active');
+      };
+      window.addEventListener('beforeprint', handleBeforePrint);
+      window.addEventListener('afterprint', handleAfterPrint);
+      return () => {
+        window.removeEventListener('beforeprint', handleBeforePrint);
+        window.removeEventListener('afterprint', handleAfterPrint);
+        document.body.classList.remove('print-mr-active');
+      };
+    }
+  }, [isOpen, inline]);
 
   const overallTotal = (request.items || []).reduce((acc, item) => acc + (parseFloat(item.total) || 0), 0);
 
@@ -45,8 +61,7 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline =
   }));
 
   // ── Single MR block (used as a half-page portion) ─────────────────────────
-  const renderMRBlock = (isBlank = false) => {
-    const itemsToUse = isBlank ? blankItems : displayItems;
+  const renderMRBlock = (itemsToUse, startIndex = 0, isBlank = false) => {
     const totalToUse = isBlank ? 0 : overallTotal;
 
     const projectName = isBlank ? '' : request.project_name;
@@ -74,8 +89,8 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline =
           </h2>
         </div>
 
-        {/* Header fields — 3-column grid matching PO layout */}
-        <div className="grid grid-cols-[3fr_2fr_3fr] gap-x-3 gap-y-0.5 text-[10px] font-bold mt-1 mb-1">
+        {/* Header fields — 2-column layout */}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-0.5 text-[10px] font-bold mt-1 mb-1">
           {/* Row 1 */}
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">Project :</span>
@@ -85,17 +100,16 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline =
             <span className="whitespace-nowrap shrink-0">Date :</span>
             <div className="flex-1 border-b border-black h-4 px-1 truncate">{requestDate}</div>
           </div>
+          
+          {/* Row 2 */}
+          <div className="flex items-baseline gap-1">
+            <span className="whitespace-nowrap shrink-0">Project Address :</span>
+            <div className="flex-1 border-b border-black h-4 uppercase px-1 truncate">{deliveryLocation}</div>
+          </div>
           <div className="flex items-baseline gap-1">
             <span className="whitespace-nowrap shrink-0">M.R. No. :</span>
             <div className="flex-1 border-b border-black h-4 px-1 truncate">{mrNo}</div>
           </div>
-
-          {/* Row 2 */}
-          <div className="col-span-2 flex items-baseline gap-1">
-            <span className="whitespace-nowrap shrink-0">Project Address :</span>
-            <div className="flex-1 border-b border-black h-4 uppercase px-1 truncate">{deliveryLocation}</div>
-          </div>
-          <div />
         </div>
 
         {/* Item table */}
@@ -113,7 +127,7 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline =
           <tbody>
             {itemsToUse.map((item, index) => (
               <tr key={item.id || index} className="border-b border-black leading-tight" style={{ height: '1.1rem' }}>
-                <td className="border-r-2 border-black text-center text-[10px]">{item.name ? index + 1 : ''}</td>
+                <td className="border-r-2 border-black text-center text-[10px]"></td>
                 <td className="border-r-2 border-black px-2 font-bold uppercase text-[10px]">{item.name}</td>
                 <td className="border-r-2 border-black text-center text-[10px] font-bold">
                   {item.name ? `${formatQuantity(item.quantity)} ${item.unit}` : ''}
@@ -194,7 +208,7 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline =
     <style dangerouslySetInnerHTML={{ __html: `
       @media print {
         @page { size: portrait; margin: 0 !important; }
-        body, body *:not(.mr-print-root):not(.mr-print-root *) {
+        body.print-mr-active, body.print-mr-active *:not(.mr-print-root):not(.mr-print-root *) {
           visibility: hidden !important;
           background: white !important;
           position: static !important;
@@ -210,16 +224,16 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline =
           width: auto !important;
           height: auto !important;
         }
-        .mr-print-root {
+        body.print-mr-active .mr-print-root {
           visibility: visible !important;
           position: absolute !important;
           top: 0 !important; left: 0 !important;
           width: 100% !important;
           margin: 0 !important; padding: 0 !important;
         }
-        .mr-print-root * { visibility: visible !important; }
+        body.print-mr-active .mr-print-root * { visibility: visible !important; }
         /* Each sheet = one printed A4 page */
-        .mr-print-sheet {
+        body.print-mr-active .mr-print-sheet {
           page-break-after: always !important;
           height: 100vh !important;
           width: 100% !important;
@@ -233,30 +247,78 @@ const MaterialRequestFormModal = ({ isOpen, onClose, request, userRole, inline =
           background: white !important;
           box-shadow: none !important;
         }
-        .mr-print-sheet:last-child { page-break-after: auto !important; }
-        .mr-print-hidden { display: none !important; }
+        body.print-mr-active .mr-print-sheet:last-child { page-break-after: auto !important; }
+        body.print-mr-active .mr-print-hidden { display: none !important; }
       }
     `}} />
   );
 
   // ── Sheet content: 2 copies of the form per A4 page ───────────────────────
+  const rawItems = request.items || [];
+  const itemChunks = [];
+  if (rawItems.length === 0) {
+    itemChunks.push([]);
+  } else {
+    for (let i = 0; i < rawItems.length; i += 13) {
+      itemChunks.push(rawItems.slice(i, i + 13));
+    }
+  }
+
+  // Group itemChunks into sheets of 2 chunks each
+  const mrSheets = [];
+  for (let i = 0; i < itemChunks.length; i += 2) {
+    mrSheets.push(itemChunks.slice(i, Math.min(i + 2, itemChunks.length)));
+  }
+
   const sheetContent = (
     <div className="mr-print-root">
-      <div
-        className={`mr-print-sheet bg-white text-black shadow-2xl print:shadow-none flex flex-col ${
-          inline ? 'w-full' : 'max-w-[794px] mx-auto'
-        }`}
-        style={{ minHeight: '1123px' }}
-      >
-        {/* Top half — original copy */}
-        {renderMRBlock(false)}
+      {mrSheets.map((sheetChunks, sheetIdx) => {
+        const hasSecond = sheetChunks.length > 1;
 
-        {/* Dashed divider — matches PO form divider */}
-        <div className="w-[95%] mx-auto border-t-[3px] border-dashed border-gray-400 shrink-0 print:border-black" />
+        // Pad Top chunk to 13 rows
+        const topChunk = sheetChunks[0];
+        const topDisplayItems = [...topChunk];
+        while (topDisplayItems.length < 13) {
+          topDisplayItems.push({ id: `empty-top-${topDisplayItems.length}`, name: '', quantity: '', unit: '', price: '', discount: '', total: '' });
+        }
 
-        {/* Bottom half — duplicate copy (blank template) */}
-        {renderMRBlock(true)}
-      </div>
+        // Prepare Bottom chunk (either actual second chunk or blank template)
+        let bottomDisplayItems;
+        let bottomStartIndex = 0;
+        let bottomIsBlank = false;
+
+        if (hasSecond) {
+          bottomDisplayItems = [...sheetChunks[1]];
+          while (bottomDisplayItems.length < 13) {
+            bottomDisplayItems.push({ id: `empty-bottom-${bottomDisplayItems.length}`, name: '', quantity: '', unit: '', price: '', discount: '', total: '' });
+          }
+          bottomStartIndex = (sheetIdx * 2 + 1) * 13;
+          bottomIsBlank = false;
+        } else {
+          bottomDisplayItems = blankItems;
+          bottomStartIndex = 0;
+          bottomIsBlank = true;
+        }
+
+        return (
+          <div
+            key={sheetIdx}
+            className={`mr-print-sheet bg-white text-black shadow-2xl print:shadow-none flex flex-col ${
+              inline ? 'w-full' : 'max-w-[794px] mx-auto'
+            } ${sheetIdx > 0 ? 'mt-8 print:mt-0' : ''}`}
+            style={{ minHeight: '1123px' }}
+          >
+            {/* Top half — original copy (first chunk of the sheet) */}
+            {renderMRBlock(topDisplayItems, (sheetIdx * 2) * 13, false)}
+
+            {/* Dashed divider — matches PO form divider */}
+            <div className="w-[95%] mx-auto border-t-[3px] border-dashed border-gray-400 shrink-0 print:border-black" />
+
+            {/* Bottom half — either second chunk of the sheet or blank template */}
+            {renderMRBlock(bottomDisplayItems, bottomStartIndex, bottomIsBlank)}
+          </div>
+        );
+      })}
     </div>
   );
 
