@@ -316,6 +316,7 @@ class NotificationEndpointResilienceTest(TodoTestMixin, TestCase):
     """Ensure notification endpoints degrade gracefully on DB connectivity errors."""
 
     def setUp(self):
+        cache.clear()
         self.factory = APIRequestFactory()
         self.user = self.create_user('notif@test.com')
 

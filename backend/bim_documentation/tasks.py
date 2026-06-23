@@ -12,15 +12,15 @@ logger = logging.getLogger(__name__)
 @shared_task(bind=True, max_retries=3)
 def upload_file_async(self, file_path, file_content_path, doc_id, user_id):
     """
-    Async task to upload files to Supabase.
+    Async task to upload files to S3/MinIO.
     Retries up to 3 times on failure.
     """
     try:
         from bim_documentation.models import BimDocumentation
-        from bim_documentation.supabase_storage import SupabaseStorageManager
+        from bim_documentation.s3_storage import upload_file_to_s3
         
-        # Upload file to Supabase
-        SupabaseStorageManager.upload_file(file_content_path, file_path)
+        # Upload file to S3
+        upload_file_to_s3(file_content_path, file_path)
         
         # Update document record
         doc = BimDocumentation.objects.get(id=doc_id)
@@ -40,15 +40,15 @@ def upload_file_async(self, file_path, file_content_path, doc_id, user_id):
 @shared_task(bind=True, max_retries=3)
 def upload_material_request_file_async(self, file_path, file_content_path, request_id, user_id):
     """
-    Async task to upload material request files to Supabase.
+    Async task to upload material request files to S3/MinIO.
     Retries up to 3 times on failure.
     """
     try:
         from material_requests.models import MaterialRequest
-        from bim_documentation.supabase_storage import SupabaseStorageManager
+        from bim_documentation.s3_storage import upload_file_to_s3
         
-        # Upload file to Supabase
-        SupabaseStorageManager.upload_file(file_content_path, file_path)
+        # Upload file to S3
+        upload_file_to_s3(file_content_path, file_path)
         
         # Update request record
         req = MaterialRequest.objects.get(id=request_id)

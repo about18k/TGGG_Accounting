@@ -226,9 +226,9 @@ class MaterialRequestItem(models.Model):
     category = models.CharField(max_length=100, blank=True)
     quantity = models.DecimalField(max_digits=12, decimal_places=2)
     unit = models.CharField(max_length=50)
-    price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    discount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
-    total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, blank=True, null=True)
+    discount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, blank=True, null=True)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00, blank=True, null=True)
     specifications = models.CharField(max_length=255, blank=True)
     sort_order = models.PositiveIntegerField(default=0)
 
@@ -277,3 +277,96 @@ class MaterialRequestComment(models.Model):
 
     def __str__(self):
         return f"Comment by {self.author} on {self.material_request.project_name}"
+
+
+class PurchaseOrder(models.Model):
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('pending_approval', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+
+    material_request = models.ForeignKey(
+        MaterialRequest,
+        on_delete=models.CASCADE,
+        related_name='purchase_orders'
+    )
+    po_number = models.CharField(max_length=50, unique=True, blank=True, null=True)
+    rfp_number = models.CharField(max_length=50, blank=True, null=True)
+    date = models.DateField(default=timezone.now)
+    payment_terms = models.CharField(max_length=255, blank=True, null=True)
+    bill_to = models.CharField(max_length=255, blank=True, null=True)
+    account_name = models.CharField(max_length=255, blank=True, null=True)
+    account_number = models.CharField(max_length=255, blank=True, null=True)
+    supplier = models.CharField(max_length=255)
+
+    prepared_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='prepared_pos'
+    )
+    prepared_at = models.DateTimeField(auto_now_add=True)
+
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='approved_pos'
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True, null=True)
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    
+    # Accounting Tally fields (After-the-fact reconciliation)
+    tally_notes = models.TextField(blank=True, null=True)
+    tally_receipt = models.URLField(max_length=500, blank=True, null=True)
+    tallied_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='tallied_pos'
+    )
+    tallied_at = models.DateTimeField(null=True, blank=True)
+    is_tallied = models.BooleanField(default=False)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.po_number or self.id} - {self.supplier}"
+
+
+class PurchaseOrderItem(models.Model):
+    purchase_order = models.ForeignKey(
+        PurchaseOrder,
+        on_delete=models.CASCADE,
+        related_name='items'
+    )
+    material_request_item = models.ForeignKey(
+        MaterialRequestItem,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='po_items'
+    )
+    name = models.CharField(max_length=255)
+    quantity = models.DecimalField(max_digits=12, decimal_places=2)
+    unit = models.CharField(max_length=50)
+    price = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    discount = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0.00)
+
+    class Meta:
+        ordering = ['id']
+
+    def __str__(self):
+        return f"{self.name} ({self.quantity} {self.unit}) for {self.purchase_order.po_number}"

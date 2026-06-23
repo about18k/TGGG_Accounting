@@ -468,18 +468,34 @@ function Profile({ token, user, onLogout }) {
                   border: '1px solid rgba(255, 113, 32, 0.2)',
                   color: '#e8eaed',
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
+                  flexDirection: 'column',
+                  gap: '1rem'
                 }}>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '1rem', color: '#e8eaed' }}>Total Hours</h4>
-                    <p style={{ margin: 0, color: '#a0a4a8', fontSize: '0.9rem' }}>
-                      Based on attendance, deductions, and overtime.
-                    </p>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', color: '#e8eaed' }}>Gross Total Hours</h4>
+                      <p style={{ margin: 0, color: '#a0a4a8', fontSize: '0.9rem' }}>
+                        Total physical time worked.
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#FFB36B' }}>
+                        {Math.floor(totalHours / 60)}h {totalHours % 60}m
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#FFB36B' }}>
-                      {Math.floor(totalHours / 60)}h {totalHours % 60}m
+                  
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '0.75rem' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '1rem', color: '#e8eaed' }}>Total Late Deductions</h4>
+                      <p style={{ margin: 0, color: '#a0a4a8', fontSize: '0.9rem' }}>
+                        Accumulated penalty time for late arrivals.
+                      </p>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#EF4444' }}>
+                        {Math.floor(totalDeductions / 60)}h {totalDeductions % 60}m
+                      </div>
                     </div>
                   </div>
                 </div>

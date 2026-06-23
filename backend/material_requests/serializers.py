@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import MaterialRequest, MaterialRequestItem, MaterialRequestComment, Project
+from .models import MaterialRequest, MaterialRequestItem, MaterialRequestComment, Project, PurchaseOrder, PurchaseOrderItem
 
 
 class ProjectSerializer(serializers.ModelSerializer):
@@ -67,8 +67,9 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
     created_by_signature = serializers.SerializerMethodField()
     reviewed_by_studio_head_signature = serializers.SerializerMethodField()
     reviewed_by_ceo_signature = serializers.SerializerMethodField()
-    item_count = serializers.SerializerMethodField()
+    purchase_orders = serializers.SerializerMethodField()
     project_name_display = serializers.CharField(source='project.name', read_only=True, default=None)
+    item_count = serializers.SerializerMethodField()
 
     class Meta:
         model = MaterialRequest
@@ -108,6 +109,7 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
             'fund_release_date',
             'accounting_notes',
             'accounting_receipt',
+            'purchase_orders',
         ]
         read_only_fields = [
             'created_by',
@@ -128,6 +130,7 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
             'fund_release_date',
             'accounting_notes',
             'accounting_receipt',
+            'purchase_orders',
         ]
 
     def get_reviewed_by_studio_head_name(self, obj):
@@ -154,6 +157,10 @@ class MaterialRequestSerializer(serializers.ModelSerializer):
         if obj.reviewed_by_ceo and obj.reviewed_by_ceo.signature_image:
             return obj.reviewed_by_ceo.signature_image
         return None
+
+    def get_purchase_orders(self, obj):
+        pos = obj.purchase_orders.all().prefetch_related('items')
+        return PurchaseOrderSerializer(pos, many=True, context=self.context).data
 
     def get_item_count(self, obj):
         prefetched = getattr(obj, '_prefetched_objects_cache', {})
@@ -275,3 +282,105 @@ class MaterialRequestCommentSerializer(serializers.ModelSerializer):
     def get_author_name(self, obj):
         name = obj.author.get_full_name()
         return name if name.strip() else obj.author.email
+
+
+class PurchaseOrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PurchaseOrderItem
+        fields = [
+            'id',
+            'purchase_order',
+            'material_request_item',
+            'name',
+            'quantity',
+            'unit',
+            'price',
+            'discount',
+            'total',
+        ]
+        read_only_fields = ['id', 'purchase_order']
+
+
+class PurchaseOrderSerializer(serializers.ModelSerializer):
+    items = PurchaseOrderItemSerializer(many=True, required=False)
+    prepared_by_name = serializers.CharField(source='prepared_by.get_full_name', read_only=True, default='')
+    prepared_by_email = serializers.CharField(source='prepared_by.email', read_only=True, default='')
+    prepared_by_signature = serializers.SerializerMethodField()
+
+    approved_by_name = serializers.CharField(source='approved_by.get_full_name', read_only=True, default='')
+    approved_by_email = serializers.CharField(source='approved_by.email', read_only=True, default='')
+    approved_by_signature = serializers.SerializerMethodField()
+
+    tallied_by_name = serializers.CharField(source='tallied_by.get_full_name', read_only=True, default='')
+    tallied_by_email = serializers.CharField(source='tallied_by.email', read_only=True, default='')
+
+    project_name = serializers.CharField(source='material_request.project_name', read_only=True)
+    mr_status = serializers.CharField(source='material_request.status', read_only=True)
+
+    class Meta:
+        model = PurchaseOrder
+        fields = [
+            'id',
+            'material_request',
+            'project_name',
+            'mr_status',
+            'po_number',
+            'rfp_number',
+            'date',
+            'payment_terms',
+            'bill_to',
+            'account_name',
+            'account_number',
+            'supplier',
+            'prepared_by',
+            'prepared_by_name',
+            'prepared_by_email',
+            'prepared_by_signature',
+            'prepared_at',
+            'approved_by',
+            'approved_by_name',
+            'approved_by_email',
+            'approved_by_signature',
+            'approved_at',
+            'rejection_reason',
+            'status',
+            'tally_notes',
+            'tally_receipt',
+            'tallied_by',
+            'tallied_by_name',
+            'tallied_by_email',
+            'tallied_at',
+            'is_tallied',
+            'items',
+        ]
+        read_only_fields = [
+            'id',
+            'po_number',
+            'prepared_by',
+            'prepared_by_name',
+            'prepared_by_email',
+            'prepared_by_signature',
+            'prepared_at',
+            'approved_by',
+            'approved_by_name',
+            'approved_by_email',
+            'approved_by_signature',
+            'approved_at',
+            'rejection_reason',
+            'status',
+            'tallied_by',
+            'tallied_by_name',
+            'tallied_by_email',
+            'tallied_at',
+            'is_tallied',
+        ]
+
+    def get_prepared_by_signature(self, obj):
+        if obj.prepared_by and obj.prepared_by.signature_image:
+            return obj.prepared_by.signature_image
+        return None
+
+    def get_approved_by_signature(self, obj):
+        if obj.approved_by and obj.approved_by.signature_image:
+            return obj.approved_by.signature_image
+        return None

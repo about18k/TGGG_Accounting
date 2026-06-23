@@ -16,7 +16,7 @@ from accounts.models import CustomUser
 from todos.services import NotificationService
 from .models import Attendance, CalendarEvent, Leave, OvertimeRequest, TimeLog
 from .geocoding_service import reverse_geocode
-from .services.supabase_storage import SupabaseStorageManager
+from .services.s3_storage import S3StorageManager
 from .session_service import (
     determine_session,
     is_late_for_session,
@@ -462,7 +462,7 @@ def _serialize_attendance(record):
     attachment_filename = None
     if record.work_doc_file_paths and len(record.work_doc_file_paths) > 0:
         first_file_path = record.work_doc_file_paths[0]
-        attachment_url = SupabaseStorageManager.get_public_url(first_file_path)
+        attachment_url = S3StorageManager.get_public_url(first_file_path)
         # Extract filename from path (last part after /)
         attachment_filename = first_file_path.split('/')[-1] if '/' in first_file_path else first_file_path
     
@@ -1395,7 +1395,7 @@ def set_overtime_actual_hours(request, request_id):
 def upload_work_documentation(request, attendance_id):
     """
     Upload work documentation files for an attendance record.
-    Files are uploaded directly to Supabase bucket.
+    Files are uploaded directly to S3/MinIO bucket.
     Only the work_doc_note is saved in Django.
     
     Expected POST data:
@@ -1426,8 +1426,8 @@ def upload_work_documentation(request, attendance_id):
     if has_file:
         uploaded_file = request.FILES['file']
         
-        # Upload to Supabase
-        result = SupabaseStorageManager.upload_work_documentation(
+        # Upload to S3/MinIO
+        result = S3StorageManager.upload_work_documentation(
             file_obj=uploaded_file,
             user_id=request.user.id,
             date_str=str(record.date),
@@ -1471,7 +1471,7 @@ def upload_work_documentation(request, attendance_id):
 @permission_classes([IsAuthenticated])
 def get_work_documentation_files(request, attendance_id):
     """
-    List all work documentation files from Supabase for an attendance record.
+    List all work documentation files from S3/MinIO for an attendance record.
     Files are queried directly from the bucket, not from database.
     """
     try:
@@ -1486,8 +1486,8 @@ def get_work_documentation_files(request, attendance_id):
     if not (is_admin or is_owner):
         return Response({'error': 'Not authorized to view this documentation.'}, status=status.HTTP_403_FORBIDDEN)
     
-    # List files from Supabase bucket
-    result = SupabaseStorageManager.list_work_documentation_files(
+    # List files from S3/MinIO bucket
+    result = S3StorageManager.list_work_documentation_files(
         employee_id=record.employee_id,
         date_str=str(record.date)
     )
@@ -1570,8 +1570,8 @@ def delete_work_documentation_file(request, attendance_id, file_index):
     # Get file data before deletion
     file_data = record.work_doc_file_paths[file_index]
     
-    # Delete from Supabase
-    result = SupabaseStorageManager.delete_work_documentation(
+    # Delete from S3/MinIO
+    result = S3StorageManager.delete_work_documentation(
         file_path=file_data['file_path'],
         user_id=request.user.id,
         employee_id=record.employee_id

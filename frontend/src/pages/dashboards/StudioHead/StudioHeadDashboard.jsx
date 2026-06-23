@@ -1,11 +1,9 @@
 import React from 'react';
-import PublicNavigation from '../Public_Dashboard/PublicNavigation';
 import { GitMerge, Calendar, ClipboardCheck, Users, FileText } from 'lucide-react';
 import PendingApprovalsPanel from './components/PendingApprovalsPanel';
 import ManageUsersPanel from './components/ManageUsersPanel';
 import CoordinatorPanel from './components/CoordinatorPanel';
 import MessageBanner from './components/MessageBanner';
-import StudioHeadSidebar from './components/StudioHeadSidebar';
 import { useStudioHeadDashboard } from './hooks/useStudioHeadDashboard';
 // import EventsPanel from './components/EventsPanel';
 
@@ -52,28 +50,12 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate, curren
   const cardClass = "rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-lg";
 
   return (
-    <div className="min-h-screen bg-[#00273C] relative">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
-      </div>
+    <div className="w-full relative animate-fade-in">
 
-      <PublicNavigation onNavigate={onNavigate} currentPage={activeTab} user={user} />
+      
 
-      <div className="relative pt-28 px-3 sm:px-6 pb-10">
-        <div className="w-full">
-          <MessageBanner message={message} onClose={() => setMessage('')} />
-
-          <div className="flex flex-col lg:flex-row gap-6">
-            {/* Sidebar Navigation */}
-            <aside className="hidden lg:block lg:w-64 lg:shrink-0">
-              <StudioHeadSidebar
-                currentPage={activeTab}
-                onNavigate={onNavigate}
-              />
-            </aside>
-
-            {/* Main Content */}
-            <main className="flex-1 min-w-0 space-y-6">
+      <MessageBanner message={message} onClose={() => setMessage('')} />
+      <div className="space-y-6">
               {/* Standalone Header Card */}
               <div className={cardClass}>
                 <div className="p-6 sm:p-8">
@@ -140,9 +122,6 @@ export default function StudioHeadDashboard({ user, onLogout, onNavigate, curren
                   loadingAction={userActionById}
                 />
               )}
-            </main>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -4,53 +4,39 @@
  */
 import { lazy, Suspense } from 'react';
 
-import StudioHeadDashboard from '../pages/dashboards/StudioHead/StudioHeadDashboard';
-import StudioHeadAttendance from '../pages/dashboards/StudioHead/StudioHeadAttendance';
-import StudioHeadProfilePage from '../pages/dashboards/StudioHead/StudioHeadProfilePage';
-import StudioHeadBimDocumentationPage from '../pages/dashboards/StudioHead/StudioHeadBimDocumentationPage';
-import StudioHeadJuniorArchitectDocumentationPage from '../pages/dashboards/StudioHead/StudioHeadJuniorArchitectDocumentationPage';
-import StudioHeadMaterialRequestPage from '../pages/dashboards/StudioHead/StudioHeadMaterialRequestPage';
-import StudioHeadOvertimePage from '../pages/dashboards/StudioHead/StudioHeadOvertimePage';
-
-import InternAttendanceDashboard from '../pages/dashboards/Intern_Dashboard/InternAttendance';
-import InternOvertimePage from '../pages/dashboards/Intern_Dashboard/OvertimePage';
-import InternProfilePage from '../pages/dashboards/Intern_Dashboard/ProfilePage';
-
+// Shared Layout and Navigation Components
+import DashboardLayout from '../layouts/DashboardLayout';
+import PublicNavigation from '../pages/dashboards/Public_Dashboard/PublicNavigation';
+import AccountingSidebar from '../pages/dashboards/Accounting_Department/AccountingSidebar';
 import EmployeeAttendanceDashboard from '../pages/dashboards/Public_Dashboard/AttendanceDashboard';
-import EmployeeOvertimePage from '../pages/dashboards/Public_Dashboard/OvertimePage';
-import EmployeeProfilePage from '../pages/dashboards/Public_Dashboard/ProfilePage';
 
-import BimSpecialistAttendanceDashboard from '../pages/dashboards/BimSpecialist/BimAttendance';
-import BimSpecialistOvertimePage from '../pages/dashboards/BimSpecialist/BimSpecialistOvertimePage';
-import BimSpecialistDocumentationPage from '../pages/dashboards/BimSpecialist/BimSpecialistDocumentationPage';
-import BimSpecialistProfilePage from '../pages/dashboards/BimSpecialist/BimSpecialistProfilePage';
+import { getDefaultPage } from '../layouts/sidebarConfig';
+import { PageSkeleton } from '../components/SkeletonLoader';
 
-import SiteEngineerAttendanceDashboard from '../pages/dashboards/SiteEngineer_Dashboard/SiteEngineerAttendance';
-import EngineerHub from '../pages/dashboards/SiteEngineer_Dashboard/EngineerHub';
-import SiteEngineerOvertimePage from '../pages/dashboards/SiteEngineer_Dashboard/SiteEngineerOvertimePage';
-import SiteEngineerProfilePage from '../pages/dashboards/SiteEngineer_Dashboard/SiteEngineerProfilePage';
+// ── Lazy-loaded Shared Pages ─────────────────────────────────
+const CalendarPage = lazy(() => import('../pages/CalendarPage'));
+const ProfilePage = lazy(() => import('../pages/ProfilePage'));
+const OvertimePage = lazy(() => import('../pages/OvertimePage'));
+const MaterialRequestReviewer = lazy(() => import('../pages/material-requests/MaterialRequestReviewer'));
 
-import SiteCoordinatorAttendanceDashboard from '../pages/dashboards/SiteCoordinator_Dashboard/SiteCoordinatorAttendance';
-import CoordinatorHub from '../pages/dashboards/SiteCoordinator_Dashboard/CoordinatorHub';
-import SiteCoordinatorOvertimePage from '../pages/dashboards/SiteCoordinator_Dashboard/SiteCoordinatorOvertimePage';
-import SiteCoordinatorProfilePage from '../pages/dashboards/SiteCoordinator_Dashboard/SiteCoordinatorProfilePage';
+// ── Lazy-loaded Role Pages ─────────────────────────────────
+const StudioHeadDashboard = lazy(() => import('../pages/dashboards/StudioHead/StudioHeadDashboard'));
+const StudioHeadBimDocumentationPage = lazy(() => import('../pages/dashboards/StudioHead/StudioHeadBimDocumentationPage'));
+const StudioHeadJuniorArchitectDocumentationPage = lazy(() => import('../pages/dashboards/StudioHead/StudioHeadJuniorArchitectDocumentationPage'));
 
-import JuniorDesignerAttendanceDashboard from '../pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerAttendance';
-import JuniorDesignerOvertimePage from '../pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerOvertimePage';
-import JuniorDesignerProfilePage from '../pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerProfilePage';
-import JuniorDesignerDocumentationPage from '../pages/dashboards/JuniorDesigner_Dashboard/JuniorDesignerDocumentationPage';
+const DocumentationPage = lazy(() => import('../pages/DocumentationPage'));
+const EngineerHub = lazy(() => import('../pages/dashboards/SiteEngineer_Dashboard/EngineerHub'));
 
-import CeoAttendanceDashboard from '../pages/dashboards/ceo/ceoAttendance';
-import CeoDashboardPage from '../pages/dashboards/ceo/CeoDashboardPage';
-import CeoBimDocumentationPage from '../pages/dashboards/ceo/CeoBimDocumentationPage';
-import CeoJuniorArchitectDocumentationPage from '../pages/dashboards/ceo/CeoJuniorArchitectDocumentationPage';
-import CeoMaterialRequestPage from '../pages/dashboards/ceo/CeoMaterialRequestPage';
-import CeoOvertimePage from '../pages/dashboards/ceo/CeoOvertimePage';
-import CeoProfilePage from '../pages/dashboards/ceo/CeoProfilePage';
-import CeoEmployeeDirectoryPage from '../pages/dashboards/ceo/CeoEmployeeDirectoryPage';
-import CeoPayrollProcessedPage from '../pages/dashboards/ceo/CeoPayrollProcessedPage';
-import CeoCalendarPage from '../pages/dashboards/ceo/CeoCalendarPage';
+const CoordinatorHub = lazy(() => import('../pages/dashboards/SiteCoordinator_Dashboard/CoordinatorHub'));
 
+
+const CeoDashboardPage = lazy(() => import('../pages/dashboards/ceo/CeoDashboardPage'));
+const CeoBimDocumentationPage = lazy(() => import('../pages/dashboards/ceo/CeoBimDocumentationPage'));
+const CeoJuniorArchitectDocumentationPage = lazy(() => import('../pages/dashboards/ceo/CeoJuniorArchitectDocumentationPage'));
+const CeoEmployeeDirectoryPage = lazy(() => import('../pages/dashboards/ceo/CeoEmployeeDirectoryPage'));
+const CeoPayrollProcessedPage = lazy(() => import('../pages/dashboards/ceo/CeoPayrollProcessedPage'));
+
+// ── Lazy loaded Accounting Pages ──────────────────────────────
 const loadAccountingDashboardLayout = () => import('../pages/dashboards/Accounting_Department/DashboardLayout');
 const loadAccountingDashboardOverview = () => import('../pages/dashboards/Accounting_Department/DashboardOverview');
 const loadAccountingEmployeeManagement = () => import('../pages/dashboards/Accounting_Department/EmployeeManagement');
@@ -58,52 +44,20 @@ const loadAccountingAttendanceLeave = () => import('../pages/dashboards/Accounti
 const loadAccountingPayrollManagement = () => import('../pages/dashboards/Accounting_Department/PayrollManagement');
 const loadAccountingSettings = () => import('../pages/dashboards/Accounting_Department/Settings');
 const loadAccountingPersonalAttendance = () => import('../pages/dashboards/Accounting_Department/AccountingPersonalAttendance');
-const loadAccountingOvertimePage = () => import('../pages/dashboards/Accounting_Department/AccountingOvertimePage');
+const loadAccountingOvertimePage = () => import('../pages/OvertimePage');
 const loadAccountingEventsPanel = () => import('../pages/dashboards/Accounting_Department/Calendar_Events/AccountingEventsPanel');
-const loadAccountingMaterialRequestPage = () => import('../pages/dashboards/Accounting_Department/AccountingMaterialRequestPage');
 const loadAccountingOvertimeRequestsPanel = () => import('../pages/dashboards/shared/OvertimeRequestApprovalsPanel');
-const loadEmployeeCalendarPage = () => import('../pages/dashboards/shared/EmployeeCalendarPage');
-const loadAccountingProfilePage = () => import('../pages/dashboards/Accounting_Department/AccountingProfilePage');
 
-const AccountingDashboardLayout = lazy(() =>
-    loadAccountingDashboardLayout().then((mod) => ({ default: mod.DashboardLayout }))
-);
-const AccountingDashboardOverview = lazy(() =>
-    loadAccountingDashboardOverview().then((mod) => ({ default: mod.DashboardOverview }))
-);
-const AccountingEmployeeManagement = lazy(() =>
-    loadAccountingEmployeeManagement().then((mod) => ({ default: mod.EmployeeManagement }))
-);
-const AccountingAttendanceLeave = lazy(() =>
-    loadAccountingAttendanceLeave().then((mod) => ({ default: mod.AttendanceLeave }))
-);
-const AccountingPayrollManagement = lazy(() =>
-    loadAccountingPayrollManagement().then((mod) => ({ default: mod.PayrollManagement }))
-);
-const AccountingSettings = lazy(() =>
-    loadAccountingSettings().then((mod) => ({ default: mod.Settings }))
-);
-const AccountingPersonalAttendance = lazy(() =>
-    loadAccountingPersonalAttendance()
-);
-const AccountingOvertimePage = lazy(() =>
-    loadAccountingOvertimePage()
-);
-const AccountingEventsPanel = lazy(() =>
-    loadAccountingEventsPanel()
-);
-const AccountingMaterialRequestPage = lazy(() =>
-    loadAccountingMaterialRequestPage()
-);
-const AccountingOvertimeRequestsPanel = lazy(() =>
-    loadAccountingOvertimeRequestsPanel()
-);
-const EmployeeCalendarPage = lazy(() =>
-    loadEmployeeCalendarPage()
-);
-const AccountingProfilePage = lazy(() =>
-    loadAccountingProfilePage()
-);
+const AccountingDashboardLayout = lazy(() => loadAccountingDashboardLayout().then((mod) => ({ default: mod.DashboardLayout })));
+const AccountingDashboardOverview = lazy(() => loadAccountingDashboardOverview().then((mod) => ({ default: mod.DashboardOverview })));
+const AccountingEmployeeManagement = lazy(() => loadAccountingEmployeeManagement().then((mod) => ({ default: mod.EmployeeManagement })));
+const AccountingAttendanceLeave = lazy(() => loadAccountingAttendanceLeave().then((mod) => ({ default: mod.AttendanceLeave })));
+const AccountingPayrollManagement = lazy(() => loadAccountingPayrollManagement().then((mod) => ({ default: mod.PayrollManagement })));
+const AccountingSettings = lazy(() => loadAccountingSettings().then((mod) => ({ default: mod.Settings })));
+const AccountingPersonalAttendance = lazy(() => loadAccountingPersonalAttendance());
+const AccountingOvertimePage = lazy(() => loadAccountingOvertimePage());
+const AccountingEventsPanel = lazy(() => loadAccountingEventsPanel());
+const AccountingOvertimeRequestsPanel = lazy(() => loadAccountingOvertimeRequestsPanel());
 
 export function preloadDashboardAssets({ role, currentPage, departmentName } = {}) {
     const normalizedRole = String(role || '').toLowerCase();
@@ -113,7 +67,7 @@ export function preloadDashboardAssets({ role, currentPage, departmentName } = {
         normalizedDepartment === 'accounting department' || normalizedDepartment === 'accounting'
     );
 
-    const preloads = [loadEmployeeCalendarPage()];
+    const preloads = [import('../pages/CalendarPage')];
 
     if (normalizedRole === 'accounting' || isAccountingEmployee) {
         preloads.push(
@@ -123,11 +77,11 @@ export function preloadDashboardAssets({ role, currentPage, departmentName } = {
             loadAccountingAttendanceLeave(),
             loadAccountingPayrollManagement(),
             loadAccountingSettings(),
-            loadAccountingProfilePage(),
+            import('../pages/ProfilePage'),
             loadAccountingOvertimePage(),
             loadAccountingPersonalAttendance(),
             loadAccountingEventsPanel(),
-            loadAccountingMaterialRequestPage(),
+            import('../pages/material-requests/MaterialRequestReviewer'),
             loadAccountingOvertimeRequestsPanel(),
         );
     }
@@ -139,13 +93,6 @@ export function preloadDashboardAssets({ role, currentPage, departmentName } = {
     return Promise.allSettled(preloads);
 }
 
-// Suspense wrapper for lazy-loaded calendar page
-const SuspendedCalendarPage = ({ user, onNavigate }) => (
-    <Suspense fallback={<div className="min-h-screen bg-[#00273C] text-white flex items-center justify-center text-sm">Loading calendar...</div>}>
-        <EmployeeCalendarPage user={user} onNavigate={onNavigate} />
-    </Suspense>
-);
-
 /**
  * Renders the accounting dashboard with its own layout and tabs.
  */
@@ -153,80 +100,55 @@ export function renderAccountingDashboard({
     user, token, currentPage, handleLogout, handleNavigate,
     notifications, markNotificationRead, markAllNotificationsRead,
 }) {
-    // Profile page is rendered outside the dashboard layout
+    // Profile page is rendered outside the standard accounting tabs
     if (currentPage === 'profile') {
         return (
-            <Suspense fallback={<div className="min-h-screen bg-[#00273C] text-white flex items-center justify-center text-sm">Loading profile...</div>}>
-                <AccountingProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />
+            <Suspense fallback={<div className="min-h-screen bg-[#00273C] p-6 sm:p-8"><PageSkeleton /></div>}>
+                <div className="min-h-screen bg-[#00273C] relative">
+                    <PublicNavigation onNavigate={handleNavigate} currentPage="profile" user={user} onLogout={handleLogout} />
+                    <div className="relative pt-28 px-3 sm:px-6 pb-10">
+                        <div className="w-full flex flex-col lg:flex-row gap-6">
+                            <aside className="hidden lg:block lg:w-64 shrink-0">
+                                <AccountingSidebar currentPage="profile" onNavigate={handleNavigate} onLogout={handleLogout} />
+                            </aside>
+                            <main className="flex-1 min-w-0">
+                                <ProfilePage user={user} token={token} onLogout={handleLogout} />
+                            </main>
+                        </div>
+                    </div>
+                </div>
             </Suspense>
         );
     }
 
-    // Standard accounting tabs that map directly to pages
     const accountingTabs = ['dashboard', 'employees', 'attendance', 'payroll', 'settings'];
-    
-    // Determine the active tab from the URL (currentPage)
     const activeTab = accountingTabs.includes(currentPage) ? currentPage : 'dashboard';
-    
-    // Determine if we are in a sub-section (Personal Attendance or Overtime)
     const effectiveSection = 
-        currentPage === 'personal-attendance'
-            ? 'personal-attendance'
-            : currentPage === 'overtime'
-                ? 'overtime'
-                : currentPage === 'events'
-                    ? 'events'
-                    : currentPage === 'otrequest'
-                        ? 'otrequest'
-                    : currentPage === 'material-requests'
-                        ? 'material-requests'
-                    : 'main';
+        currentPage === 'personal-attendance' ? 'personal-attendance' :
+        currentPage === 'overtime' ? 'overtime' :
+        currentPage === 'events' ? 'events' :
+        currentPage === 'otrequest' ? 'otrequest' :
+        currentPage === 'material-requests' ? 'material-requests' : 'main';
 
     const renderContent = () => {
-        if (effectiveSection === 'personal-attendance') {
-            return (
-                <div className="space-y-4">
-                    <AccountingPersonalAttendance user={user} onNavigate={handleNavigate} />
-                </div>
-            );
-        }
-        if (effectiveSection === 'overtime') {
-            return (
-                <AccountingOvertimePage
-                    user={user}
-                    token={token}
-                    onNavigate={handleNavigate}
-                    embedded
-                />
-            );
-        }
-        if (effectiveSection === 'events') {
-            return <AccountingEventsPanel />;
-        }
-        if (effectiveSection === 'otrequest') {
-            return <AccountingOvertimeRequestsPanel reviewerRole="accounting" />;
-        }
-        if (effectiveSection === 'material-requests') {
-            return <AccountingMaterialRequestPage user={user} />;
-        }
+        if (effectiveSection === 'personal-attendance') return <div className="space-y-4"><AccountingPersonalAttendance user={user} onNavigate={handleNavigate} /></div>;
+        if (effectiveSection === 'overtime') return <AccountingOvertimePage user={user} token={token} onNavigate={handleNavigate} embedded />;
+        if (effectiveSection === 'events') return <AccountingEventsPanel />;
+        if (effectiveSection === 'otrequest') return <AccountingOvertimeRequestsPanel reviewerRole="accounting" />;
+        if (effectiveSection === 'material-requests') return <MaterialRequestReviewer user={user} reviewerRole="accounting" onNavigate={handleNavigate} />;
+        
         switch (activeTab) {
-            case 'dashboard':
-                return <AccountingDashboardOverview user={user} onNavigate={handleNavigate} />;
-            case 'employees':
-                return <AccountingEmployeeManagement />;
-            case 'attendance':
-                return <AccountingAttendanceLeave />;
-            case 'payroll':
-                return <AccountingPayrollManagement />;
-            case 'settings':
-                return <AccountingSettings />;
-            default:
-                return <AccountingDashboardOverview user={user} onNavigate={handleNavigate} />;
+            case 'dashboard': return <AccountingDashboardOverview user={user} onNavigate={handleNavigate} />;
+            case 'employees': return <AccountingEmployeeManagement />;
+            case 'attendance': return <AccountingAttendanceLeave />;
+            case 'payroll': return <AccountingPayrollManagement />;
+            case 'settings': return <AccountingSettings />;
+            default: return <AccountingDashboardOverview user={user} onNavigate={handleNavigate} />;
         }
     };
 
     return (
-        <Suspense fallback={<div className="min-h-screen bg-[#00273C] text-white flex items-center justify-center text-sm">Loading accounting workspace...</div>}>
+        <Suspense fallback={<div className="min-h-screen bg-[#00273C] p-6 sm:p-8"><PageSkeleton /></div>}>
             <AccountingDashboardLayout
                 activeTab={activeTab}
                 activeSection={effectiveSection}
@@ -237,13 +159,53 @@ export function renderAccountingDashboard({
                 onNotificationClick={markNotificationRead}
                 onMarkAllRead={markAllNotificationsRead}
             >
-                <Suspense fallback={<div className="py-8 text-sm text-white/70">Loading page...</div>}>
+                <Suspense fallback={<PageSkeleton />}>
                     {renderContent()}
                 </Suspense>
             </AccountingDashboardLayout>
         </Suspense>
     );
 }
+
+// ── Page registry ───────────────────────────────────────────────
+const PAGE_REGISTRY = {
+  // Shared pages
+  'attendance': { Component: EmployeeAttendanceDashboard, props: { embedded: true } },
+  'calendar': { Component: CalendarPage },
+  'profile': { Component: ProfilePage },
+  'overtime': { Component: OvertimePage },
+  
+  // CEO
+  'ceo-dashboard': { Component: CeoDashboardPage },
+  'ceo-calendar': { Component: CalendarPage },
+  'ceo-employees': { Component: CeoEmployeeDirectoryPage },
+  'ceo-payroll': { Component: CeoPayrollProcessedPage },
+  'ceo-bim-docs': { Component: CeoBimDocumentationPage },
+  'ceo-junior-docs': { Component: CeoJuniorArchitectDocumentationPage },
+  'ceo-material-requests': { Component: MaterialRequestReviewer, props: { reviewerRole: 'ceo' } },
+  
+  // Studio Head
+  'studio-head-bim-docs': { Component: StudioHeadBimDocumentationPage },
+  'studio-head-junior-docs': { Component: StudioHeadJuniorArchitectDocumentationPage },
+  'studio-head-material-requests': { Component: MaterialRequestReviewer, props: { reviewerRole: 'studio_head' } },
+  'approvals': { Component: StudioHeadDashboard, props: { currentPage: 'approvals' } },
+  'users': { Component: StudioHeadDashboard, props: { currentPage: 'users' } },
+  'reviews': { Component: StudioHeadDashboard, props: { currentPage: 'reviews' } },
+  'coordination': { Component: StudioHeadDashboard, props: { currentPage: 'coordination' } },
+  'studio-head': { Component: StudioHeadDashboard, props: { currentPage: 'studio-head' } },
+
+  // Site Engineer & Coordinator
+  'engineer-hub': { Component: EngineerHub },
+  'coordinator-hub': { Component: CoordinatorHub },
+  
+  // Junior Designer & BIM Specialist
+  'documentation': { Component: DocumentationPage },
+  'designer-hub': { Component: EmployeeAttendanceDashboard, props: { embedded: true } }, // Temporary fallback mapping based on existing code
+};
+
+const LoadingFallback = () => (
+  <PageSkeleton />
+);
 
 /**
  * Main dashboard renderer — maps role + currentPage to the right component.
@@ -255,120 +217,46 @@ export function renderDashboard({
 }) {
     if (!user) return null;
 
-    // Studio head
-    if (user.role === 'studio_head') {
-        if (currentPage === 'attendance') return <StudioHeadAttendance user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'calendar') return <SuspendedCalendarPage user={user} onNavigate={handleNavigate} />;
-        if (currentPage === 'overtime') return <StudioHeadOvertimePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'profile') return <StudioHeadProfilePage user={user} token={localStorage.getItem('token')} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'studio-head-bim-docs') return <StudioHeadBimDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'studio-head-junior-docs') return <StudioHeadJuniorArchitectDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'studio-head-material-requests') return <StudioHeadMaterialRequestPage user={user} onNavigate={handleNavigate} />;
+    const isAccountingUser = user.role === 'accounting' || (
+        user.role === 'employee' && (
+            user.department_name?.toLowerCase() === 'accounting department' ||
+            user.department_name?.toLowerCase() === 'accounting'
+        )
+    );
 
-        // These keys map to panels inside StudioHeadDashboard
-        const studioHeadPages = ['approvals', 'users', 'reviews', 'coordination', 'studio-head'];
-        if (studioHeadPages.includes(currentPage)) {
-            return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} currentPage={currentPage} />;
-        }
-        
-        return <StudioHeadDashboard user={user} onLogout={handleLogout} onNavigate={handleNavigate} currentPage="approvals" />;
-    }
-
-    // Accounting
-    if (user.role === 'accounting') {
+    if (isAccountingUser) {
         return renderAccountingDashboard({
             user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate,
             notifications, markNotificationRead, markAllNotificationsRead
         });
     }
 
-    // Employee in Accounting Department
-    if (user.role === 'employee' && (user.department_name?.toLowerCase() === 'accounting department' || user.department_name?.toLowerCase() === 'accounting')) {
-        return renderAccountingDashboard({
-            user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate,
-            notifications, markNotificationRead, markAllNotificationsRead
-        });
+    const resolvedPage = String(currentPage || getDefaultPage(user.role)).toLowerCase();
+    
+    let Component;
+    let extraProps = {};
+
+    const entry = PAGE_REGISTRY[resolvedPage];
+    if (entry) {
+        Component = entry.Component;
+        extraProps = entry.props || {};
+    } else {
+        // Default fallback
+        Component = EmployeeAttendanceDashboard;
+        extraProps = { embedded: true };
     }
 
-    // Site Engineer
-    if (user.role === 'site_engineer') {
-        if (currentPage === 'engineer-hub') return <EngineerHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'calendar') return <SuspendedCalendarPage user={user} onNavigate={handleNavigate} />;
-        if (currentPage === 'overtime') return <SiteEngineerOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'profile') return <SiteEngineerProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        return <SiteEngineerAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-
-    // Site Coordinator
-    if (user.role === 'site_coordinator') {
-        if (currentPage === 'coordinator-hub') return <CoordinatorHub user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'calendar') return <SuspendedCalendarPage user={user} onNavigate={handleNavigate} />;
-        if (currentPage === 'overtime') return <SiteCoordinatorOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'profile') return <SiteCoordinatorProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        return <SiteCoordinatorAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-
-    // Junior Designer / Architect
-    if (user.role === 'junior_architect') {
-        if (currentPage === 'designer-hub') return <JuniorDesignerAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'documentation') return <JuniorDesignerDocumentationPage user={user} onNavigate={handleNavigate} />;
-        if (currentPage === 'calendar') return <SuspendedCalendarPage user={user} onNavigate={handleNavigate} />;
-        if (currentPage === 'overtime') return <JuniorDesignerOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'profile') return <JuniorDesignerProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        return <JuniorDesignerAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-
-    // Intern
-    if (user.role === 'intern') {
-        if (currentPage === 'calendar') return <SuspendedCalendarPage user={user} onNavigate={handleNavigate} />;
-        if (currentPage === 'overtime') return <InternOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'profile') return <InternProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        return <InternAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-
-    // Employee
-    if (user.role === 'employee') {
-        if (currentPage === 'calendar') return <SuspendedCalendarPage user={user} onNavigate={handleNavigate} />;
-        if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'profile') return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-
-    // BIM Specialist
-    if (user.role === 'bim_specialist') {
-        if (currentPage === 'calendar') return <SuspendedCalendarPage user={user} onNavigate={handleNavigate} />;
-        if (currentPage === 'overtime') return <BimSpecialistOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'documentation') return <BimSpecialistDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'profile') return <BimSpecialistProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        return <BimSpecialistAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-
-    // CEO
-    if (user.role === 'ceo') {
-        if (currentPage === 'ceo-dashboard') return <CeoDashboardPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'ceo-calendar') return <CeoCalendarPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'ceo-employees') return <CeoEmployeeDirectoryPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'ceo-payroll') return <CeoPayrollProcessedPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'overtime') return <CeoOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'profile') return <CeoProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'ceo-bim-docs') return <CeoBimDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'ceo-junior-docs') return <CeoJuniorArchitectDocumentationPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        if (currentPage === 'ceo-material-requests') return <CeoMaterialRequestPage user={user} onLogout={handleLogout} onNavigate={handleNavigate} />;
-        return <CeoAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    }
-
-    // Department-based fallback — Accounting
-    const departmentKey = (user.department_name || '').toLowerCase();
-    if (departmentKey === 'accounting department' || departmentKey === 'accounting') {
-        return renderAccountingDashboard({
-            user, token, currentPage, accountingSection, activeTab, setActiveTab, setAccountingSection, handleLogout, handleNavigate,
-            notifications, markNotificationRead, markAllNotificationsRead
-        });
-    }
-
-    // Fallback → Employee Dashboard
-    if (currentPage === 'calendar') return <SuspendedCalendarPage user={user} onNavigate={handleNavigate} />;
-    if (currentPage === 'overtime') return <EmployeeOvertimePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    if (currentPage === 'profile') return <EmployeeProfilePage user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
-    return <EmployeeAttendanceDashboard user={user} token={token} onLogout={handleLogout} onNavigate={handleNavigate} />;
+    return (
+        <DashboardLayout user={user} currentPage={resolvedPage} onNavigate={handleNavigate} onLogout={handleLogout}>
+            <Suspense fallback={<LoadingFallback />}>
+                <Component
+                    user={user}
+                    token={token}
+                    onLogout={handleLogout}
+                    onNavigate={handleNavigate}
+                    {...extraProps}
+                />
+            </Suspense>
+        </DashboardLayout>
+    );
 }

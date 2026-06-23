@@ -24,7 +24,11 @@ def get_storage_public_base_url() -> str:
         if not base:
             continue
         if "://" not in base:
-            base = f"https://{base}"
+            secure = getattr(settings, "AWS_S3_SECURE", True)
+            if not secure or "localhost" in base or "127.0.0.1" in base:
+                base = f"http://{base}"
+            else:
+                base = f"https://{base}"
         return base
 
     return ""
@@ -43,7 +47,7 @@ def extract_object_key_from_url(file_url: str, bucket_name: str) -> str:
     Return object key from URLs like:
     - https://minio.triplegph.com/<bucket>/<key>
     - http://minio:9000/<bucket>/<key>
-    - https://<supabase>/storage/v1/object/public/<bucket>/<key>
+    - https://<supabase>/storage/v1/object/public/<bucket>/<key> (Legacy support)
     """
     if not file_url or not bucket_name:
         return ""

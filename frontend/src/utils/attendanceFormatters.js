@@ -88,15 +88,12 @@ export const parseMinutes = (timeStr) => {
   return h * 60 + m;
 };
 
-/**
- * Calculate session validity minutes matching backend session_service.py policy
- * Gross hours minus late deductions
- */
 export const calcSessionMinutes = (record) => {
-  if (!record || !record.time_out || !record.session_type) return 0;
+  if (!record || !record.time_out || !record.session_type || !record.time_in) return 0;
 
+  const inMinutes = parseMinutes(record.time_in);
   const outMinutes = parseMinutes(record.time_out);
-  if (outMinutes === null) return 0;
+  if (inMinutes === null || outMinutes === null) return 0;
 
   const SESSION_BASELINES = {
     morning: 8 * 60,
@@ -122,19 +119,17 @@ export const calcSessionMinutes = (record) => {
 
   if (outMinutes <= baselineStart) return 0;
 
-  // Cap checkout at session end
+  // Cap checkin at session start and checkout at session end
+  const effectiveStart = Math.max(inMinutes, baselineStart);
   const effectiveEnd = Math.min(outMinutes, baselineEnd);
 
-  // Calculate gross minutes from baseline start
-  let grossMins = effectiveEnd - baselineStart;
+  // Calculate actual gross minutes worked in the session
+  let grossMins = effectiveEnd - effectiveStart;
   if (grossMins <= 0) return 0;
   if (grossMins > maxMins) grossMins = maxMins;
 
-  // Subtract the strict late deduction already calculated by the backend
-  const lateDeductionMins = Math.round(parseFloat(record.late_deduction_hours || 0) * 60);
-
-  const netMins = grossMins - lateDeductionMins;
-  return Math.max(0, netMins);
+  // Return the actual minutes worked (late deductions are tracked separately)
+  return grossMins;
 };
 
 /**

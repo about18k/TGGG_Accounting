@@ -12,12 +12,14 @@ from rest_framework.response import Response
 
 from accounts.models import CustomUser
 from todos.services import NotificationService
-from .models import MaterialRequest, MaterialRequestComment, Project
+from .models import MaterialRequest, MaterialRequestItem, MaterialRequestComment, Project, PurchaseOrder, PurchaseOrderItem
 from .serializers import (
     MaterialRequestApprovalSerializer,
     MaterialRequestSerializer,
     MaterialRequestCommentSerializer,
     ProjectSerializer,
+    PurchaseOrderSerializer,
+    PurchaseOrderItemSerializer,
 )
 
 
@@ -106,7 +108,7 @@ def _notify_material_request_rejected(material_request, actor):
     )
 
 
-def upload_matreq_img_to_supabase(file_obj, user_id):
+def upload_matreq_img_to_s3(file_obj, user_id):
     try:
         s3 = boto3.client(
             's3',
@@ -129,7 +131,7 @@ def upload_matreq_img_to_supabase(file_obj, user_id):
     except Exception as e:
         raise Exception(f"Failed to upload image to S3: {str(e)}")
 
-def remove_matreq_img_from_supabase(public_url):
+def remove_matreq_img_from_s3(public_url):
     if not public_url or "/matrequest-img/" not in public_url:
         return
         
@@ -146,7 +148,7 @@ def remove_matreq_img_from_supabase(public_url):
     except Exception as e:
         print(f"Failed to delete old material request image: {e}")
 
-def upload_accounting_receipt_to_supabase(file_obj, user_id):
+def upload_accounting_receipt_to_s3(file_obj, user_id):
     try:
         s3 = boto3.client(
             's3',
@@ -240,7 +242,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 # URLField expects a URL string, not file payload.
                 data.pop('request_image')
             try:
-                public_url = upload_matreq_img_to_supabase(request_image_file, request.user.id)
+                public_url = upload_matreq_img_to_s3(request_image_file, request.user.id)
                 if public_url:
                     data['request_image'] = public_url
             except Exception as e:
@@ -279,17 +281,17 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
                 if hasattr(data, 'pop'):
                     data.pop('request_image')
             try:
-                public_url = upload_matreq_img_to_supabase(request_image_file, request.user.id)
+                public_url = upload_matreq_img_to_s3(request_image_file, request.user.id)
                 if public_url:
                     if material_request.request_image:
-                        remove_matreq_img_from_supabase(material_request.request_image)
+                        remove_matreq_img_from_s3(material_request.request_image)
                     data['request_image'] = public_url
             except Exception as e:
                 return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         else:
             if 'request_image' in data and data['request_image'] in [None, 'null', '']:
                 if material_request.request_image:
-                    remove_matreq_img_from_supabase(material_request.request_image)
+                    remove_matreq_img_from_s3(material_request.request_image)
                 data['request_image'] = None
 
         partial = kwargs.pop('partial', False)
@@ -314,7 +316,7 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
             )
 
         if material_request.request_image:
-            remove_matreq_img_from_supabase(material_request.request_image)
+            remove_matreq_img_from_s3(material_request.request_image)
 
         return super().destroy(request, *args, **kwargs)
 
@@ -456,199 +458,10 @@ class MaterialRequestViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'])
     def allocate_funds(self, request, pk=None):
-        if request.user.role != 'accounting':
-            return Response(
-                {'error': 'Only accounting can allocate funds.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        material_request = self.get_object()
-
-        if material_request.status != 'approved':
-            return Response(
-                {'error': 'Material request must be approved before funds can be allocated.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        budget_allocated = request.data.get('budget_allocated')
-        accounting_notes = request.data.get('accounting_notes', '')
-
-        if not budget_allocated:
-            return Response(
-                {'error': 'Budget allocated amount is required.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        try:
-            budget_val = Decimal(str(budget_allocated))
-        except (InvalidOperation, TypeError, ValueError):
-            return Response(
-                {'error': 'Invalid budget amount.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        item_updates_raw = request.data.get('item_updates', request.data.get('item_discounts', []))
-        if isinstance(item_updates_raw, str):
-            try:
-                item_updates_raw = json.loads(item_updates_raw)
-            except (TypeError, ValueError):
-                return Response(
-                    {'error': 'Invalid item_updates payload.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        if item_updates_raw is None:
-            item_updates_raw = []
-
-        if not isinstance(item_updates_raw, list):
-            return Response(
-                {'error': 'item_updates must be a list.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        request_items = list(material_request.items.all())
-        request_items_by_id = {item.id: item for item in request_items}
-        updated_items_count = 0
-        total_discount_value = Decimal('0.00')
-
-        for entry in item_updates_raw:
-            if not isinstance(entry, dict):
-                return Response(
-                    {'error': 'Each item_updates entry must be an object.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            item_id_raw = entry.get('id')
-            try:
-                item_id = int(item_id_raw)
-            except (TypeError, ValueError):
-                return Response(
-                    {'error': f'Invalid material item id: {item_id_raw}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if item_id not in request_items_by_id:
-                return Response(
-                    {'error': f'Invalid material item id: {item_id}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            item = request_items_by_id[item_id]
-
-            # Parse quantity
-            try:
-                if 'quantity' in entry and entry['quantity'] is not None:
-                    qty_val = Decimal(str(entry.get('quantity')))
-                else:
-                    qty_val = item.quantity
-            except (InvalidOperation, TypeError, ValueError):
-                return Response(
-                    {'error': f'Invalid quantity value for item id {item_id}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # Parse price
-            try:
-                if 'price' in entry and entry['price'] is not None:
-                    price_val = Decimal(str(entry.get('price')))
-                else:
-                    price_val = item.price
-            except (InvalidOperation, TypeError, ValueError):
-                return Response(
-                    {'error': f'Invalid price value for item id {item_id}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if qty_val < 0 or price_val < 0:
-                return Response(
-                    {'error': f'Quantity and price cannot be negative for item id {item_id}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # Parse discount
-            try:
-                discount_val = Decimal(str(entry.get('discount', item.discount)))
-            except (InvalidOperation, TypeError, ValueError):
-                return Response(
-                    {'error': f'Invalid discount value for item id {item_id}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if discount_val < 0:
-                return Response(
-                    {'error': f'Discount cannot be negative for item id {item_id}.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            gross_total = qty_val * price_val
-            if discount_val > gross_total:
-                return Response(
-                    {'error': f'Discount cannot exceed gross total for "{item.name}".'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            new_total = gross_total - discount_val
-            
-            # Check if anything changed
-            if (item.quantity != qty_val or item.price != price_val or 
-                item.discount != discount_val or item.total != new_total):
-                item.quantity = qty_val
-                item.price = price_val
-                item.discount = discount_val
-                item.total = new_total
-                item.save(update_fields=['quantity', 'price', 'discount', 'total'])
-                updated_items_count += 1
-
-            total_discount_value += discount_val
-
-        from django.utils import timezone
-
-        # Handle accounting-receipt upload
-        accounting_receipt_file = request.FILES.get('accounting-receipt')
-        if accounting_receipt_file:
-            try:
-                public_url = upload_accounting_receipt_to_supabase(accounting_receipt_file, request.user.id)
-                material_request.accounting_receipt = public_url
-            except Exception as e:
-                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
-        material_request.budget_allocated = budget_val
-        material_request.accounting_notes = accounting_notes
-        material_request.accounting_status = 'funds_released'
-        material_request.fund_release_date = timezone.now()
-
-        update_fields = [
-            'budget_allocated',
-            'accounting_notes',
-            'accounting_status',
-            'fund_release_date',
-            'updated_at'
-        ]
-        if material_request.accounting_receipt:
-            update_fields.append('accounting_receipt')
-
-        material_request.save(update_fields=update_fields)
-
-        # Create system comment for audit trail
-        discount_note = (
-            f" Items updated: {updated_items_count} item(s) modified, "
-            f"total discount ₱{total_discount_value:,.2f}."
-            if item_updates_raw else ""
+        return Response(
+            {'error': 'Allocation of funds is deprecated. Please use Purchase Order Tally instead.'},
+            status=status.HTTP_400_BAD_REQUEST,
         )
-        MaterialRequestComment.objects.create(
-            material_request=material_request,
-            author=request.user,
-            content=(
-                f"Accounting Decision: Funds Released (₱{budget_val:,.2f})."
-                f"{discount_note} Note: {accounting_notes}"
-            ) if accounting_notes else (
-                f"Accounting Decision: Funds Released (₱{budget_val:,.2f}).{discount_note}"
-            ),
-            is_system_comment=True
-        )
-
-        serializer = MaterialRequestSerializer(material_request, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['get', 'post'], url_path='comments')
     def comments(self, request, pk=None):
@@ -823,3 +636,163 @@ class ProjectViewSet(viewsets.ModelViewSet):
         
         serializer = MaterialRequestSerializer(approved_requests, many=True, context={'request': request})
         return Response(serializer.data)
+
+
+class PurchaseOrderViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = PurchaseOrderSerializer
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = PurchaseOrder.objects.all()
+
+        if user.role == 'studio_head':
+            pass
+        elif user.role == 'ceo':
+            queryset = queryset.filter(status__in=['pending_approval', 'approved', 'rejected'])
+        elif user.role == 'accounting':
+            queryset = queryset.filter(status__in=['approved', 'rejected'])
+        elif user.role in ['site_engineer', 'site_coordinator']:
+            queryset = queryset.filter(material_request__created_by=user)
+        else:
+            queryset = PurchaseOrder.objects.none()
+
+        return queryset.select_related(
+            'material_request', 'prepared_by', 'approved_by', 'tallied_by'
+        ).prefetch_related('items')
+
+    def perform_create(self, serializer):
+        mr = serializer.validated_data['material_request']
+        supplier = serializer.validated_data['supplier']
+        supplier_code = supplier.replace(' ', '').upper()[:3]
+        year = timezone.now().year
+        
+        count = PurchaseOrder.objects.filter(material_request=mr, supplier=supplier).count() + 1
+        po_number = f"PO-{year}-{mr.id}-{supplier_code}-{count}"
+        
+        serializer.save(
+            po_number=po_number,
+            prepared_by=self.request.user,
+            status='draft'
+        )
+
+    @action(detail=True, methods=['post'])
+    def submit(self, request, pk=None):
+        po = self.get_object()
+        if request.user.role != 'studio_head':
+            return Response({'error': 'Only the Studio Head can submit Purchase Orders.'}, status=status.HTTP_403_FORBIDDEN)
+        if po.status != 'draft':
+            return Response({'error': 'Only draft Purchase Orders can be submitted.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        po.status = 'pending_approval'
+        po.save(update_fields=['status'])
+        
+        try:
+            ceos = CustomUser.objects.filter(is_active=True, role='ceo')
+            for ceo in ceos:
+                NotificationService.create_notification(
+                    recipient=ceo,
+                    actor=request.user,
+                    notif_type='po_pending_approval',
+                    title='PO Pending Approval',
+                    message=f'Studio Head submitted Purchase Order "{po.po_number}" for your approval.',
+                )
+        except Exception as e:
+            print(f"Failed to notify CEO for PO {po.id}: {e}")
+
+        return Response(PurchaseOrderSerializer(po, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        po = self.get_object()
+        if request.user.role != 'ceo':
+            return Response({'error': 'Only the CEO can approve Purchase Orders.'}, status=status.HTTP_403_FORBIDDEN)
+        if po.status != 'pending_approval':
+            return Response({'error': 'Purchase Order must be pending approval.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        po.status = 'approved'
+        po.approved_by = request.user
+        po.approved_at = timezone.now()
+        po.save(update_fields=['status', 'approved_by', 'approved_at'])
+
+        try:
+            recipients = CustomUser.objects.filter(is_active=True, role__in=['studio_head', 'accounting'])
+            for r in recipients:
+                NotificationService.create_notification(
+                    recipient=r,
+                    actor=request.user,
+                    notif_type='po_approved',
+                    title='Purchase Order Approved',
+                    message=f'CEO approved Purchase Order "{po.po_number}".',
+                )
+        except Exception as e:
+            print(f"Failed to notify roles for PO approval {po.id}: {e}")
+
+        return Response(PurchaseOrderSerializer(po, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        po = self.get_object()
+        reason = request.data.get('reason', '')
+        if not reason:
+            return Response({'error': 'A rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if request.user.role != 'ceo':
+            return Response({'error': 'Only the CEO can reject Purchase Orders.'}, status=status.HTTP_403_FORBIDDEN)
+        if po.status != 'pending_approval':
+            return Response({'error': 'Purchase Order must be pending approval.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        po.status = 'rejected'
+        po.rejection_reason = reason
+        po.save(update_fields=['status', 'rejection_reason'])
+
+        try:
+            studio_heads = CustomUser.objects.filter(is_active=True, role='studio_head')
+            for sh in studio_heads:
+                NotificationService.create_notification(
+                    recipient=sh,
+                    actor=request.user,
+                    notif_type='po_rejected',
+                    title='Purchase Order Rejected',
+                    message=f'CEO rejected Purchase Order "{po.po_number}". Reason: {reason}',
+                )
+        except Exception as e:
+            print(f"Failed to notify Studio Head for PO rejection {po.id}: {e}")
+
+        return Response(PurchaseOrderSerializer(po, context={'request': request}).data)
+
+    @action(detail=True, methods=['post'])
+    def tally_disbursement(self, request, pk=None):
+        po = self.get_object()
+        if request.user.role != 'accounting':
+            return Response({'error': 'Only Accounting can tally disbursements.'}, status=status.HTTP_403_FORBIDDEN)
+        if po.status != 'approved':
+            return Response({'error': 'Purchase Order must be approved first.'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        tally_notes = request.data.get('tally_notes', '')
+        receipt_file = request.FILES.get('receipt')
+
+        po.is_tallied = True
+        po.tally_notes = tally_notes
+        po.tallied_by = request.user
+        po.tallied_at = timezone.now()
+
+        if receipt_file:
+            try:
+                public_url = upload_accounting_receipt_to_s3(receipt_file, request.user.id)
+                po.tally_receipt = public_url
+            except Exception as e:
+                return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+        po.save(update_fields=['is_tallied', 'tally_notes', 'tallied_by', 'tallied_at', 'tally_receipt'])
+
+        try:
+            MaterialRequestComment.objects.create(
+                material_request=po.material_request,
+                author=request.user,
+                content=f"Accounting Tally Check: Disbursements settled for {po.supplier} PO ({po.po_number}).",
+                is_system_comment=True
+            )
+        except Exception as e:
+            print(f"Failed to post tally comment on MR {po.material_request.id}: {e}")
+
+        return Response(PurchaseOrderSerializer(po, context={'request': request}).data)

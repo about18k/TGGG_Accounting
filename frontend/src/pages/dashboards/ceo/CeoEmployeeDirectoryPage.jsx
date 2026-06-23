@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BriefcaseBusiness, Building2, Mail, RefreshCw, Search, Users } from 'lucide-react';
-import PublicNavigation from '../Public_Dashboard/PublicNavigation';
-import CeoSidebar from './CeoSidebar';
 import { getAllUsers } from '../../../services/adminService';
+import { TableSkeleton } from '../../../components/SkeletonLoader';
 
 const cardClass = 'rounded-2xl border border-white/10 bg-[#001f35]/70 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.22)]';
 
@@ -90,16 +89,10 @@ export default function CeoEmployeeDirectoryPage({ user, onNavigate, onLogout })
   const totalDepartments = new Set(users.map((item) => item?.department_name).filter(Boolean)).size;
 
   return (
-    <div className="min-h-screen bg-[#00273C]">
-      <PublicNavigation onNavigate={onNavigate} currentPage="ceo-employees" user={user} onLogout={onLogout} />
+    <div className="w-full animate-fade-in space-y-6">
+      
 
-      <div className="pt-28 px-4 sm:px-6 pb-10">
-        <div className="w-full flex flex-col lg:flex-row gap-6">
-          <aside className="hidden lg:block lg:w-64 shrink-0">
-            <CeoSidebar currentPage="ceo-employees" onNavigate={onNavigate} />
-          </aside>
 
-          <main className="flex-1 min-w-0 space-y-6">
             <section className={`${cardClass} p-5 sm:p-6`}>
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -165,7 +158,9 @@ export default function CeoEmployeeDirectoryPage({ user, onNavigate, onLogout })
               ) : null}
 
               {isLoading ? (
-                <p className="mt-5 text-sm text-white/60">Loading employees...</p>
+                <div className="mt-5">
+                  <TableSkeleton />
+                </div>
               ) : filteredUsers.length === 0 ? (
                 <p className="mt-5 text-sm text-white/60">No employees matched your filter.</p>
               ) : (
@@ -229,9 +224,7 @@ export default function CeoEmployeeDirectoryPage({ user, onNavigate, onLogout })
                 <span>Data source: Accounts user directory</span>
               </div>
             </section>
-          </main>
-        </div>
-      </div>
+
     </div>
   );
 }

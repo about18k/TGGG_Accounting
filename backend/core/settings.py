@@ -13,6 +13,10 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 from celery.schedules import crontab
 from decouple import config
+import sys
+
+# Detect if running Django test suite
+TESTING = 'test' in sys.argv or 'test_coverage' in sys.argv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -94,45 +98,23 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# Check if using Supabase, Local Postgres, or SQLite
-USE_SUPABASE = config('USE_SUPABASE', default='False') == 'True'
+# Check if using Local Postgres or SQLite
 USE_LOCAL_POSTGRES = config('USE_LOCAL_POSTGRES', default='True') == 'True'
-SUPABASE_URL = config('SUPABASE_URL', default='')
-SUPABASE_KEY = config('SUPABASE_KEY', default='')
 
-if USE_SUPABASE:
-    supabase_db_host = config('SUPABASE_DB_HOST', default='')
-    is_supabase_pooler = 'pooler.supabase.com' in supabase_db_host
-    default_conn_max_age = 0 if is_supabase_pooler else 600
-
+if TESTING:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': config('SUPABASE_DB_NAME', default='postgres'),
-            'USER': config('SUPABASE_DB_USER', default='postgres'),
-            'PASSWORD': config('SUPABASE_DB_PASSWORD', default=''),
-            'HOST': supabase_db_host,
-            'PORT': config('SUPABASE_DB_PORT', default='5432'),
-            'ATOMIC_REQUESTS': True,
-            # Keep DB connections short-lived when using Supabase poolers.
-            'CONN_MAX_AGE': config('SUPABASE_CONN_MAX_AGE', default=default_conn_max_age, cast=int),
-            'OPTIONS': {
-                'sslmode': config('SUPABASE_DB_SSLMODE', default='require'),
-                'connect_timeout': config('SUPABASE_DB_CONNECT_TIMEOUT', default=8, cast=int),
-            },
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db_test.sqlite3',
         }
     }
-
-    if is_supabase_pooler:
-        # Recommended with transaction poolers.
-        DISABLE_SERVER_SIDE_CURSORS = config('DISABLE_SERVER_SIDE_CURSORS', default='True') == 'True'
 elif USE_LOCAL_POSTGRES:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': config('LOCAL_DB_NAME', default='TRIPLEGACCOUNTING'),
             'USER': config('LOCAL_DB_USER', default='postgres'),
-            'PASSWORD': config('LOCAL_DB_PASSWORD', default='M@steryii38'),
+            'PASSWORD': config('LOCAL_DB_PASSWORD', default='M@steryii38' if DEBUG else None),
             'HOST': config('LOCAL_DB_HOST', default='127.0.0.1'),
             'PORT': config('LOCAL_DB_PORT', default='5432'),
         }
@@ -282,12 +264,16 @@ AWS_S3_ENDPOINT_URL = config('MINIO_ENDPOINT', default='http://localhost:9000')
 # Optional Custom Domain for generating frontend-accessible URLs
 AWS_S3_CUSTOM_DOMAIN = config('MINIO_CUSTOM_DOMAIN', default='localhost:9000')
 MINIO_PUBLIC_ENDPOINT = config('MINIO_PUBLIC_ENDPOINT', default='')
+AWS_S3_SECURE = config('AWS_S3_SECURE', default='False' if DEBUG else 'True') == 'True'
 
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = 'public-read'
 
 # Set default storage
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+if TESTING:
+    DEFAULT_FILE_STORAGE = 'django.core.files.storage.FileSystemStorage'
+else:
+    DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
 # Base URL for generating absolute URLs to uploaded media
 BASE_URL = config('BASE_URL', default='http://localhost:8000')
@@ -298,7 +284,15 @@ BASE_URL = config('BASE_URL', default='http://localhost:8000')
 CACHE_BACKEND = config('CACHE_BACKEND', default='local').strip().lower()
 REDIS_CACHE_URL = config('REDIS_CACHE_URL', default='redis://localhost:6379/1')
 
-if CACHE_BACKEND == 'redis':
+if TESTING:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+            'LOCATION': 'tggg-test-cache',
+            'TIMEOUT': 120,
+        }
+    }
+elif CACHE_BACKEND == 'redis':
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.redis.RedisCache',

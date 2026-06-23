@@ -4,6 +4,7 @@ import { CheckCircle2, Clock3, Search, UserRound, ArrowDownUp, RefreshCcw, FileT
 import { approveOvertime, getAllOvertime, removeOvertime, setOvertimeActualHours } from '../../../services/overtimeService';
 import { toast } from 'sonner';
 import { getProfile } from '../../../services/profileService';
+import { TableSkeleton } from '../../../components/SkeletonLoader';
 
 const escapeHtml = (value) => {
   if (value === null || value === undefined) return '';
@@ -709,7 +710,9 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-white/60">Loading requests...</td>
+                <td colSpan={7} className="p-0">
+                  <TableSkeleton />
+                </td>
               </tr>
             ) : filteredRequests.length === 0 ? (
               <tr>

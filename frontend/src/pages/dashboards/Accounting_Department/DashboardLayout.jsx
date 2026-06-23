@@ -127,10 +127,6 @@ export function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#00273C] relative">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-40 -right-40 h-[520px] w-[520px] rounded-full bg-cyan-400/10 blur-[90px]" />
-      </div>
-
       <header className="fixed top-0 w-full z-50 px-3 sm:px-6 py-3 sm:py-4" style={{ background: '#001f35' }}>
         <div className="flex flex-row items-start lg:items-center justify-between gap-4 lg:gap-0 w-full mx-auto px-2 sm:px-4">
           {/* Logo & Title: Left side */}

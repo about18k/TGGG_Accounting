@@ -49,9 +49,9 @@ Triple G Admin
             recipient_list=[user.email],
             fail_silently=True,
         )
-        print(f"✅ Approval email sent to {user.email}")
+        print(f"Approval email sent to {user.email}")
     except Exception as e:
-        print(f"⚠️ Approval email failed for user_id={user_id}: {e}")
+        print(f"[WARNING] Approval email failed for user_id={user_id}: {e}")
 
 
 def _display_name(user):
@@ -257,7 +257,7 @@ def register_view(request):
                 source='self_registration',
             )
         except Exception as e:
-            print(f"⚠️ Pending-account notification failed for user_id={user.id}: {e}")
+            print(f"[WARNING] Pending-account notification failed for user_id={user.id}: {e}")
 
         return Response({
             'success': True,
@@ -356,7 +356,7 @@ def upload_profile_picture(request):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def upload_profile_signature(request):
-    """Upload user signature image to Supabase Storage."""
+    """Upload user signature image to S3/MinIO Storage."""
     user = request.user
     signature_file = request.FILES.get('signature') or request.FILES.get('signature_file')
 
@@ -518,12 +518,15 @@ def approve_user(request):
     _bump_accounting_employees_cache_version()
 
     # Send the approval email in the background so this response returns immediately.
-    threading.Thread(target=_send_approval_email_async, args=(user.id,), daemon=True).start()
+    if getattr(settings, 'TESTING', False):
+        _send_approval_email_async(user.id)
+    else:
+        threading.Thread(target=_send_approval_email_async, args=(user.id,), daemon=True).start()
 
     try:
         _notify_accounting_user_verified(user, request.user)
     except Exception as e:
-        print(f"⚠️ Accounting verification notification failed for user_id={user.id}: {e}")
+        print(f"[WARNING] Accounting verification notification failed for user_id={user.id}: {e}")
 
     return Response({
         'success': True,
