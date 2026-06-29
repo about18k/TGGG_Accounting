@@ -118,9 +118,31 @@ export function usePayroll() {
   const [isPayslipPreviewOpen, setIsPayslipPreviewOpen] = useState(false);
   const [payslipPreviewData, setPayslipPreviewData] = useState(null);
   const [selectedEmployee, setSelectedEmployee] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [selectedPayrollPeriod, setSelectedPayrollPeriod] = useState('29-13');
+  // Compute dynamic defaults for month/year/period based on today's date
+  const getDefaultPayrollSelections = () => {
+    const today = new Date();
+    const day = today.getDate();
+    const currentMonth = today.getMonth() + 1; // 1-indexed
+    const currentYear = today.getFullYear();
+
+    if (day >= 14 && day <= 28) {
+      // Active cutoff is 14-28 of current month
+      return { month: currentMonth, year: currentYear, period: '14-28' };
+    } else if (day >= 29) {
+      // Active cutoff is 29-13 spanning current month end to next month
+      const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
+      const nextYear = currentMonth === 12 ? currentYear + 1 : currentYear;
+      return { month: nextMonth, year: nextYear, period: '29-13' };
+    } else {
+      // day <= 13: Active cutoff is 29-13 spanning previous month to current
+      return { month: currentMonth, year: currentYear, period: '29-13' };
+    }
+  };
+
+  const defaultSelections = getDefaultPayrollSelections();
+  const [selectedMonth, setSelectedMonth] = useState(defaultSelections.month);
+  const [selectedYear, setSelectedYear] = useState(defaultSelections.year);
+  const [selectedPayrollPeriod, setSelectedPayrollPeriod] = useState(defaultSelections.period);
   const [employees, setEmployees] = useState([]);
   const [recentPayrollRecords, setRecentPayrollRecords] = useState([]);
   const [isLoadingPayrollData, setIsLoadingPayrollData] = useState(true);
@@ -212,8 +234,10 @@ export function usePayroll() {
       setAttendanceSummary(null);
       return;
     }
+    let active = true;
     const fetchDaysPresent = async () => {
       setIsLoadingAttendance(true);
+      setDaysPresentFetched(null);
       try {
         const { startDate, endDate } = calculatePayrollDates();
         const data = await getAttendanceSummary({
@@ -221,17 +245,20 @@ export function usePayroll() {
           start_date: startDate,
           end_date: endDate,
         });
+        if (!active) return; // ignore stale response
         setDaysPresentFetched(data?.days_present ?? 0);
         setAttendanceSummary(data || null);
       } catch (error) {
+        if (!active) return;
         console.error('Failed to load attendance summary:', error);
         setDaysPresentFetched(0);
         setAttendanceSummary(null);
       } finally {
-        setIsLoadingAttendance(false);
+        if (active) setIsLoadingAttendance(false);
       }
     };
     fetchDaysPresent();
+    return () => { active = false; };
   }, [selectedEmployee, selectedMonth, selectedYear, selectedPayrollPeriod]);
 
   useEffect(() => {
@@ -731,9 +758,10 @@ export function usePayroll() {
   const handleCloseModal = () => {
     setIsProcessPayrollOpen(false);
     setSelectedEmployee('');
-    setSelectedMonth(new Date().getMonth() + 1);
-    setSelectedYear(new Date().getFullYear());
-    setSelectedPayrollPeriod('29-13');
+    const defaults = getDefaultPayrollSelections();
+    setSelectedMonth(defaults.month);
+    setSelectedYear(defaults.year);
+    setSelectedPayrollPeriod(defaults.period);
     setModalEmployeeContributions([]);
     setOriginalModalContributions([]);
     setIsEditingModalContributions(false);

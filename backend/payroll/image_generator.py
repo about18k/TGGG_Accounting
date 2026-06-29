@@ -135,7 +135,7 @@ def _load_signature_image(source_url, max_width, max_height):
 def _draw_header_logo(img, draw, left, right, top, logo_zone_bottom):
     """
     Draw brand logo in the upper portion of the header.
-    The logo is centered horizontally and scaled to fill ~80% of the header width.
+    The logo is centered horizontally and scaled to fill ~95% of the header width/height.
     """
     logo_path = _find_brand_logo_path()
     if not logo_path:
@@ -149,8 +149,8 @@ def _draw_header_logo(img, draw, left, right, top, logo_zone_bottom):
         zone_w = right - left
         zone_h = logo_zone_bottom - top
 
-        max_w = int(zone_w * 0.72)
-        max_h = int(zone_h * 0.82)
+        max_w = int(zone_w * 0.95)
+        max_h = int(zone_h * 0.95)
 
         ratio = min(max_w / logo.width, max_h / logo.height)
         target_w = max(1, int(logo.width * ratio))
@@ -214,29 +214,32 @@ def generate_payslip_image(payslip_data):
     SL, ST, SR, SB = s(30), s(30), s(900), s(765)
 
     # ── Zone boundaries ───────────────────────────────────────────────────────
-    # 1. Header (dark navy, logo + tagline)
+    # 1. Header (dark navy, logo)
     HEADER_TOP    = ST
-    HEADER_BOTTOM = s(255)    # generous header height matching sample
+    HEADER_BOTTOM = s(220)
 
-    # 2. Tagline band (bottom of header — same navy fill, distinct text)
-    TAGLINE_TOP    = s(214)
-    TAGLINE_BOTTOM = HEADER_BOTTOM
-
-    # 3. Period strip (orange)
+    # 2. Period strip (orange)
     STRIP_TOP    = HEADER_BOTTOM
-    STRIP_BOTTOM = s(275)
+    STRIP_BOTTOM = s(242)
 
-    # 4. Main body
+    # 3. Main body
     BODY_TOP    = STRIP_BOTTOM
     BODY_BOTTOM = s(640)
 
-    # 5. Net pay bar (orange, inside body)
+    # 4. Net pay bar (orange, inside body)
     NET_TOP    = s(604)
     NET_BOTTOM = s(640)
 
-    # 6. Signature block
+    # 5. Signature block
     SIG_TOP  = BODY_BOTTOM
     SIG_BOTTOM = SB
+
+    # Column layout boundaries
+    MID_X = s(490)
+    LEFT_LABEL_X  = SL + s(42)     # left column label
+    LEFT_VALUE_X  = MID_X - s(18)  # left column value (right-aligned)
+    RIGHT_LABEL_X = MID_X + s(8)   # right column label
+    RIGHT_VALUE_X = SR - s(8)      # right column value (right-aligned)
 
     # ── Colours ───────────────────────────────────────────────────────────────
     BRAND_NAVY   = '#0C3352'
@@ -270,27 +273,14 @@ def generate_payslip_image(payslip_data):
     # ═════════════════════════════════════════════════════════════════════════
     draw.rectangle([(SL, HEADER_TOP), (SR, HEADER_BOTTOM)], fill=BRAND_NAVY)
 
-    # Logo zone: top portion of header (above tagline band)
-    logo_drawn = _draw_header_logo(img, draw, SL, SR, HEADER_TOP, TAGLINE_TOP)
+    # Logo zone fills header area completely
+    logo_drawn = _draw_header_logo(img, draw, SL, SR, HEADER_TOP, HEADER_BOTTOM)
 
     if not logo_drawn:
         # Fallback: draw text header
         cx = (SL + SR) // 2
         draw.text((cx, HEADER_TOP + s(70)),  'TRIPLE G',                   fill=WHITE, font=get_font(s(36), bold=True), anchor='mm')
         draw.text((cx, HEADER_TOP + s(100)), 'DESIGN STUDIO + CONSTRUCTION', fill=WHITE, font=get_font(s(14), bold=True), anchor='mm')
-        draw.text((cx, HEADER_TOP + s(118)), '"We\'re in business to help develop the built environment and change the world."',
-                  fill=WHITE, font=get_font(s(10)), anchor='mm')
-
-    # Tagline text (bold, italic-style, white, centered at bottom of header)
-    tagline_cx = (SL + SR) // 2
-    tagline_cy = (TAGLINE_TOP + TAGLINE_BOTTOM) // 2
-    draw.text(
-        (tagline_cx, tagline_cy),
-        '"We\'re in business to help develop the built environment and change the world."',
-        fill=WHITE,
-        font=f_tagline,
-        anchor='mm',
-    )
 
     # ═════════════════════════════════════════════════════════════════════════
     # 2. PERIOD STRIP (orange)
@@ -313,8 +303,8 @@ def generate_payslip_image(payslip_data):
 
     # Thin horizontal divider between header area rows
     # Employee name row
-    EMP_Y  = BODY_TOP + s(12)
-    DESIG_Y = EMP_Y + s(19)
+    EMP_Y  = BODY_TOP + s(18)
+    DESIG_Y = EMP_Y + s(28)
 
     draw.text((SL + s(8),   EMP_Y),  'Employee Name:', fill=GRAY_TEXT, font=f_label)
     draw.text((SL + s(112), EMP_Y),  employee_name,    fill=BLACK,     font=f_value)
@@ -322,24 +312,27 @@ def generate_payslip_image(payslip_data):
     draw.text((SL + s(8),   DESIG_Y), 'Designation:',  fill=GRAY_TEXT, font=f_label)
     draw.text((SL + s(112), DESIG_Y), designation,     fill=BLACK,     font=f_value)
 
-    # Monthly on same row as Designation, right column
+    # Wage info on same row as Designation, right column
     MID_X = s(490)   # midpoint divider between left and right columns
-    draw.text((MID_X + s(85), DESIG_Y), 'Monthly', fill=GRAY_TEXT, font=f_label)
-    draw.text((SR - s(8),    DESIG_Y), format_currency(monthly_amount), fill=BLACK, font=f_value, anchor='ra')
+    if wage_type == 'daily':
+        wage_label = 'Daily Rate'
+        wage_display_val = daily_rate_val
+    else:
+        wage_label = 'Monthly'
+        wage_display_val = monthly_amount
+    draw.text((MID_X + s(85), DESIG_Y), wage_label, fill=GRAY_TEXT, font=f_label)
+    draw.text((SR - s(8),    DESIG_Y), format_currency(wage_display_val), fill=BLACK, font=f_value, anchor='ra')
 
     # Section headers: Earnings / Deductions
-    SECTION_Y = DESIG_Y + s(19)
-    draw.text((SL + s(112), SECTION_Y), 'Earnings:',   fill=BLACK, font=f_section)
-    draw.text((MID_X + s(55), SECTION_Y), 'Deductions:', fill=BLACK, font=f_section)
+    SECTION_Y = DESIG_Y + s(28)
+    EARNINGS_CENTER_X = (LEFT_LABEL_X + LEFT_VALUE_X) // 2
+    DEDUCTIONS_CENTER_X = (RIGHT_LABEL_X + RIGHT_VALUE_X) // 2
+    draw.text((EARNINGS_CENTER_X, SECTION_Y), 'Earnings:',   fill=BLACK, font=f_section, anchor='ma')
+    draw.text((DEDUCTIONS_CENTER_X, SECTION_Y), 'Deductions:', fill=BLACK, font=f_section, anchor='ma')
 
     # ── Row layout ────────────────────────────────────────────────────────────
-    LEFT_LABEL_X  = SL + s(42)     # left column label
-    LEFT_VALUE_X  = MID_X - s(18)  # left column value (right-aligned)
-    RIGHT_LABEL_X = MID_X + s(8)   # right column label
-    RIGHT_VALUE_X = SR - s(8)      # right column value (right-aligned)
-
-    ROW_START_Y = SECTION_Y + s(17)
-    ROW_STEP    = s(20)
+    ROW_START_Y = SECTION_Y + s(28)
+    ROW_STEP    = s(26)
 
     basic_salary_label = 'Basic Salary'
     if wage_type == 'daily':
@@ -358,14 +351,24 @@ def generate_payslip_image(payslip_data):
         draw.text((LEFT_LABEL_X,  y), label,                fill=DARK_TEXT, font=f_row)
         draw.text((LEFT_VALUE_X,  y), format_currency(amount), fill=BLACK,  font=f_row, anchor='ra')
 
-    deductions_rows = [
-        ('SSS',               sss,               False),
-        ('Philhealth',        philhealth,        False),
-        ('Pag-ibig',          pagibig,           False),
+    deductions_rows = []
+    has_sss = any('sss' in str(item.get('name', '')).lower() for item in payslip_details.get('government_contributions', []) or [])
+    has_phil = any('phil' in str(item.get('name', '')).lower() for item in payslip_details.get('government_contributions', []) or [])
+    has_pag = any(('pag' in str(item.get('name', '')).lower() or 'ibig' in str(item.get('name', '')).lower()) for item in payslip_details.get('government_contributions', []) or [])
+
+    if has_sss:
+        deductions_rows.append(('SSS', sss, False))
+    if has_phil:
+        deductions_rows.append(('Philhealth', philhealth, False))
+    if has_pag:
+        deductions_rows.append(('Pag-ibig', pagibig, False))
+
+    deductions_rows.extend([
         ('NET Taxable Salary', net_taxable_salary, True),
         ('Payroll Tax',       payroll_tax,        False),
         ('Total Deductions',  total_deductions,   False),
-    ]
+    ])
+
     for i, (label, amount, bold) in enumerate(deductions_rows):
         y = ROW_START_Y + i * ROW_STEP
         fnt = f_row_bold if bold else f_row
@@ -374,13 +377,13 @@ def generate_payslip_image(payslip_data):
         draw.text((RIGHT_VALUE_X, y), format_currency(amount), fill=BLACK, font=fnt, anchor='ra')
 
     # ── GROSS Amount row (after earnings list, before net bar) ────────────────
-    GROSS_Y = NET_TOP - s(44)
+    GROSS_Y = NET_TOP - s(64)
     draw.text((LEFT_LABEL_X,  GROSS_Y), 'GROSS Amount',         fill=BLACK, font=f_row_bold)
     draw.text((LEFT_VALUE_X,  GROSS_Y), format_currency(gross_salary), fill=BLACK, font=f_row_bold, anchor='ra')
 
     # Payroll Allowance & Company Loan (right column, below Total Deductions)
     ALLOW_Y = GROSS_Y
-    LOAN_Y  = ALLOW_Y + s(20)
+    LOAN_Y  = ALLOW_Y + s(26)
     draw.text((RIGHT_LABEL_X, ALLOW_Y), 'Payroll Allowance',        fill=DARK_TEXT, font=f_row)
     draw.text((RIGHT_VALUE_X, ALLOW_Y), format_currency(payroll_allowance), fill=BLACK, font=f_row, anchor='ra')
     draw.text((RIGHT_LABEL_X, LOAN_Y),  'Company Loan/Cash Advance', fill=DARK_TEXT, font=f_row)
@@ -397,22 +400,27 @@ def generate_payslip_image(payslip_data):
     draw.text((NET_VALUE_X, net_cy), format_currency(net_salary), fill=BLACK, font=f_net_value, anchor='mm')
 
     # ═════════════════════════════════════════════════════════════════════════
-    # 5. SIGNATURE BLOCK
+    # 5. SIGNATURE BLOCK (two columns aligned to the outer edges)
     # ═════════════════════════════════════════════════════════════════════════
     # White background for sig area
     draw.rectangle([(SL, SIG_TOP), (SR, SIG_BOTTOM)], fill=WHITE, outline=BLACK, width=1)
 
-    PREP_LABEL_X = SL + s(8)
-    APPR_LABEL_X = (SL + SR) // 2 + s(10)
+    # Opposite ends two-column layout
+    COL_WIDTH        = s(240)
+    LEFT_LINE_START  = SL + s(12)
+    LEFT_LINE_END    = LEFT_LINE_START + COL_WIDTH
+    LEFT_SIG_CX      = (LEFT_LINE_START + LEFT_LINE_END) // 2
+
+    RIGHT_LINE_END   = SR - s(12)
+    RIGHT_LINE_START = RIGHT_LINE_END - COL_WIDTH
+    RIGHT_SIG_CX     = (RIGHT_LINE_START + RIGHT_LINE_END) // 2
 
     SIG_LABEL_Y = SIG_TOP + s(8)
-    draw.text((PREP_LABEL_X, SIG_LABEL_Y), 'Prepared By:', fill=GRAY_TEXT, font=f_sign_lbl)
-    draw.text((APPR_LABEL_X, SIG_LABEL_Y), 'Approved by:', fill=GRAY_TEXT, font=f_sign_lbl)
+    draw.text((LEFT_LINE_START,  SIG_LABEL_Y), 'Prepared By:',  fill=GRAY_TEXT, font=f_sign_lbl)
+    draw.text((RIGHT_LINE_START, SIG_LABEL_Y), 'Approved by:', fill=GRAY_TEXT, font=f_sign_lbl)
 
     # Signature images
     SIG_IMG_Y = SIG_TOP + s(14)
-    LEFT_SIG_CX  = SL + s(95)
-    RIGHT_SIG_CX = (SL + SR) // 2 + s(112)
 
     left_sig = _load_signature_image(prepared_by_signature_url, max_width=s(160), max_height=s(38))
     if left_sig:
@@ -423,22 +431,18 @@ def generate_payslip_image(payslip_data):
         img.paste(right_sig, (RIGHT_SIG_CX - right_sig.width // 2, SIG_IMG_Y), right_sig)
 
     # Underline
-    LINE_Y = SIG_TOP + s(53)
-    draw.line([(SL + s(8), LINE_Y), (SL + s(188), LINE_Y)], fill=BLACK, width=1)
-    draw.line([((SL + SR) // 2 + s(10), LINE_Y), ((SL + SR) // 2 + s(210), LINE_Y)], fill=BLACK, width=1)
+    LINE_Y = SIG_TOP + s(56)
+    draw.line([(LEFT_LINE_START,  LINE_Y), (LEFT_LINE_END,  LINE_Y)], fill=BLACK, width=1)
+    draw.line([(RIGHT_LINE_START, LINE_Y), (RIGHT_LINE_END, LINE_Y)], fill=BLACK, width=1)
 
-    # Names and roles
-    NAME_Y = LINE_Y + s(7)
-    ROLE_Y = NAME_Y + s(13)
+    # Names sit ON TOP of the line; roles sit below the line
+    NAME_Y = LINE_Y - s(4)
+    ROLE_Y = LINE_Y + s(8)
     draw.text((LEFT_SIG_CX,  NAME_Y), prepared_by, fill=BLACK,     font=f_sign_name, anchor='mm')
     draw.text((LEFT_SIG_CX,  ROLE_Y), 'Accounting Department', fill=GRAY_TEXT, font=f_sign_role, anchor='mm')
 
     draw.text((RIGHT_SIG_CX, NAME_Y), approved_by,   fill=BLACK,     font=f_sign_name, anchor='mm')
-    draw.text((RIGHT_SIG_CX, ROLE_Y), 'Top Management', fill=GRAY_TEXT, font=f_sign_role, anchor='mm')
-
-    # Bottom "Approved By:" label
-    APPR_BOTTOM_Y = SIG_BOTTOM - s(12)
-    draw.text((SL + s(8), APPR_BOTTOM_Y), 'Approved By:', fill=GRAY_TEXT, font=f_sign_lbl)
+    draw.text((RIGHT_SIG_CX, ROLE_Y), 'CEO', fill=GRAY_TEXT, font=f_sign_role, anchor='mm')
 
     # ═════════════════════════════════════════════════════════════════════════
     # OUTPUT

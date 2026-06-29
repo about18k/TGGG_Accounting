@@ -515,7 +515,7 @@ def process_payroll(request):
 
     submitted_contributions = payslip_form.get('government_contributions')
     contribution_items = []
-    if isinstance(submitted_contributions, list) and submitted_contributions:
+    if isinstance(submitted_contributions, list):
         for index, entry in enumerate(submitted_contributions):
             if not isinstance(entry, dict):
                 return Response({'error': f'government_contributions[{index}] must be an object.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -557,7 +557,9 @@ def process_payroll(request):
         basic_salary = _parse_money_input(payslip_form.get('basic_salary'), 'basic_salary')
         regular_overtime = _parse_money_input(payslip_form.get('regular_overtime'), 'regular_overtime')
         late_undertime = _parse_money_input(payslip_form.get('late_undertime'), 'late_undertime')
+        rest_day = _parse_money_input(payslip_form.get('rest_day'), 'rest_day')
         rest_day_ot = _parse_money_input(payslip_form.get('rest_day_ot'), 'rest_day_ot')
+        holiday = _parse_money_input(payslip_form.get('holiday'), 'holiday')
         payroll_allowance = _parse_money_input(payslip_form.get('payroll_allowance'), 'payroll_allowance')
         company_loan_cash_advance = _parse_money_input(
             payslip_form.get('company_loan_cash_advance'),
@@ -574,7 +576,7 @@ def process_payroll(request):
     if not employee.payroll_allowance_eligible:
         payroll_allowance = _safe_money(Decimal('0'))
 
-    gross_salary = _safe_money(basic_salary + regular_overtime + rest_day_ot)
+    gross_salary = _safe_money(basic_salary + regular_overtime + rest_day + rest_day_ot + holiday)
     net_taxable_salary = _safe_money(max(Decimal('0'), gross_salary - late_undertime))
 
     # Payroll Tax is disabled in the current payroll flow.
@@ -627,9 +629,9 @@ def process_payroll(request):
         'basic_salary': str(basic_salary),
         'regular_overtime': str(regular_overtime),
         'late_undertime': str(late_undertime),
-        'rest_day': '',
+        'rest_day': str(rest_day),
         'rest_day_ot': str(rest_day_ot),
-        'holiday': '',
+        'holiday': str(holiday),
         'government_contributions': [
             {'name': item['name'], 'amount': item['amount']}
             for item in contribution_items

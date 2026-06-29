@@ -104,6 +104,7 @@ def generate_payslip_pdf(payslip_data):
     period_end = _fmt_period_date(payslip_data.get('period_end'))
 
     basic_salary = _to_decimal(payslip_data.get('base_salary', 0))
+    monthly_amount = _to_decimal(payslip_details.get('monthly', basic_salary))
     regular_ot = _to_decimal(payslip_details.get('regular_overtime', payslip_data.get('overtime_amount', 0)))
     late_undertime = _to_decimal(payslip_details.get('late_undertime', 0))
     rest_day = _to_decimal(payslip_details.get('rest_day', 0))
@@ -134,9 +135,9 @@ def generate_payslip_pdf(payslip_data):
     # Base Dimensions
     sheet_left, sheet_top, sheet_right, sheet_bottom = 65, 51, 890, 774
 
-    header_top, header_bottom = sheet_top, 295
-    strip_top, strip_bottom = 295, 313
-    body_top, body_bottom = 313, 641
+    header_top, header_bottom = sheet_top, 260
+    strip_top, strip_bottom = 260, 280
+    body_top, body_bottom = 280, 641
     net_bar_top, net_bar_bottom = 607, 641
 
     brand_blue = '#0F3A5C'
@@ -255,15 +256,15 @@ def generate_payslip_pdf(payslip_data):
             header_w = sheet_right - sheet_left
             header_h = header_bottom - header_top
             
-            max_w = header_w * 0.88
-            max_h = header_h * 0.75
+            max_w = header_w * 0.95
+            max_h = header_h * 0.95
             
             ratio = min(max_w / logo_w, max_h / logo_h)
             target_w = logo_w * ratio
             target_h = logo_h * ratio
             
             x_pil = sheet_left + (header_w - target_w) / 2
-            y_pil = header_top + header_h * 0.12
+            y_pil = header_top + header_h * 0.025
             
             x_pdf = dx + x_pil * f
             y_pdf = dy + (804.0 - (y_pil + target_h)) * f
@@ -276,18 +277,6 @@ def generate_payslip_pdf(payslip_data):
         center_x = (sheet_left + sheet_right) / 2
         draw_text_pil(c, center_x, header_top + 85, 'TRIPLE G', font_bold, 40, white, anchor='mm')
         draw_text_pil(c, center_x, header_top + 125, 'DESIGN STUDIO + CONSTRUCTION', font_bold, 16, white, anchor='mm')
-
-    # Header tagline
-    draw_text_pil(
-        c,
-        (sheet_left + sheet_right) / 2,
-        header_bottom - 26,
-        '"We\'re in business to help develop the built environment and change the world."',
-        font_bold,
-        tagline_font_sz,
-        white,
-        anchor='mm',
-    )
 
     # Period strip
     draw_rect_pil(c, sheet_left, strip_top, sheet_right, strip_bottom, fill_hex=brand_orange, outline_hex=black, outline_width_unscaled=1)
@@ -306,26 +295,35 @@ def generate_payslip_pdf(payslip_data):
     draw_rect_pil(c, sheet_left, body_top, sheet_right, body_bottom, fill_hex=white, outline_hex=black, outline_width_unscaled=2)
 
     # Employee metadata row
-    draw_text_pil(c, 72, 321, 'Employee Name:', font_regular, label_font_sz, text_gray, anchor='la')
-    draw_text_pil(c, 258, 321, employee_name, font_bold, value_font_sz, black, anchor='la')
+    draw_text_pil(c, 72, 327, 'Employee Name:', font_regular, label_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, 258, 327, employee_name, font_bold, value_font_sz, black, anchor='la')
 
-    draw_text_pil(c, 72, 344, 'Designation:', font_regular, label_font_sz, text_gray, anchor='la')
-    draw_text_pil(c, 258, 344, designation, font_bold, value_font_sz, black, anchor='la')
+    draw_text_pil(c, 72, 351, 'Designation:', font_regular, label_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, 258, 351, designation, font_bold, value_font_sz, black, anchor='la')
 
-    draw_text_pil(c, 605, 344, 'Monthly', font_regular, label_font_sz, text_gray, anchor='la')
-    draw_text_pil(c, 882, 344, format_currency(basic_salary), font_bold, value_font_sz, black, anchor='ra')
-
-    # Section Headers
-    draw_text_pil(c, 238, 364, 'Earnings:', font_regular, section_font_sz, black, anchor='la')
-    draw_text_pil(c, 638, 364, 'Deductions:', font_regular, section_font_sz, black, anchor='la')
+    # Wage info on same row as Designation, right column
+    if wage_type == 'daily':
+        wage_label = 'Daily Rate'
+        wage_display_val = daily_rate_val
+    else:
+        wage_label = 'Monthly'
+        wage_display_val = monthly_amount
+    draw_text_pil(c, 605, 351, wage_label, font_regular, label_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, 882, 351, format_currency(wage_display_val), font_bold, value_font_sz, black, anchor='ra')
 
     # Earnings & Deductions Tables
     left_label_x = 113
     left_value_x = 422
     right_label_x = 546
     right_value_x = 818
-    row_start_y = 384
-    row_step = 19.5
+    row_start_y = 399
+    row_step = 23
+
+    # Section Headers (centered over columns)
+    earnings_center_x = (left_label_x + left_value_x) / 2
+    deductions_center_x = (right_label_x + right_value_x) / 2
+    draw_text_pil(c, earnings_center_x, 375, 'Earnings:', font_regular, section_font_sz, black, anchor='ma')
+    draw_text_pil(c, deductions_center_x, 375, 'Deductions:', font_regular, section_font_sz, black, anchor='ma')
 
     basic_salary_label = 'Basic Salary'
     if wage_type == 'daily':
@@ -344,14 +342,24 @@ def generate_payslip_pdf(payslip_data):
         draw_text_pil(c, left_label_x, y_pos, label, font_regular, row_font_sz, text_gray, anchor='la')
         draw_text_pil(c, left_value_x, y_pos, format_currency(amount), font_regular, row_font_sz, black, anchor='ra')
 
-    deductions_rows = [
-        ('SSS', sss, False),
-        ('Philhealth', philhealth, False),
-        ('Pag-ibig', pagibig, False),
+    deductions_rows = []
+    has_sss = any('sss' in str(item.get('name', '')).lower() for item in payslip_details.get('government_contributions', []) or [])
+    has_phil = any('phil' in str(item.get('name', '')).lower() for item in payslip_details.get('government_contributions', []) or [])
+    has_pag = any(('pag' in str(item.get('name', '')).lower() or 'ibig' in str(item.get('name', '')).lower()) for item in payslip_details.get('government_contributions', []) or [])
+
+    if has_sss:
+        deductions_rows.append(('SSS', sss, False))
+    if has_phil:
+        deductions_rows.append(('Philhealth', philhealth, False))
+    if has_pag:
+        deductions_rows.append(('Pag-ibig', pagibig, False))
+
+    deductions_rows.extend([
         ('NET Taxable Salary', net_taxable_salary, True),
         ('Payroll Tax', payroll_tax, False),
         ('Total Deductions', total_deductions, False),
-    ]
+    ])
+
     for index, (label, amount, is_bold) in enumerate(deductions_rows):
         y_pos = row_start_y + (index * row_step)
         font = font_bold if is_bold else font_regular
@@ -383,8 +391,8 @@ def generate_payslip_pdf(payslip_data):
     draw_text_pil(c, right_label_x, 558, 'Payroll Allowance', font_regular, row_font_sz, text_gray, anchor='la')
     draw_text_pil(c, right_value_x, 558, format_currency(payroll_allowance), font_regular, row_font_sz, black, anchor='ra')
 
-    draw_text_pil(c, right_label_x, 580, 'Company Loan/Cash Advance', font_regular, row_font_sz, text_gray, anchor='la')
-    draw_text_pil(c, right_value_x, 580, format_currency(company_loan), font_regular, row_font_sz, black, anchor='ra')
+    draw_text_pil(c, right_label_x, 581, 'Company Loan/Cash Advance', font_regular, row_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, right_value_x, 581, format_currency(company_loan), font_regular, row_font_sz, black, anchor='ra')
 
     # Net pay strip
     net_bar_center_y = (net_bar_top + net_bar_bottom) / 2
@@ -392,14 +400,24 @@ def generate_payslip_pdf(payslip_data):
     draw_text_pil(c, 205, net_bar_center_y, 'SALARY NET PAY', font_bold, net_font_sz, black, anchor='lm')
     draw_text_pil(c, 718, net_bar_center_y, format_currency(net_salary), font_bold, net_font_sz, black, anchor='rm')
 
-    # Signature Block Setup
-    draw_text_pil(c, 70, 656, 'Prepared By:', font_regular, sign_label_font_sz, text_gray, anchor='la')
-    draw_text_pil(c, 568, 656, 'Approved by:', font_regular, sign_label_font_sz, text_gray, anchor='la')
+    # Signature Block Setup — two columns aligned to the outer ends
+    col_width = 220
+
+    left_line_start = sheet_left + 16
+    left_line_end = left_line_start + col_width
+    left_center_x = (left_line_start + left_line_end) / 2
+
+    right_line_end = sheet_right - 16
+    right_line_start = right_line_end - col_width
+    right_center_x = (right_line_start + right_line_end) / 2
+
+    draw_text_pil(c, left_line_start, 656, 'Prepared By:', font_regular, sign_label_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, right_line_start, 656, 'Approved by:', font_regular, sign_label_font_sz, text_gray, anchor='la')
 
     left_line_y = 704
     right_line_y = 704
-    draw_line_pil(c, 65, left_line_y, 270, left_line_y, black, 1)
-    draw_line_pil(c, 563, right_line_y, 785, right_line_y, black, 1)
+    draw_line_pil(c, left_line_start, left_line_y, left_line_end, left_line_y, black, 1)
+    draw_line_pil(c, right_line_start, right_line_y, right_line_end, right_line_y, black, 1)
 
     # Draw Prepared By Signature image if present
     left_signature = _load_signature_image(
@@ -411,7 +429,7 @@ def generate_payslip_pdf(payslip_data):
         try:
             sig_w = left_signature.width
             sig_h = left_signature.height
-            x_pil = 168 - (sig_w / 2)
+            x_pil = left_center_x - (sig_w / 2)
             y_pil = 675
             
             x_pdf = dx + x_pil * f
@@ -430,7 +448,7 @@ def generate_payslip_pdf(payslip_data):
         try:
             sig_w = right_signature.width
             sig_h = right_signature.height
-            x_pil = 674 - (sig_w / 2)
+            x_pil = right_center_x - (sig_w / 2)
             y_pil = 675
             
             x_pdf = dx + x_pil * f
@@ -439,15 +457,14 @@ def generate_payslip_pdf(payslip_data):
         except Exception:
             pass
 
-    # Signature names and roles
-    draw_text_pil(c, 168, 692, prepared_by, font_bold, sign_name_font_sz, black, anchor='mm')
-    draw_text_pil(c, 168, 717, 'Accounting Department', font_regular, sign_role_font_sz, text_gray, anchor='mm')
+    # Signature names sit ON TOP of the line; roles sit below
+    name_y = 696
+    role_y = 717
+    draw_text_pil(c, left_center_x, name_y, prepared_by, font_bold, sign_name_font_sz, black, anchor='mm')
+    draw_text_pil(c, left_center_x, role_y, 'Accounting Department', font_regular, sign_role_font_sz, text_gray, anchor='mm')
 
-    draw_text_pil(c, 674, 692, approved_by, font_bold, sign_name_font_sz, black, anchor='mm')
-    draw_text_pil(c, 674, 717, 'Top Management', font_regular, sign_role_font_sz, text_gray, anchor='mm')
-
-    # Bottom margin "Approved By:" label
-    draw_text_pil(c, 70, 759, 'Approved By:', font_regular, sign_label_font_sz, text_gray, anchor='la')
+    draw_text_pil(c, right_center_x, name_y, approved_by, font_bold, sign_name_font_sz, black, anchor='mm')
+    draw_text_pil(c, right_center_x, role_y, 'CEO', font_regular, sign_role_font_sz, text_gray, anchor='mm')
 
     c.showPage()
     c.save()

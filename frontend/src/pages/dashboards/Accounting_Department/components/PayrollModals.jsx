@@ -465,7 +465,7 @@ export function PayrollModals(props) {
             </div>
 
             {payslipForm.wageType === 'daily' ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="dailyRate">Daily Rate (₱)</Label>
                   <Input
@@ -488,17 +488,6 @@ export function PayrollModals(props) {
                     placeholder="Enter days present"
                     min="0"
                     step="1"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="monthlyAmount">Projected Monthly (₱)</Label>
-                  <Input
-                    id="monthlyAmount"
-                    type="text"
-                    value={payslipForm.monthly}
-                    readOnly
-                    className="bg-[#021B2C] border-white/10 text-white cursor-not-allowed"
-                    placeholder="Projected monthly pay"
                   />
                 </div>
               </div>
@@ -739,7 +728,7 @@ export function PayrollModals(props) {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="preparedBy" className="min-h-[2.5rem] flex items-end pb-1">Prepared By (Accounting Department)</Label>
                     <Input
@@ -751,22 +740,12 @@ export function PayrollModals(props) {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="approvedByTopManagement" className="min-h-[2.5rem] flex items-end pb-1">Approved By (Top Management)</Label>
+                    <Label htmlFor="approvedByTopManagement" className="min-h-[2.5rem] flex items-end pb-1">Approved By (Top Management/CEO)</Label>
                     <Input
                       id="approvedByTopManagement"
                       value={topManagementUser?.name || payslipForm.approvedByTopManagement}
                       readOnly
                       placeholder="Pending CEO Approval"
-                      className="bg-[#021B2C] border-[#AEAAAA]/20 text-white cursor-not-allowed"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="approvedBy" className="min-h-[2.5rem] flex items-end pb-1">Approved By</Label>
-                    <Input
-                      id="approvedBy"
-                      value={topManagementUser?.name || payslipForm.approvedBy}
-                      readOnly
-                      placeholder="Pending Approval"
                       className="bg-[#021B2C] border-[#AEAAAA]/20 text-white cursor-not-allowed"
                     />
                   </div>
@@ -831,8 +810,8 @@ export function PayrollModals(props) {
                       {payslipForm.wageType === 'daily' ? (
                         <>
                           <div className="flex justify-between">
-                            <span className="text-muted-foreground">Projected Monthly</span>
-                            <span className="font-semibold text-white">{formatCurrency(payslipPreviewData.monthlyAmount)}</span>
+                            <span className="text-muted-foreground">Daily Rate</span>
+                            <span className="font-semibold text-white">{formatCurrency(toNumber(payslipForm.dailyRate))}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-muted-foreground">
@@ -938,7 +917,7 @@ export function PayrollModals(props) {
               </div>
 
               {/* Approvals */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-4 rounded-lg bg-background/20 border border-white/10">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-4 rounded-lg bg-background/20 border border-white/10">
                 <div>
                   <p className="text-xs text-muted-foreground">Prepared By</p>
                   <p className="text-sm font-semibold text-white">{payslipPreviewData.payslipFormPayload.prepared_by || 'Accounting'}</p>
@@ -947,15 +926,11 @@ export function PayrollModals(props) {
                   </p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Approved By</p>
-                  <p className="text-sm font-semibold text-white">{payslipPreviewData.payslipFormPayload.approved_by || '-'}</p>
+                  <p className="text-xs text-muted-foreground">Approved By (CEO)</p>
+                  <p className="text-sm font-semibold text-white">{payslipPreviewData.payslipFormPayload.approved_by_top_management || payslipPreviewData.payslipFormPayload.approved_by || '-'}</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {payslipPreviewData.payslipFormPayload.approved_by_signature ? 'Signature attached' : 'No signature uploaded yet'}
                   </p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Top Management</p>
-                  <p className="text-sm font-semibold text-white">{payslipPreviewData.payslipFormPayload.approved_by_top_management || '-'}</p>
                 </div>
               </div>
             </div>
