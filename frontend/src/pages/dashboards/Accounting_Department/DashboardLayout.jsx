@@ -163,9 +163,9 @@ export function DashboardLayout({
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="relative border border-[#FF7120] text-[#FF7120] rounded-full w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-[#FF7120] hover:text-white transition-all"
+                    className="relative border border-[#FF7120] text-[#FF7120] rounded-full w-9 h-9 flex items-center justify-center hover:bg-[#FF7120] hover:text-white transition-all"
                   >
-                    <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
+                    <Bell className="h-4 w-4" />
                     {unreadCount > 0 && (
                       <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#F27229] rounded-full flex items-center justify-center text-[10px] text-white font-semibold">
                         {unreadCount}
@@ -261,13 +261,21 @@ export function DashboardLayout({
               <button
                 type="button"
                 onClick={() => onNavigate('profile')}
-                className={`border border-[#FF7120] rounded-full w-9 h-9 flex items-center justify-center transition-all ${
+                className={`border border-[#FF7120] rounded-full w-9 h-9 flex items-center justify-center transition-all overflow-hidden ${
                   currentPage === 'profile'
                     ? 'bg-[#FF7120] text-white'
                     : 'text-[#FF7120] hover:bg-[#FF7120] hover:text-white'
                 }`}
               >
-                <User className="h-4 w-4" />
+                {user?.profile_picture || user?.profile_pic ? (
+                  <img
+                    src={user.profile_picture || user.profile_pic}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="h-4 w-4" />
+                )}
               </button>
             </div>
 
@@ -277,9 +285,9 @@ export function DashboardLayout({
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="lg:hidden text-[#FF7120] rounded-[6px] w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center hover:bg-[#FF7120]/10 transition-all"
+                    className="lg:hidden text-[#FF7120] rounded-[6px] w-9 h-9 flex items-center justify-center hover:bg-[#FF7120]/10 transition-all"
                   >
-                    <Grip className="h-6 w-6 sm:h-7 w-7" />
+                    <Grip className="h-6 w-6" />
                   </button>
                 </PopoverTrigger>
                 <PopoverContent side="bottom" align="end" className="w-64 p-2 bg-[#001f35] border-[#AEAAAA]/20 shadow-xl z-[60]" sideOffset={12}>

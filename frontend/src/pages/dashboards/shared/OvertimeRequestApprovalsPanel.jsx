@@ -16,6 +16,23 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#039;');
 };
 
+const formatTime12 = (timeStr) => {
+  if (!timeStr || timeStr === '-') return '';
+  if (timeStr.includes('AM') || timeStr.includes('PM')) {
+    return timeStr.trim();
+  }
+  try {
+    const [hours, minutes] = timeStr.split(':');
+    const hr = parseInt(hours, 10);
+    const m = minutes.substring(0, 2);
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    const displayHr = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+    return `${displayHr}:${m} ${ampm}`;
+  } catch (e) {
+    return timeStr;
+  }
+};
+
 const formatJobPosition = (value) => {
   if (!value) return '';
   return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
@@ -367,8 +384,8 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
       periodRows.push(`
         <tr>
           <td class="period-cell">${period ? escapeHtml(period.start_date || '') : ''}</td>
-          <td class="period-cell">${period ? escapeHtml(period.start_time || '') : ''}</td>
-          <td class="period-cell">${period ? escapeHtml(period.end_time || '') : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(formatTime12(period.start_time || '')) : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(formatTime12(period.end_time || '')) : ''}</td>
         </tr>
       `);
     }
@@ -378,9 +395,9 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
         <head>
           <title>OT Request Form</title>
           <style>
-            @page { size: A4; margin: 0.5in; }
+            @page { size: A4; margin: 0; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 15px; font-size: 10pt; line-height: 1.3; }
+            body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 0.5in; font-size: 10pt; line-height: 1.3; }
             .form-container { max-width: 800px; margin: 0 auto; border: 2px solid #000; padding: 0; }
             .header { display: flex; flex-direction: column; align-items: center; border-bottom: 2px solid #000; padding: 25px 20px; text-align: center; }
             .logo { max-width: 380px; height: auto; margin-bottom: 15px; display: block; }
@@ -397,12 +414,12 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
             .periods-table td.period-cell { border: 1px solid #000; padding: 5px 3px; height: 20px; text-align: center; font-size: 9pt; }
             .explanation-box { border: 1px solid #000; min-height: 50px; padding: 6px; margin-top: 5px; font-size: 9pt; line-height: 1.3; }
             .signature-section { display: flex; justify-content: space-between; margin-top: 25px; align-items: flex-end; }
-            .signature-block { width: 45%; text-align: center; display: flex; flex-direction: column; align-items: center; }
-            .signature-block1 { width: 45%; text-align: center; display: flex; flex-direction: column; align-items: center; }
-            .signature-image { width: 100%; height: 60px; background: #fff; display: flex; align-items: center; justify-content: center; margin-bottom: 0px; padding-top: 5px; }
-            .signature-image img { max-width: 100%; max-height: 100%; display: block; margin: 0 auto; }
+            .signature-block { width: 220px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+            .signature-block1 { width: 220px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+            .signature-image { width: 100%; height: 50px; display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 2px; }
+            .signature-image img { max-width: 140px; max-height: 48px; object-fit: contain; display: block; margin: 0 auto; }
             .employee-name { font-weight: bold; font-size: 10pt; margin: 2px 0; text-transform: uppercase; }
-            .signature-label { font-size: 8pt; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; display: block; }
+            .signature-label { font-size: 8pt; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; display: block; width: 100%; }
             .approval-title { font-weight: bold; font-size: 10pt; margin-bottom: 8px; text-align: center; text-transform: uppercase; }
             .approval-signatures { display: flex; justify-content: space-around; }
             .approval-block { width: 40%; text-align: center; }
@@ -414,7 +431,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
         <body>
           <div class="form-container">
             <div class="header">
-              <img src="/formlogo.webp" alt="Company Logo" class="logo" />
+              <img src="/formlogo2.webp" alt="Company Logo" class="logo" />
               <div><div class="form-title">OT Request Form</div></div>
             </div>
             <div class="section">
@@ -881,7 +898,7 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
               <div className="px-10 pb-10 pt-0 flex-1 flex flex-col">
                 {/* Company Logo */}
                 <div className="flex flex-col items-center justify-center mb-0">
-                  <img src="/formlogo.webp" alt="Triple G Logo" className="h-24 w-auto object-contain mb-0" />
+                  <img src="/formlogo2.webp" alt="Triple G Logo" className="h-24 w-auto object-contain mb-0" />
                   <h2 className="text-2xl font-black text-center border-b-2 border-black pb-0.5 tracking-[0.25em] uppercase">OT REQUEST FORM</h2>
                 </div>
 
@@ -931,8 +948,8 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                             rows.push(
                               <tr key={i}>
                                 <td className="border border-black px-1 py-1 text-center h-[20px]">{p?.start_date || ''}</td>
-                                <td className="border border-black px-1 py-1 text-center h-[20px]">{p?.start_time || ''}</td>
-                                <td className="border border-black px-1 py-1 text-center h-[20px]">{p?.end_time || ''}</td>
+                                <td className="border border-black px-1 py-1 text-center h-[20px]">{p?.start_time ? formatTime12(p.start_time) : ''}</td>
+                                <td className="border border-black px-1 py-1 text-center h-[20px]">{p?.end_time ? formatTime12(p.end_time) : ''}</td>
                               </tr>
                             );
                           }
@@ -969,19 +986,19 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                   <div className="bg-gray-100 px-3 py-1 font-bold text-[10pt] uppercase">Employee Acknowledgment</div>
                   <div className="px-4 py-4">
                     <div className="flex justify-between items-end mt-4">
-                      <div className="w-[45%] text-center flex flex-col items-center">
-                        <div className="w-full h-[60px] flex items-center justify-center">
+                      <div className="w-[220px] text-center flex flex-col items-center">
+                        <div className="w-full h-[50px] flex items-center justify-center mb-1">
                           {selectedRequest.employee_signature ? (
                             <img src={(() => {
                               const url = selectedRequest.employee_signature;
                               if (!url) return '';
                               if (url.startsWith('data:') || url.startsWith('http')) return url;
                               return `http://localhost:8000${url.startsWith('/') ? '' : '/'}${url}`;
-                            })()} alt="Employee Signature" className="max-w-full max-h-full object-contain" />
-                          ) : <div className="h-[60px]" />}
+                            })()} alt="Employee Signature" className="max-w-[140px] max-h-[48px] object-contain" />
+                          ) : <div className="h-[50px]" />}
                         </div>
                         <div className="font-bold text-[10pt] uppercase mt-0.5">{selectedRequest.employee_name || selectedRequest.full_name || ''}</div>
-                        <div className="text-[8pt] font-bold border-t border-black pt-0.5">Employee Signature</div>
+                        <div className="text-[8pt] font-bold border-t border-black pt-0.5 w-full">Employee Signature</div>
                       </div>
                       <div className="w-[45%] text-center flex flex-col items-center">
                         <div className="h-[60px] flex items-end justify-center font-bold text-[10pt] pb-0.5">
@@ -1003,23 +1020,23 @@ export default function OvertimeRequestApprovalsPanel({ reviewerRole = 'accounti
                       <span className="font-bold ml-4">Approved</span>
                     </div>
                     <div className="flex justify-center">
-                      <div className="w-[40%] text-center">
-                        <div className="w-full h-[60px] flex items-center justify-center">
+                      <div className="w-[220px] text-center flex flex-col items-center">
+                        <div className="w-full h-[50px] flex items-center justify-center mb-1">
                           {(() => {
                             const sig = selectedRequest.management_signature;
-                            if (!sig) return <div className="h-[60px]" />;
+                            if (!sig) return <div className="h-[50px]" />;
                             // Check if it's an actual image URL/data URI
                             const isImageUrl = sig.startsWith('data:') || sig.startsWith('http') || sig.startsWith('/media') || sig.startsWith('/');
                             if (isImageUrl) {
                               const url = sig.startsWith('data:') || sig.startsWith('http') ? sig : `http://localhost:8000${sig.startsWith('/') ? '' : '/'}${sig}`;
-                              return <img src={url} alt="Accounting Signature" className="max-w-full max-h-full object-contain" />;
+                              return <img src={url} alt="Accounting Signature" className="max-w-[140px] max-h-[48px] object-contain" />;
                             }
                             // It's just text (e.g., "Name (date)"), show as text
                             return <div className="text-[9pt] font-bold">{sig}</div>;
                           })()}
                         </div>
                         <div className="font-bold text-[10pt] uppercase mt-0.5">{selectedRequest.management_name || ''}</div>
-                        <div className="text-[8pt] font-bold border-t border-black pt-0.5">Accounting Signature</div>
+                        <div className="text-[8pt] font-bold border-t border-black pt-0.5 w-full">Accounting Signature</div>
                       </div>
                     </div>
                   </div>

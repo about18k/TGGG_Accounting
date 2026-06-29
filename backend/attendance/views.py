@@ -474,6 +474,7 @@ def _serialize_attendance(record):
         'employee_email': employee.email,
         'employee_department': employee.department.name if employee.department else None,
         'employee_role': employee.get_role_display() if employee.role else None,
+        'employee_signature': employee.signature_image,
         'date': record.date,
         'status': record.status,
         'status_label': record.get_status_display(),

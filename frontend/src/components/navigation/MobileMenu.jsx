@@ -2,18 +2,27 @@ import React, { useState } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/accounting-ui';
 import { 
   Grip, Home, Clock, FolderKanban, User, FileText, ClipboardList, 
-  ClipboardCheck, Users, Calendar, CalendarDays, DollarSign 
+  ClipboardCheck, Users, Calendar, CalendarDays, DollarSign, Package 
 } from 'lucide-react';
 
 const MobileMenu = ({ user, currentPage, onNavigate }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  const isAccountingUser = user?.role === 'accounting' || (
+    user?.role === 'employee' && (
+      user?.department_name?.toLowerCase() === 'accounting department' ||
+      user?.department_name?.toLowerCase() === 'accounting'
+    )
+  );
+
   const isSidebarDrivenRole =
     user?.role === 'bim_specialist' ||
     user?.role === 'junior_architect' ||
     user?.role === 'site_engineer' ||
     user?.role === 'site_coordinator' ||
     user?.role === 'intern' ||
-    user?.role === 'ceo';
+    user?.role === 'ceo' ||
+    isAccountingUser;
 
   if (!(user?.role === 'studio_head' || isSidebarDrivenRole || user?.role === 'employee')) {
     return null;
@@ -44,7 +53,34 @@ const MobileMenu = ({ user, currentPage, onNavigate }) => {
         <div className="flex flex-col gap-1">
           {(() => {
             let sections = [];
-            if (user?.role === 'studio_head') {
+            if (isAccountingUser) {
+              sections = [
+                {
+                  title: 'Personal',
+                  items: [
+                    { id: 'dashboard', label: 'Dashboard', icon: Home, path: 'dashboard' },
+                    { id: 'personal-attendance', label: 'My Attendance', icon: Calendar, path: 'personal-attendance' },
+                    { id: 'overtime', label: 'My Overtime', icon: Clock, path: 'overtime' },
+                  ]
+                },
+                {
+                  title: 'Department',
+                  items: [
+                    { id: 'employees', label: 'Employees', icon: Users, path: 'employees' },
+                    { id: 'payroll', label: 'Payroll', icon: DollarSign, path: 'payroll' },
+                    { id: 'material-requests', label: 'Material request & expenses', icon: Package, path: 'material-requests' },
+                  ]
+                },
+                {
+                  title: 'Management',
+                  items: [
+                    { id: 'attendance', label: 'Attendance Records', icon: Clock, path: 'attendance' },
+                    { id: 'events', label: 'Calendar / Events', icon: Calendar, path: 'events' },
+                    { id: 'otrequest', label: 'OT Requests', icon: ClipboardCheck, path: 'otrequest' },
+                  ]
+                }
+              ];
+            } else if (user?.role === 'studio_head') {
               sections = [
                 {
                   title: 'Personal',

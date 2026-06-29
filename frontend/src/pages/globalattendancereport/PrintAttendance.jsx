@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import api from '../../services/api';
 import './PrintAttendance.css';
 import { Printer, X } from 'lucide-react';
@@ -8,6 +8,10 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
   const [loading, setLoading] = useState(true);
   const [startMonth, setStartMonth] = useState('');
   const [endMonth, setEndMonth] = useState('');
+  const [employeeSignatures, setEmployeeSignatures] = useState({});
+  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState('all');
+  const [selectedRoleFilter, setSelectedRoleFilter] = useState('all');
+  const [allEmployeesList, setAllEmployeesList] = useState([]);
 
   useEffect(() => {
     const now = new Date();
@@ -23,106 +27,129 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
     // eslint-disable-next-line
   }, [internId, startMonth, endMonth]);
 
-  const parseMinutes = (timeStr) => {
-    if (!timeStr) return null;
-    if (!timeStr.includes('AM') && !timeStr.includes('PM')) {
-      const parts = timeStr.split(':');
-      return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+  const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr || timeStr === '-') return null;
+    try {
+      if (timeStr.includes('AM') || timeStr.includes('PM')) {
+        const [time, meridiem] = timeStr.split(' ');
+        let [h, m] = time.split(':').map(Number);
+        if (meridiem === 'PM' && h !== 12) h += 12;
+        if (meridiem === 'AM' && h === 12) h = 0;
+        return h * 60 + m;
+      }
+      const [h, m] = timeStr.split(':').map(Number);
+      return h * 60 + m;
+    } catch (e) {
+      return null;
     }
-    const [time, meridiem] = timeStr.split(' ');
-    if (!meridiem) return null;
-    let [h, m] = time.split(':').map(Number);
-    if (meridiem === 'PM' && h !== 12) h += 12;
-    if (meridiem === 'AM' && h === 12) h = 0;
-    return h * 60 + m;
   };
 
-  const calculateMinutesWorked = (timeIn, timeOut, session) => {
-    if (!timeIn || !timeOut) return 0;
-    const inMinutes = parseMinutes(timeIn);
-    const outMinutes = parseMinutes(timeOut);
-    if (inMinutes === null || outMinutes === null) return 0;
-    if (inMinutes === outMinutes) return 0;
-    
-    const morningBaseline = 8 * 60;
-    const afternoonBaseline = 13 * 60;
-    const overtimeBaseline = 19 * 60;
-    const morningGrace = 8 * 60 + 5;
-    const afternoonGrace = 13 * 60 + 5;
-    const overtimeGrace = 19 * 60 + 5;
-    const morningEnd = 12 * 60;
-    const afternoonEnd = 17 * 60;
-    const overtimeEnd = 22 * 60;
-    
-    if (session === 'Morning') {
-      const effectiveStart = inMinutes <= morningGrace ? morningBaseline : inMinutes;
-      const effectiveEnd = Math.min(outMinutes, morningEnd);
-      return Math.max(0, effectiveEnd - effectiveStart);
-    } else if (session === 'Afternoon') {
-      const effectiveStart = inMinutes <= afternoonGrace ? afternoonBaseline : inMinutes;
-      const effectiveEnd = Math.min(outMinutes, afternoonEnd);
-      return Math.max(0, effectiveEnd - effectiveStart);
-    } else if (session === 'Overtime') {
-      const effectiveStart = inMinutes <= overtimeGrace ? overtimeBaseline : inMinutes;
-      const effectiveEnd = Math.min(outMinutes, overtimeEnd);
-      return Math.max(0, effectiveEnd - effectiveStart);
+  const formatTime12 = (timeStr) => {
+    if (!timeStr || timeStr === '-') return '';
+    if (timeStr.includes('AM') || timeStr.includes('PM')) {
+      return timeStr.trim();
     }
-    return 0;
+    try {
+      const [hours, minutes] = timeStr.split(':');
+      const hr = parseInt(hours, 10);
+      const m = minutes.substring(0, 2);
+      const ampm = hr >= 12 ? 'PM' : 'AM';
+      const displayHr = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+      return `${displayHr}:${m} ${ampm}`;
+    } catch (e) {
+      return timeStr;
+    }
   };
 
-  const determineSession = (timeIn) => {
+  const determineSession = (timeIn, sessionTypeFromApi) => {
+    if (sessionTypeFromApi) {
+      const type = sessionTypeFromApi.toLowerCase();
+      if (type === 'morning') return 'Morning';
+      if (type === 'afternoon') return 'Afternoon';
+      if (type === 'overtime') return 'Overtime';
+    }
     if (!timeIn) return null;
-    let hour;
-    if (timeIn.includes('AM') || timeIn.includes('PM')) {
-      const [time] = timeIn.split(' ');
-      const [h] = time.split(':');
-      hour = parseInt(h, 10);
-      if (timeIn.includes('PM') && hour !== 12) hour += 12;
-      if (timeIn.includes('AM') && hour === 12) hour = 0;
-    } else {
-      const [h] = timeIn.split(':');
-      hour = parseInt(h, 10);
-    }
-    if (hour < 12) return 'Morning';
-    if (hour >= 12 && hour < 18) return 'Afternoon';
+    const minutes = parseTimeToMinutes(timeIn);
+    if (minutes === null) return null;
+    if (minutes < 12 * 60) return 'Morning';
+    if (minutes >= 12 * 60 && minutes < 18 * 60) return 'Afternoon';
     return 'Overtime';
-  };
-
-  const formatTime = (timeStr) => {
-    if (!timeStr || timeStr === '-') return '-';
-    if (timeStr.includes('AM') || timeStr.includes('PM')) return timeStr;
-    const [hours, minutes] = timeStr.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
-    return `${displayHour}:${minutes} ${ampm}`;
   };
 
   const fetchAttendance = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/attendance/all/');
+      let response;
+      try {
+        response = await api.get('/attendance/all/');
+      } catch (err) {
+        // Fallback for regular employees who cannot view all attendance
+        if (err.response?.status === 403) {
+          response = await api.get('/attendance/my/');
+        } else {
+          throw err;
+        }
+      }
 
-      let filtered = data;
+      const { data } = response;
+      let filtered = Array.isArray(data) ? data : [];
 
       // Filter by month range
       if (startMonth && endMonth) {
         filtered = filtered.filter(a => {
+          if (!a.date) return false;
           const recordDate = new Date(a.date);
+          if (isNaN(recordDate.getTime())) return false;
           const recordMonth = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`;
           return recordMonth >= startMonth && recordMonth <= endMonth;
         });
       }
 
-      // Single-employee mode: filter by internId
-      if (!employees) {
+      // Single-employee mode: filter by internId if employees prop is not provided
+      if (!employees && internId) {
         filtered = filtered.filter(a => String(a.employee_id ?? a.user_id) === String(internId));
       }
 
-      // Consolidate by employee then by date
+      // Merge with employees prop to ensure all employees are present
+      const mergedMap = {};
+      if (employees && employees.length > 0) {
+        employees.forEach(e => {
+          const empId = String(e.id);
+          mergedMap[empId] = {
+            id: empId,
+            name: e.name,
+            signature: e.signature || null,
+            role: e.role || 'Employee'
+          };
+        });
+      }
+
       const byEmp = {};
+      const signatures = {};
       filtered.forEach(entry => {
         const empId = String(entry.employee_id ?? entry.user_id);
+        
+        // Populate signature, name, and role for allUniqueEmployees
+        if (!mergedMap[empId]) {
+          mergedMap[empId] = {
+            id: empId,
+            name: entry.employee_name || String(empId),
+            signature: entry.employee_signature || null,
+            role: entry.employee_role || 'Employee'
+          };
+        } else {
+          if (entry.employee_signature && !mergedMap[empId].signature) {
+            mergedMap[empId].signature = entry.employee_signature;
+          }
+          if (entry.employee_role && (!mergedMap[empId].role || mergedMap[empId].role === 'Employee')) {
+            mergedMap[empId].role = entry.employee_role;
+          }
+        }
+
+        if (entry.employee_signature) {
+          signatures[empId] = entry.employee_signature;
+        }
+
         if (!byEmp[empId]) byEmp[empId] = {};
         if (!byEmp[empId][entry.date]) {
           byEmp[empId][entry.date] = {
@@ -133,12 +160,12 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
             afternoon_time_out: null,
             ot_time_in: null,
             ot_time_out: null,
-            total_minutes_worked: 0
+            employee_signature: entry.employee_signature || null
           };
         }
 
         const record = byEmp[empId][entry.date];
-        const session = determineSession(entry.time_in);
+        const session = determineSession(entry.time_in, entry.session_type);
 
         if (session === 'Morning') {
           record.morning_time_in = entry.time_in;
@@ -150,57 +177,24 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
           record.ot_time_in = entry.time_in;
           record.ot_time_out = entry.time_out;
         }
-
-        let minutesWorked = 0;
-        if (entry.total_minutes_worked) {
-          minutesWorked = entry.total_minutes_worked;
-        } else if (entry.time_out) {
-          minutesWorked = calculateMinutesWorked(entry.time_in, entry.time_out, session);
-        }
-        record.total_minutes_worked += minutesWorked;
       });
+
+      setEmployeeSignatures(signatures);
+      setAllEmployeesList(Object.values(mergedMap));
 
       // Convert nested date objects to sorted arrays per employee
       const result = {};
       for (const empId of Object.keys(byEmp)) {
-        result[empId] = Object.values(byEmp[empId]).sort((a, b) => new Date(a.date) - new Date(b.date));
+        result[empId] = Object.values(byEmp[empId]);
       }
       setAttendance(result);
     } catch (error) {
-      console.error('Error fetching attendance:', error);
+      console.error('Error fetching attendance in PrintAttendance:', error);
     }
     setLoading(false);
   };
 
   const handlePrint = () => {
-    console.log('=== PRINT DEBUG ===');
-    const printContents = document.querySelectorAll('.print-content');
-    console.log(`Total pages: ${printContents.length}`);
-    
-    printContents.forEach((page, idx) => {
-      const rect = page.getBoundingClientRect();
-      const monthSections = page.querySelectorAll('.month-section');
-      console.log(`Page ${idx + 1}:`);
-      console.log(`  - Height: ${rect.height}px (${(rect.height / 37.795).toFixed(2)}cm)`);
-      console.log(`  - Months: ${monthSections.length}`);
-      monthSections.forEach((section, mIdx) => {
-        const mRect = section.getBoundingClientRect();
-        const style = window.getComputedStyle(section);
-        console.log(`    Month ${mIdx + 1}: height=${mRect.height}px, position=${style.position}, top=${style.top}`);
-      });
-    });
-    
-    setTimeout(() => {
-      console.log('\n=== AFTER PRINT DIALOG ===');
-      const afterPrintContents = document.querySelectorAll('.print-content');
-      console.log(`Pages after print: ${afterPrintContents.length}`);
-      afterPrintContents.forEach((page, idx) => {
-        const rect = page.getBoundingClientRect();
-        console.log(`Page ${idx + 1}: ${rect.height}px (${(rect.height / 37.795).toFixed(2)}cm)`);
-      });
-      console.log('==================\n');
-    }, 100);
-    
     window.print();
   };
 
@@ -210,6 +204,7 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
     const months = [];
     const start = new Date(startMonth + '-01');
     const end = new Date(endMonth + '-01');
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) return [];
     
     let current = new Date(start);
     while (current <= end) {
@@ -220,10 +215,18 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
     return months;
   };
 
+  const getMonthName = (monthStr) => {
+    if (!monthStr) return '';
+    const [year, month] = monthStr.split('-');
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${monthNames[parseInt(month, 10) - 1]} ${year}`;
+  };
+
   const groupMonthsForPages = () => {
     const months = getMonthsInRange();
     const pages = [];
     
+    // Group into chunks of 2 months for side-by-side display
     for (let i = 0; i < months.length; i += 2) {
       pages.push(months.slice(i, i + 2));
     }
@@ -231,98 +234,151 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
     return pages;
   };
 
-  const getAttendanceForMonth = (month) => {
-    return attendance.filter(record => {
-      const recordDate = new Date(record.date);
-      const recordMonth = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`;
-      return recordMonth === month;
-    });
-  };
+  // Detailed calculations for a single day based on strict 8:00-12:00 and 13:00-17:00 bounds
+  const getDailyDetails = (record, day, year, month) => {
+    const totalDays = new Date(year, month, 0).getDate();
+    if (day > totalDays) {
+      return { amIn: '', amOut: '', pmIn: '', pmOut: '', hours: '', mins: '', lateMins: 0, isBlank: true };
+    }
 
-  const calculateSummaryForMonth = (monthAttendance) => {
-    let totalAttendance = 0;
-    let totalAbsences = 0;
-    let totalOTMinutes = 0;
-    let lateCount = 0;
-    let lateMinutes = 0;
-    let earlyCount = 0;
-    let earlyMinutes = 0;
+    if (!record) {
+      return { amIn: '', amOut: '', pmIn: '', pmOut: '', hours: '', mins: '', lateMins: 0, isBlank: false };
+    }
 
-    monthAttendance.forEach(record => {
-      const hasAnyAttendance = record.morning_time_in || record.afternoon_time_in;
-      if (hasAnyAttendance) totalAttendance++;
-      else totalAbsences++;
+    const amInMin = parseTimeToMinutes(record.morning_time_in);
+    const amOutMin = parseTimeToMinutes(record.morning_time_out);
+    const pmInMin = parseTimeToMinutes(record.afternoon_time_in);
+    const pmOutMin = parseTimeToMinutes(record.afternoon_time_out);
 
-      if (record.morning_time_in) {
-        const inMin = parseMinutes(record.morning_time_in);
-        const graceMin = 8 * 60 + 5;
-        if (inMin > graceMin) {
-          lateCount++;
-          lateMinutes += inMin - (8 * 60);
-        }
-      }
-      if (record.afternoon_time_in) {
-        const inMin = parseMinutes(record.afternoon_time_in);
-        const graceMin = 13 * 60 + 5;
-        if (inMin > graceMin) {
-          lateCount++;
-          lateMinutes += inMin - (13 * 60);
-        }
-      }
+    let amMinutesWorked = 0;
+    if (amInMin !== null && amOutMin !== null && amOutMin > amInMin) {
+      const effIn = Math.max(amInMin, 8 * 60); // 8:00 AM
+      const effOut = Math.min(amOutMin, 12 * 60); // 12:00 PM
+      amMinutesWorked = Math.max(0, effOut - effIn);
+    }
 
-      if (record.morning_time_out) {
-        const outMin = parseMinutes(record.morning_time_out);
-        const expectedMin = 12 * 60;
-        if (outMin < expectedMin) {
-          earlyCount++;
-          earlyMinutes += expectedMin - outMin;
-        }
-      }
-      if (record.afternoon_time_out) {
-        const outMin = parseMinutes(record.afternoon_time_out);
-        const expectedMin = 17 * 60;
-        if (outMin < expectedMin) {
-          earlyCount++;
-          earlyMinutes += expectedMin - outMin;
-        }
-      }
+    let pmMinutesWorked = 0;
+    if (pmInMin !== null && pmOutMin !== null && pmOutMin > pmInMin) {
+      const effIn = Math.max(pmInMin, 13 * 60); // 1:00 PM
+      const effOut = Math.min(pmOutMin, 17 * 60); // 5:00 PM
+      pmMinutesWorked = Math.max(0, effOut - effIn);
+    }
 
-      if (record.ot_time_in && record.ot_time_out) {
-        totalOTMinutes += calculateMinutesWorked(record.ot_time_in, record.ot_time_out, 'Overtime');
-      }
-    });
+    const totalMinutes = amMinutesWorked + pmMinutesWorked;
+
+    // Late minutes calculations: relative to baselines (8:00 AM and 1:00 PM) without grace period offsets
+    let dailyLateMins = 0;
+    if (amInMin !== null && amInMin > 8 * 60) {
+      dailyLateMins += (amInMin - 8 * 60);
+    }
+    if (pmInMin !== null && pmInMin > 13 * 60) {
+      dailyLateMins += (pmInMin - 13 * 60);
+    }
 
     return {
-      totalAttendance,
-      totalAbsences,
-      otHours: Math.floor(totalOTMinutes / 60),
-      otMinutes: totalOTMinutes % 60,
-      lateCount,
-      lateMinutes,
-      earlyCount,
-      earlyMinutes
+      amIn: record.morning_time_in ? formatTime12(record.morning_time_in) : '',
+      amOut: record.morning_time_out ? formatTime12(record.morning_time_out) : '',
+      pmIn: record.afternoon_time_in ? formatTime12(record.afternoon_time_in) : '',
+      pmOut: record.afternoon_time_out ? formatTime12(record.afternoon_time_out) : '',
+      hours: totalMinutes > 0 ? Math.floor(totalMinutes / 60) : '',
+      mins: totalMinutes > 0 ? totalMinutes % 60 : '',
+      rawMinutes: totalMinutes,
+      lateMins: dailyLateMins,
+      isBlank: false
     };
   };
 
-  const getMonthName = (monthStr) => {
-    const [year, month] = monthStr.split('-');
-    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    return `${monthNames[parseInt(month) - 1]} ${year}`;
+  // Compile monthly sums (total hours, minutes, and late minutes)
+  const calculateMonthSummary = (empRecords, year, month) => {
+    let totalWorkedMinutes = 0;
+    let totalLateMinutes = 0;
+
+    const totalDays = new Date(year, month, 0).getDate();
+    for (let d = 1; d <= totalDays; d++) {
+      const dayStr = String(d).padStart(2, '0');
+      const dateKey = `${year}-${String(month).padStart(2, '0')}-${dayStr}`;
+      const record = empRecords.find(r => r.date === dateKey);
+
+      const details = getDailyDetails(record, d, year, month);
+      if (!details.isBlank) {
+        totalWorkedMinutes += (details.rawMinutes || 0);
+        totalLateMinutes += (details.lateMins || 0);
+      }
+    }
+
+    return {
+      hours: totalWorkedMinutes > 0 ? Math.floor(totalWorkedMinutes / 60) : 0,
+      mins: totalWorkedMinutes > 0 ? totalWorkedMinutes % 60 : 0,
+      lateMinutes: totalLateMinutes
+    };
   };
+
+  // Initialize defaults based on initial properties
+  useEffect(() => {
+    if (allEmployeesList.length > 0) {
+      if (employees && employees.length === 1) {
+        setSelectedEmployeeFilter(String(employees[0].id));
+      } else if (!employees && internId) {
+        setSelectedEmployeeFilter(String(internId));
+      }
+    }
+  }, [allEmployeesList, employees, internId]);
+
+  const uniqueRoles = useMemo(() => {
+    const roles = allEmployeesList.map(e => e.role).filter(Boolean);
+    return ['all', ...Array.from(new Set(roles))];
+  }, [allEmployeesList]);
+
+  const handleEmployeeChange = (empId) => {
+    setSelectedEmployeeFilter(empId);
+    if (empId !== 'all') {
+      const emp = allEmployeesList.find(x => String(x.id) === String(empId));
+      if (emp && emp.role && selectedRoleFilter !== 'all') {
+        if (emp.role.toLowerCase() !== selectedRoleFilter.toLowerCase()) {
+          setSelectedRoleFilter('all');
+        }
+      }
+    }
+  };
+
+  const handleRoleChange = (role) => {
+    setSelectedRoleFilter(role);
+    if (role !== 'all' && selectedEmployeeFilter !== 'all') {
+      const emp = allEmployeesList.find(x => String(x.id) === String(selectedEmployeeFilter));
+      if (emp && emp.role && emp.role.toLowerCase() !== role.toLowerCase()) {
+        setSelectedEmployeeFilter('all');
+      }
+    }
+  };
+
+  const employeesToRender = useMemo(() => {
+    let list = allEmployeesList;
+
+    // Filter by selected employee
+    if (selectedEmployeeFilter !== 'all') {
+      list = list.filter(e => String(e.id) === selectedEmployeeFilter);
+    }
+
+    // Filter by selected role
+    if (selectedRoleFilter !== 'all') {
+      list = list.filter(e => e.role && e.role.toLowerCase() === selectedRoleFilter.toLowerCase());
+    }
+
+    // Fallback if list ends up empty
+    if (list.length === 0) {
+      if (employees) return employees;
+      if (internId) return [{ id: String(internId), name: internName }];
+    }
+
+    return list;
+  }, [allEmployeesList, selectedEmployeeFilter, selectedRoleFilter, employees, internId, internName]);
 
   const pages = groupMonthsForPages();
-
-  const formatDateWithDay = (dateStr) => {
-    const date = new Date(dateStr);
-    const day = date.getDate();
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return `${day}/${days[date.getDay()]}`;
-  };
 
   return (
     <div className="print-container">
       <div className="no-print">
-        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <div className="month-filter">
             <label>Start Month:</label>
             <input
@@ -339,130 +395,170 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
               onChange={(e) => setEndMonth(e.target.value)}
             />
           </div>
+          {allEmployeesList.length > 1 && (
+            <>
+              <div className="month-filter">
+                <label>Employee:</label>
+                <select
+                  value={selectedEmployeeFilter}
+                  onChange={(e) => handleEmployeeChange(e.target.value)}
+                >
+                  <option value="all">All Employees</option>
+                  {allEmployeesList.map((emp) => (
+                    <option key={emp.id} value={String(emp.id)}>{emp.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="month-filter">
+                <label>Role:</label>
+                <select
+                  value={selectedRoleFilter}
+                  onChange={(e) => handleRoleChange(e.target.value)}
+                >
+                  <option value="all">All Roles</option>
+                  {uniqueRoles.filter((r) => r !== 'all').map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
         </div>
         <div className="button-group">
           <button onClick={onClose} className="close-btn"><X size={16} /> Close</button>
-          <button onClick={handlePrint} className="print-btn"><Printer size={16} /> Print</button>
+          <button onClick={handlePrint} className="print-btn"><Printer size={16} /> Print DTR</button>
         </div>
       </div>
       
       {(() => {
-        const employeesToRender = employees
-          ? employees
-          : [{ id: String(internId), name: internName }];
-        return employeesToRender.flatMap((emp) => {
-          const empRecords = attendance[String(emp.id)] || [];
-          return pages.map((pageMonths, pageIndex) => (
-            <div key={`${emp.id}-${pageIndex}`} className="print-content">
-              <h1 className="print-title">Attendance and Time Report</h1>
+        const empsToRender = employeesToRender;
 
-              {loading ? (
-                <p>Loading...</p>
-              ) : (
-                <>
-                  {pageMonths.map((month) => {
-                    const monthAttendance = empRecords.filter(record => {
-                      const recordDate = new Date(record.date);
-                      const recordMonth = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`;
-                      return recordMonth === month;
-                    });
-                    const monthSummary = calculateSummaryForMonth(monthAttendance);
+        return empsToRender.flatMap((emp) => {
+          const empRecords = attendance[String(emp.id)] || [];
+          const empSignatureUrl = employeeSignatures[String(emp.id)] || emp.signature || null;
+
+          return pages.map((pageMonths, pageIndex) => {
+            // If only one month in pageMonths, duplicate it to print side-by-side
+            const pageMonthsToRender = pageMonths.length === 1 
+              ? [pageMonths[0], pageMonths[0]] 
+              : pageMonths;
+
+            return (
+              <div key={`${emp.id}-${pageIndex}`} className="print-content">
+                <div className="dtr-columns-container">
+                  {pageMonthsToRender.map((monthStr, colIndex) => {
+                    const [year, month] = monthStr.split('-').map(Number);
+                    const monthSummary = calculateMonthSummary(empRecords, year, month);
+
+                    // Build exactly 31 day rows
+                    const dayRows = [];
+                    for (let d = 1; d <= 31; d++) {
+                      const dayStr = String(d).padStart(2, '0');
+                      const dateKey = `${year}-${String(month).padStart(2, '0')}-${dayStr}`;
+                      const record = empRecords.find(r => r.date === dateKey);
+                      dayRows.push({
+                        dayNum: d,
+                        details: getDailyDetails(record, d, year, month)
+                      });
+                    }
 
                     return (
-                      <div key={month} className="month-section">
-                        {/* HEADER SUMMARY SECTION */}
-                        <table className="summary-table">
-                          <tbody>
-                            <tr>
-                              <td className="label-cell">Dept.</td>
-                              <td colSpan="3">Main Office</td>
-                              <td className="label-cell">Name</td>
-                              <td colSpan="5">{emp.name}</td>
-                            </tr>
-                            <tr>
-                              <td className="label-cell">Date</td>
-                              <td colSpan="3">{getMonthName(month)}</td>
-                              <td className="label-cell">ID</td>
-                              <td colSpan="5">{String(emp.id).substring(0, 8)}</td>
-                            </tr>
-                            <tr>
-                              <td className="group-header">Absences (Day)</td>
-                              <td className="group-header">Leave (Day)</td>
-                              <td className="group-header">Business trip (Day)</td>
-                              <td className="group-header">Attendance (Day)</td>
-                              <td className="group-header" colSpan="2">OT</td>
-                              <td className="group-header" colSpan="2">Late</td>
-                              <td className="group-header" colSpan="2">Early</td>
-                            </tr>
-                            <tr>
-                              <td></td>
-                              <td></td>
-                              <td></td>
-                              <td></td>
-                              <td className="sub-header">Normal</td>
-                              <td className="sub-header">Special</td>
-                              <td className="sub-header">Frequency</td>
-                              <td className="sub-header">Min</td>
-                              <td className="sub-header">Frequency</td>
-                              <td className="sub-header">Min</td>
-                            </tr>
-                            <tr className="summary-data">
-                              <td>{monthSummary.totalAbsences.toFixed(1)}</td>
-                              <td>0.0</td>
-                              <td>0.0</td>
-                              <td>{monthSummary.totalAttendance.toFixed(1)}</td>
-                              <td>{String(monthSummary.otHours).padStart(2, '0')}:{String(monthSummary.otMinutes).padStart(2, '0')}</td>
-                              <td>00:00</td>
-                              <td>{monthSummary.lateCount}</td>
-                              <td>{monthSummary.lateMinutes}</td>
-                              <td>{monthSummary.earlyCount}</td>
-                              <td>{monthSummary.earlyMinutes}</td>
-                            </tr>
-                          </tbody>
-                        </table>
+                      <div key={`${monthStr}-${colIndex}`} className="dtr-column">
+                        <div className="dtr-header">
+                          <h2 className="dtr-title">DAILY TIME RECORD</h2>
+                          <div className="dtr-employee-name-container">
+                            <div className="dtr-employee-name">{emp.name}</div>
+                            <div className="dtr-label-subtext">(Name)</div>
+                          </div>
+                          
+                          <div className="dtr-header-row">
+                            <span>For the month of</span>
+                            <span className="dtr-header-underline">{getMonthName(monthStr)}</span>
+                          </div>
+                          
+                          <div className="dtr-header-row">
+                            <span>Office Hours (regular days)</span>
+                            <span className="dtr-header-underline">8:00 AM - 12:00 PM / 1:00 PM - 5:00 PM</span>
+                          </div>
 
-                        {/* DETAILED DAILY REPORT SECTION */}
-                        <table className="detail-table">
+                          <div className="dtr-header-row">
+                            <span>Arrival & Departure</span>
+                            <span className="dtr-header-underline"></span>
+                          </div>
+
+                          <div className="dtr-header-row border-last">
+                            <span>Saturdays</span>
+                            <span className="dtr-header-underline"></span>
+                          </div>
+                        </div>
+
+                        <table className="dtr-table">
                           <thead>
                             <tr>
-                              <th colSpan="7" className="section-title">All Report</th>
+                              <th rowSpan="2" className="day-col"></th>
+                              <th colSpan="2">A.M.</th>
+                              <th colSpan="2">P.M.</th>
+                              <th rowSpan="2">Hours</th>
+                              <th rowSpan="2">Min.</th>
                             </tr>
                             <tr>
-                              <th rowSpan="2">Date/Week</th>
-                              <th colSpan="2">Time1</th>
-                              <th colSpan="2">Time2</th>
-                              <th colSpan="2">OT</th>
-                            </tr>
-                            <tr>
-                              <th>In</th>
-                              <th>Out</th>
-                              <th>In</th>
-                              <th>Out</th>
-                              <th>In</th>
-                              <th>Out</th>
+                              <th className="sub-th">Arrival</th>
+                              <th className="sub-th">Departure</th>
+                              <th className="sub-th">Arrival</th>
+                              <th className="sub-th">Departure</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {monthAttendance.map(record => (
-                              <tr key={record.date}>
-                                <td>{formatDateWithDay(record.date)}</td>
-                                <td>{record.morning_time_in ? formatTime(record.morning_time_in) : <span className="missed">Missed</span>}</td>
-                                <td>{record.morning_time_out ? formatTime(record.morning_time_out) : <span className="missed">Missed</span>}</td>
-                                <td>{record.afternoon_time_in ? formatTime(record.afternoon_time_in) : <span className="missed">Missed</span>}</td>
-                                <td>{record.afternoon_time_out ? formatTime(record.afternoon_time_out) : <span className="missed">Missed</span>}</td>
-                                <td>{record.ot_time_in ? formatTime(record.ot_time_in) : ''}</td>
-                                <td>{record.ot_time_out ? formatTime(record.ot_time_out) : ''}</td>
+                            {dayRows.map(({ dayNum, details }) => (
+                              <tr key={dayNum}>
+                                <td className="day-cell">{dayNum}</td>
+                                <td>{details.amIn}</td>
+                                <td>{details.amOut}</td>
+                                <td>{details.pmIn}</td>
+                                <td>{details.pmOut}</td>
+                                <td>{details.hours}</td>
+                                <td>{details.mins}</td>
                               </tr>
                             ))}
+                            <tr className="dtr-total-row">
+                              <td colSpan="5">Total</td>
+                              <td>{monthSummary.hours || ''}</td>
+                              <td>{monthSummary.mins || ''}</td>
+                            </tr>
                           </tbody>
                         </table>
+
+                        <div className="dtr-footer">
+                          <p className="dtr-footer-text">
+                            I certify on my honor that the above is true and correct record of the hours of work performed, 
+                            record of which was made daily at the time of arrival and departure from office.
+                          </p>
+
+                          <div className="dtr-signature-block">
+                            {empSignatureUrl && (
+                              <img src={empSignatureUrl} alt="Signature" className="dtr-signature-image" />
+                            )}
+                            <div className="dtr-name-underlined">{emp.name.toUpperCase()}</div>
+                            <div className="dtr-label-subtext">(Signature)</div>
+                          </div>
+
+                          <div className="dtr-verification-block">
+                            <div className="dtr-verification-text">Verified as to the prescribed office hours</div>
+                            <div className="dtr-in-charge-line"></div>
+                            <div className="dtr-label-subtext">(In-charge)</div>
+                          </div>
+
+                          <div className="dtr-late-minutes-block">
+                            Late Minutes: {monthSummary.lateMinutes}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
-                </>
-              )}
-            </div>
-          ));
+                </div>
+              </div>
+            );
+          });
         });
       })()}
     </div>

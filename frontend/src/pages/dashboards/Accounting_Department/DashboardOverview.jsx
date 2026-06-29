@@ -282,13 +282,6 @@ export function DashboardOverview({ user, onNavigate }) {
               </Badge>
             </div>
           </div>
-          <div className="text-right shrink-0">
-            <span className="text-[10px] uppercase tracking-wider text-white/40 block">System Status</span>
-            <span className="inline-flex items-center gap-1.5 mt-1 text-emerald-400 text-xs font-semibold bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              {loading ? 'Refreshing...' : 'Live from Database'}
-            </span>
-          </div>
         </div>
       </div>
 

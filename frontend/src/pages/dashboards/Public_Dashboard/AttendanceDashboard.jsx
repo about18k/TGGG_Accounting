@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import PrintAttendance from "../../globalattendancereport/PrintAttendance";
 import {
   MapPin,
@@ -417,14 +418,15 @@ const AttendanceDashboard = ({
     return (
       <>
         {content}
-        {showDTROverlay && (
-          <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
+        {showDTROverlay && createPortal(
+          <div className="dtr-print-overlay-wrapper" style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
             <PrintAttendance
               internId={user?.id}
               internName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email || 'Employee'}
               onClose={() => setShowDTROverlay(false)}
             />
-          </div>
+          </div>,
+          document.body
         )}
       </>
     );
@@ -444,14 +446,15 @@ const AttendanceDashboard = ({
       {content}
 
       {/* DTR print overlay – shows only this user's attendance */}
-      {showDTROverlay && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
+      {showDTROverlay && createPortal(
+        <div className="dtr-print-overlay-wrapper" style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
           <PrintAttendance
             internId={user?.id}
             internName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email || 'Employee'}
             onClose={() => setShowDTROverlay(false)}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
