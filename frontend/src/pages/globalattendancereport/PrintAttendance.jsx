@@ -13,6 +13,34 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
   const [selectedRoleFilter, setSelectedRoleFilter] = useState('all');
   const [allEmployeesList, setAllEmployeesList] = useState([]);
 
+  const currentUser = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.error('Error parsing user from localStorage:', e);
+      return null;
+    }
+  }, []);
+
+  const isAccountingUser = useMemo(() => {
+    if (!currentUser) return false;
+    const role = String(currentUser.role || '').toLowerCase();
+    const dept = String(currentUser.department_name || '').toLowerCase();
+    return role === 'accounting' || dept === 'accounting department' || dept === 'accounting';
+  }, [currentUser]);
+
+  const inChargeName = useMemo(() => {
+    if (!isAccountingUser || !currentUser) return '';
+    const fullName = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim();
+    return fullName || currentUser.name || currentUser.username || '';
+  }, [isAccountingUser, currentUser]);
+
+  const inChargeSignature = useMemo(() => {
+    if (!isAccountingUser || !currentUser) return null;
+    return currentUser.signature_image || currentUser.signature || null;
+  }, [isAccountingUser, currentUser]);
+
   useEffect(() => {
     const now = new Date();
     const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -215,6 +243,22 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
     return months;
   };
 
+  const formatLateMinutes = (totalMins) => {
+    if (!totalMins || totalMins <= 0) return '0 mins';
+    const hrs = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    const hrLabel = hrs === 1 ? 'hr' : 'hrs';
+    const minLabel = mins === 1 ? 'min' : 'mins';
+    
+    if (hrs > 0 && mins > 0) {
+      return `${hrs} ${hrLabel} ${mins} ${minLabel}`;
+    }
+    if (hrs > 0) {
+      return `${hrs} ${hrLabel}`;
+    }
+    return `${mins} ${minLabel}`;
+  };
+
   const getMonthName = (monthStr) => {
     if (!monthStr) return '';
     const [year, month] = monthStr.split('-');
@@ -252,27 +296,42 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
 
     let amMinutesWorked = 0;
     if (amInMin !== null && amOutMin !== null && amOutMin > amInMin) {
-      const effIn = Math.max(amInMin, 8 * 60); // 8:00 AM
+      const baselineStart = 8 * 60;
+      let effIn = amInMin;
+      if (amInMin <= baselineStart + 5) {
+        effIn = baselineStart;
+      } else {
+        effIn = baselineStart + (amInMin - (baselineStart + 5));
+      }
       const effOut = Math.min(amOutMin, 12 * 60); // 12:00 PM
       amMinutesWorked = Math.max(0, effOut - effIn);
     }
 
     let pmMinutesWorked = 0;
     if (pmInMin !== null && pmOutMin !== null && pmOutMin > pmInMin) {
-      const effIn = Math.max(pmInMin, 13 * 60); // 1:00 PM
+      const baselineStart = 13 * 60;
+      let effIn = pmInMin;
+      if (pmInMin <= baselineStart + 5) {
+        effIn = baselineStart;
+      } else {
+        effIn = baselineStart + (pmInMin - (baselineStart + 5));
+      }
       const effOut = Math.min(pmOutMin, 17 * 60); // 5:00 PM
       pmMinutesWorked = Math.max(0, effOut - effIn);
     }
 
     const totalMinutes = amMinutesWorked + pmMinutesWorked;
 
-    // Late minutes calculations: relative to baselines (8:00 AM and 1:00 PM) without grace period offsets
+    // Late minutes calculations: relative to baselines with 5-minute grace period offsets (morning: 8:05 AM, afternoon: 1:05 PM)
     let dailyLateMins = 0;
-    if (amInMin !== null && amInMin > 8 * 60) {
-      dailyLateMins += (amInMin - 8 * 60);
+    const morningCutoff = 8 * 60 + 5; // 8:05 AM
+    const afternoonCutoff = 13 * 60 + 5; // 1:05 PM
+
+    if (amInMin !== null && amInMin > morningCutoff) {
+      dailyLateMins += (amInMin - morningCutoff);
     }
-    if (pmInMin !== null && pmInMin > 13 * 60) {
-      dailyLateMins += (pmInMin - 13 * 60);
+    if (pmInMin !== null && pmInMin > afternoonCutoff) {
+      dailyLateMins += (pmInMin - afternoonCutoff);
     }
 
     return {
@@ -544,12 +603,26 @@ function PrintAttendance({ token, internId, internName, filterType, selectedDate
 
                           <div className="dtr-verification-block">
                             <div className="dtr-verification-text">Verified as to the prescribed office hours</div>
-                            <div className="dtr-in-charge-line"></div>
-                            <div className="dtr-label-subtext">(In-charge)</div>
+                            <div className="dtr-signature-block" style={{ margin: '0.6cm auto 0.2cm auto', width: '80%' }}>
+                              {inChargeSignature && (
+                                <img 
+                                  src={inChargeSignature} 
+                                  alt="In-Charge Signature" 
+                                  className="dtr-signature-image" 
+                                  style={{ top: '-25px' }} 
+                                />
+                              )}
+                              <div className="dtr-name-underlined" style={{ width: '100%', minHeight: '16px' }}>
+                                {inChargeName ? inChargeName.toUpperCase() : '\u00A0'}
+                              </div>
+                              <div className="dtr-label-subtext" style={{ textTransform: 'uppercase', fontSize: '0.48rem', letterSpacing: '0.05em' }}>
+                                (In-charge)
+                              </div>
+                            </div>
                           </div>
 
                           <div className="dtr-late-minutes-block">
-                            Late Minutes: {monthSummary.lateMinutes}
+                            Late: {formatLateMinutes(monthSummary.lateMinutes)}
                           </div>
                         </div>
                       </div>

@@ -403,3 +403,65 @@ class HybridPayrollTests(TestCase):
 		self.assertEqual(details['wage_type'], 'daily')
 		self.assertEqual(details['days_present'], 12)
 		self.assertEqual(details['daily_rate'], '800.00')
+
+
+class PayrollAttendanceSummaryTests(TestCase):
+	def setUp(self):
+		user_model = get_user_model()
+		self.employee = user_model.objects.create_user(
+			username='testemp01',
+			email='testemp01@example.com',
+			password='password123',
+			role='employee',
+			first_name='Test',
+			last_name='Employee'
+		)
+
+	def test_attendance_summary_grace_period_worked_hours(self):
+		from datetime import date, time
+		from attendance.models import Attendance
+		from payroll.views import _attendance_summary
+
+		# Create morning attendance record with check-in at 8:04 AM and checkout at 12:00 PM
+		Attendance.objects.create(
+			employee=self.employee,
+			date=date(2026, 6, 25),
+			session_type='morning',
+			time_in=time(8, 4),
+			time_out=time(12, 0),
+			is_late=False,
+			status='present'
+		)
+
+		summary = _attendance_summary(self.employee, date(2026, 6, 25), date(2026, 6, 25))
+		
+		# Expected hours for 1 day present = 8 hours
+		# Since 8:04 AM is in the 5-min grace period, it counts as starting at 8:00 AM.
+		# Total hours worked in session = 4.00 hours.
+		# But expected_hours is 8.00. So undertime is 4.00 hours (since they only clocked in for one session).
+		self.assertEqual(summary['days_present'], 1)
+		self.assertEqual(summary['total_hours'], 4.0)
+		self.assertEqual(summary['undertime_hours'], 4.0)
+
+		# Now add afternoon attendance record for the same day with check-in at 12:55 PM and checkout at 5:00 PM
+		# (Treated as 1:00 PM because check-in is early/within grace, and capped at 5:00 PM)
+		Attendance.objects.create(
+			employee=self.employee,
+			date=date(2026, 6, 25),
+			session_type='afternoon',
+			time_in=time(12, 55),
+			time_out=time(17, 0),
+			is_late=False,
+			status='present'
+		)
+
+		summary_both = _attendance_summary(self.employee, date(2026, 6, 25), date(2026, 6, 25))
+
+		# Expected hours = 1 present day * 8 = 8.00 hours.
+		# Morning: 4.0 hours, Afternoon: 4.0 hours.
+		# Total worked hours = 8.0 hours.
+		# Undertime should be 0.0 hours!
+		self.assertEqual(summary_both['days_present'], 1)  # Unique dates present!
+		self.assertEqual(summary_both['total_hours'], 8.0)
+		self.assertEqual(summary_both['undertime_hours'], 0.0)
+

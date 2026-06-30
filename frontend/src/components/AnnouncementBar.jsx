@@ -130,7 +130,7 @@ export default function AnnouncementBar({ user }) {
         {/* Static Label */}
         <div className="h-full bg-[#FF7120] text-white font-bold text-xs uppercase px-4 flex items-center gap-2 shrink-0 z-10 shadow-[4px_0_10px_rgba(0,0,0,0.35)]">
           <Megaphone size={14} className="animate-pulse text-white" />
-          <span className="tracking-wider">Announcements</span>
+          <span className="hidden sm:inline tracking-wider">Announcements</span>
         </div>
 
         {/* Marquee Content */}

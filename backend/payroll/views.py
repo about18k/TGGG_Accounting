@@ -227,22 +227,21 @@ def _attendance_summary(employee, period_start, period_end):
         date__lte=period_end,
     ).order_by('date')
 
-    days_present = records.filter(status__in=['present', 'late']).count()
-    days_absent = records.filter(status='absent').count()
-    days_on_leave = records.filter(status='on_leave').count()
+    days_present = records.filter(session_type__in=['morning', 'afternoon'], status__in=['present', 'late']).values('date').distinct().count()
+    days_absent = records.filter(session_type__in=['morning', 'afternoon'], status='absent').values('date').distinct().count()
+    days_on_leave = records.filter(session_type__in=['morning', 'afternoon'], status='on_leave').values('date').distinct().count()
     late_count = records.filter(status='late').count()
     total_logs = records.count()
     working_days = _count_weekdays(period_start, period_end)
 
     total_hours = Decimal('0')
+    from attendance.session_service import get_net_session_hours
     for record in records:
         if not record.time_in or not record.time_out:
             continue
-        start_dt = datetime.combine(date.min, record.time_in)
-        end_dt = datetime.combine(date.min, record.time_out)
-        if end_dt < start_dt:
+        if record.session_type not in ['morning', 'afternoon']:
             continue
-        hours = Decimal((end_dt - start_dt).total_seconds()) / Decimal('3600')
+        hours = get_net_session_hours(record.session_type, record.time_in, record.time_out)
         total_hours += hours
 
     expected_hours = Decimal(days_present) * Decimal('8')
