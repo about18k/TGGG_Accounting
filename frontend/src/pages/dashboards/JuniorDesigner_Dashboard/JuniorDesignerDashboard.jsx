@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
     Calendar,   ShieldCheck,   User,   ChevronDown
 } from 'lucide-react';
@@ -278,14 +279,15 @@ export default function JuniorDesignerDashboard({ user, onNavigate }) {
         </div>
       </div>
 
-      {showDTROverlay && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
+      {showDTROverlay && createPortal(
+        <div className="dtr-print-overlay-wrapper" style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
           <PrintAttendance
             internId={user?.id}
             internName={`${user?.first_name || ''} ${user?.last_name || ''}`.trim() || user?.email || 'Employee'}
             onClose={() => setShowDTROverlay(false)}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

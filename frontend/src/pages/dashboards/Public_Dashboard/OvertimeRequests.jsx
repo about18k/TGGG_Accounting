@@ -17,6 +17,23 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#039;');
 };
 
+const formatTime12 = (timeStr) => {
+  if (!timeStr || timeStr === '-') return '';
+  if (timeStr.includes('AM') || timeStr.includes('PM')) {
+    return timeStr.trim();
+  }
+  try {
+    const [hours, minutes] = timeStr.split(':');
+    const hr = parseInt(hours, 10);
+    const m = minutes.substring(0, 2);
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    const displayHr = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+    return `${displayHr}:${m} ${ampm}`;
+  } catch (e) {
+    return timeStr;
+  }
+};
+
 const formatJobPosition = (value) => {
   if (!value) return '';
   return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
@@ -303,8 +320,8 @@ function OvertimeRequests({ token }) {
         <tr>
           <td class="period-cell">${period ? escapeHtml(period.start_date || '') : ''}</td>
           <td class="period-cell">${period ? escapeHtml(period.end_date || '') : ''}</td>
-          <td class="period-cell">${period ? escapeHtml(period.start_time || '') : ''}</td>
-          <td class="period-cell">${period ? escapeHtml(period.end_time || '') : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(formatTime12(period.start_time || '')) : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(formatTime12(period.end_time || '')) : ''}</td>
         </tr>
       `);
     }
@@ -315,8 +332,8 @@ function OvertimeRequests({ token }) {
           <title>OT Request Form</title>
           <style>
             @page {
-              size: A4;
-              margin: 0.5in;
+              size: A4 portrait;
+              margin: 0;
             }
             * {
               margin: 0;
@@ -327,11 +344,12 @@ function OvertimeRequests({ token }) {
               font-family: Arial, sans-serif;
               background: #fff;
               color: #000;
-              padding: 15px;
+              padding: 0.5in;
               font-size: 10pt;
               line-height: 1.3;
             }
             .form-container {
+              width: 100%;
               max-width: 800px;
               margin: 0 auto;
               border: 2px solid #000;
@@ -445,38 +463,50 @@ function OvertimeRequests({ token }) {
               margin-top: 8px;
             }
             .signature-block {
-              width: 45%;
+              width: 220px;
               text-align: center;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
             }
             .signature-block1 {
               margin-top: 60px;
-              width: 45%;
+              width: 220px;
               text-align: center;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
             }
             .signature-line {
               border-bottom: 1px solid #000;
               height: 30px;
               margin-bottom: 3px;
               position: relative;
+              width: 100%;
             }
             .signature-image {
               width: 100%;
-              height: 60px;
+              height: 50px;
               background: #fff;
               display: flex;
               align-items: center;
               justify-content: center;
-              margin-bottom: 0px;
-              padding-top: 5px;
+              position: absolute;
+              bottom: 2px;
+              left: 0;
             }
             .signature-image img {
-              max-width: 100%;
-              max-height: 100%;
+              max-width: 140px;
+              max-height: 48px;
+              object-fit: contain;
               display: block;
+              margin: 0 auto;
             }
             .signature-label {
               font-size: 8pt;
               font-weight: bold;
+              display: block;
+              width: 100%;
             }
             .date-line {
               margin-top: 10px;
@@ -520,10 +550,36 @@ function OvertimeRequests({ token }) {
             }
             @media print {
               body {
-                padding: 0;
+                padding: 0.5in !important;
+                margin: 0 !important;
+                height: 100vh !important;
               }
               .form-container {
-                border: 2px solid #000;
+                width: 100% !important;
+                max-width: 100% !important;
+                height: calc(100vh - 1in) !important;
+                margin: 0 !important;
+                border: 2px solid #000 !important;
+                display: flex !important;
+                flex-direction: column !important;
+              }
+              .section {
+                flex: 1 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+              }
+              .field-row {
+                margin-bottom: 8px !important;
+              }
+              .periods-table th, .periods-table td.period-cell {
+                padding: 6px 4px !important;
+              }
+              .explanation-box {
+                min-height: 70px !important;
+              }
+              .signature-section {
+                margin-top: 35px !important;
               }
             }
           </style>
@@ -532,7 +588,7 @@ function OvertimeRequests({ token }) {
           <div class="form-container">
             <!-- Header with Logo -->
             <div class="header">
-              <img src="/imgs/formlogo.webp" alt="Company Logo" class="logo" />
+              <img src="/formlogo2.webp" alt="Company Logo" class="logo" />
               <div class="header-text">
                 <div class="form-title">OT Request Form</div>
               </div>
@@ -865,9 +921,9 @@ function OvertimeRequests({ token }) {
                         <tr key={`pv-${idx}`}>
                           <td style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem', color: '#e8eaed' }}>{idx + 1}</td>
                           <td style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_date || '-'}</td>
-                          <td style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_time || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_time ? formatTime12(period.start_time) : '-'}</td>
                           <td style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_date || '-'}</td>
-                          <td style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_time || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255,255,255,0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_time ? formatTime12(period.end_time) : '-'}</td>
                         </tr>
                       ))}
                     </tbody>

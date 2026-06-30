@@ -13,6 +13,23 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#039;');
 };
 
+const formatTime12 = (timeStr) => {
+  if (!timeStr || timeStr === '-') return '';
+  if (timeStr.includes('AM') || timeStr.includes('PM')) {
+    return timeStr.trim();
+  }
+  try {
+    const [hours, minutes] = timeStr.split(':');
+    const hr = parseInt(hours, 10);
+    const m = minutes.substring(0, 2);
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    const displayHr = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+    return `${displayHr}:${m} ${ampm}`;
+  } catch (e) {
+    return timeStr;
+  }
+};
+
 const formatJobPosition = (value) => {
   if (!value) return '';
   return String(value).replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
@@ -76,8 +93,8 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
       periodRows.push(`
         <tr>
           <td class="period-cell">${period ? escapeHtml(period.start_date || '') : ''}</td>
-          <td class="period-cell">${period ? escapeHtml(period.start_time || '') : ''}</td>
-          <td class="period-cell">${period ? escapeHtml(period.end_time || '') : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(formatTime12(period.start_time || '')) : ''}</td>
+          <td class="period-cell">${period ? escapeHtml(formatTime12(period.end_time || '')) : ''}</td>
         </tr>
       `);
     }
@@ -87,10 +104,10 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
         <head>
           <title>OT Request Form</title>
           <style>
-            @page { size: A4; margin: 0.5in; }
+            @page { size: A4 portrait; margin: 0; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 15px; font-size: 10pt; line-height: 1.3; }
-            .form-container { max-width: 800px; margin: 0 auto; border: 2px solid #000; padding: 0; }
+            body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 0.5in; font-size: 10pt; line-height: 1.3; }
+            .form-container { width: 100%; max-width: 800px; margin: 0 auto; border: 2px solid #000; padding: 0; }
             .header { display: flex; flex-direction: column; align-items: center; border-bottom: 2px solid #000; padding: 25px 20px; text-align: center; }
             .logo { max-width: 380px; height: auto; margin-bottom: 15px; display: block; }
             .header-text { width: 100%; }
@@ -107,25 +124,58 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
             .periods-table td.period-cell { border: 1px solid #000; padding: 5px 3px; height: 20px; text-align: center; font-size: 9pt; }
             .explanation-box { border: 1px solid #000; min-height: 50px; padding: 6px; margin-top: 5px; font-size: 9pt; line-height: 1.3; }
             .signature-section { display: flex; justify-content: space-between; margin-top: 25px; align-items: flex-end; }
-            .signature-block { width: 45%; text-align: center; display: flex; flex-direction: column; align-items: center; }
-            .signature-block1 { width: 45%; text-align: center; display: flex; flex-direction: column; align-items: center; }
-            .signature-line { border-bottom: 1px solid #000; height: 30px; margin-bottom: 3px; position: relative; }
-            .signature-image { width: 100%; height: 60px; background: #fff; display: flex; align-items: center; justifyContent: center; margin-bottom: 0px; padding-top: 5px; }
-            .signature-image img { max-width: 100%; max-height: 100%; display: block; margin: 0 auto; }
+            .signature-block { width: 220px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+            .signature-block1 { width: 220px; text-align: center; display: flex; flex-direction: column; align-items: center; }
+            .signature-line { border-bottom: 1px solid #000; height: 30px; margin-bottom: 3px; position: relative; width: 100%; }
+            .signature-image { width: 100%; height: 50px; display: flex; align-items: center; justify-content: center; position: absolute; bottom: 2px; left: 0; }
+            .signature-image img { max-width: 140px; max-height: 48px; object-fit: contain; display: block; margin: 0 auto; }
             .employee-name { font-weight: bold; font-size: 10pt; margin: 2px 0; text-transform: uppercase; }
-            .signature-label { font-size: 8pt; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; display: block; }
+            .signature-label { font-size: 8pt; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; display: block; width: 100%; }
             .approval-title { font-weight: bold; font-size: 10pt; margin-bottom: 8px; text-align: center; text-transform: uppercase; }
             .approval-signatures { display: flex; justify-content: space-around; }
             .approval-block { width: 40%; text-align: center; }
             .approval-note { font-weight: bold; margin-bottom: 5px; font-size: 9pt; }
             .total-hours { font-weight: bold; background: #f5f5f5; padding: 5px 10px; display: inline-block; border: 1px solid #000; margin-top: 5px; }
-            @media print { body { padding: 0; } .form-container { border: 2px solid #000; } }
+            @media print {
+              body {
+                padding: 0.5in !important;
+                margin: 0 !important;
+                height: 100vh !important;
+              }
+              .form-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                height: calc(100vh - 1in) !important;
+                margin: 0 !important;
+                border: 2px solid #000 !important;
+                display: flex !important;
+                flex-direction: column !important;
+              }
+              .section {
+                flex: 1 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+              }
+              .field-row {
+                margin-bottom: 8px !important;
+              }
+              .periods-table th, .periods-table td.period-cell {
+                padding: 6px 4px !important;
+              }
+              .explanation-box {
+                min-height: 70px !important;
+              }
+              .signature-section {
+                margin-top: 35px !important;
+              }
+            }
           </style>
         </head>
         <body>
           <div class="form-container">
             <div class="header">
-              <img src="/formlogo.webp" alt="Company Logo" class="logo" />
+              <img src="/formlogo2.webp" alt="Company Logo" class="logo" />
               <div class="header-text">
                 <div class="form-title">OT Request Form</div>
               </div>
@@ -484,8 +534,8 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
                       {selectedForView.periods.map((period, idx) => (
                         <tr key={`pv-${idx}`}>
                           <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_date || '-'}</td>
-                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_time || '-'}</td>
-                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_time || '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.start_time ? formatTime12(period.start_time) : '-'}</td>
+                          <td style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', padding: '0.5rem', color: '#e8eaed' }}>{period.end_time ? formatTime12(period.end_time) : '-'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -509,7 +559,7 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
                   <img
                     src={selectedForView.employee_signature}
                     alt="Employee Signature"
-                    style={{ maxWidth: '200px', maxHeight: '100px', objectFit: 'contain' }}
+                    style={{ maxWidth: '140px', maxHeight: '48px', objectFit: 'contain' }}
                   />
                 </div>
               </div>

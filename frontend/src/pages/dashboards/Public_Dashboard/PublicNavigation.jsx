@@ -32,7 +32,7 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user, fixed 
                   background: currentPage === 'profile' ? '#FF7120' : 'transparent',
                   border: '1px solid #FF7120',
                   color: currentPage === 'profile' ? 'white' : '#FF7120',
-                  padding: '0.4rem',
+                  padding: user?.profile_picture || user?.profile_pic ? '0' : '0.4rem',
                   borderRadius: '50%',
                   cursor: 'pointer',
                   display: 'flex',
@@ -40,10 +40,19 @@ const PublicNavigation = ({ onNavigate, currentPage = 'attendance', user, fixed 
                   justifyContent: 'center',
                   width: '36px',
                   height: '36px',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  overflow: 'hidden'
                 }}
               >
-                <User className="h-4 w-4" style={{ transition: 'color 0.2s' }} />
+                {user?.profile_picture || user?.profile_pic ? (
+                  <img
+                    src={user.profile_picture || user.profile_pic}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <User className="h-4 w-4" style={{ transition: 'color 0.2s' }} />
+                )}
               </button>
             </div>
             

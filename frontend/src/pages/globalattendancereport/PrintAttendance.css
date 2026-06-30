@@ -1,7 +1,11 @@
+/* PrintAttendance.css */
 .print-container {
   min-height: 100vh;
   background: #f5f5f5;
   padding: 2rem;
+  font-family: 'Times New Roman', Times, serif;
+  color: #000;
+  box-sizing: border-box;
 }
 
 .no-print {
@@ -11,9 +15,12 @@
   justify-content: space-between;
   align-items: center;
   background: white;
-  padding: 1.5rem;
+  padding: 1.2rem 1.8rem;
   border-radius: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  position: sticky;
+  top: 1rem;
+  z-index: 100;
 }
 
 .month-filter {
@@ -25,25 +32,29 @@
 .month-filter label {
   color: #00273C;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
 }
 
-.month-filter input {
-  padding: 0.65rem 1rem;
+.month-filter input,
+.month-filter select {
+  padding: 0.55rem 0.95rem;
   border-radius: 8px;
   border: 2px solid #e5e7eb;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 500;
   color: #00273C;
   transition: all 0.2s;
   cursor: pointer;
+  background-color: white;
 }
 
-.month-filter input:hover {
+.month-filter input:hover,
+.month-filter select:hover {
   border-color: #FF7120;
 }
 
-.month-filter input:focus {
+.month-filter input:focus,
+.month-filter select:focus {
   outline: none;
   border-color: #FF7120;
   box-shadow: 0 0 0 3px rgba(255, 113, 32, 0.1);
@@ -55,165 +66,257 @@
 }
 
 .close-btn, .print-btn {
-  padding: 0.75rem 1.5rem;
+  padding: 0.65rem 1.3rem;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  transition: all 0.2s;
 }
 
 .close-btn {
-  background: #6b7280;
-  color: white;
+  background: #f3f4f6;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
 }
 
 .print-btn {
   background: #FF7120;
   color: white;
+  box-shadow: 0 2px 4px rgba(255, 113, 32, 0.2);
 }
 
 .close-btn:hover {
-  background: #4b5563;
+  background: #e5e7eb;
 }
 
 .print-btn:hover {
   background: #e5641c;
 }
 
+/* Page Frame for Screen View - Fixed height to allow children heights to resolve */
 .print-content {
   background: white;
-  max-width: 21cm;
   width: 21cm;
-  margin: 0 auto 2rem auto;
-  padding: 0.3cm;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 29.7cm;
+  margin: 0 auto 2.5rem auto;
+  padding: 0.6cm 0.6cm;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
   box-sizing: border-box;
   overflow: visible;
   position: relative;
-  padding-bottom: 15cm;
+  page-break-after: always;
+  border-radius: 4px;
 }
 
 .print-content:last-child {
   margin-bottom: 0;
 }
 
-.month-section:nth-child(3) {
-  position: absolute;
-  top: 14.85cm;
-  left: 0.3cm;
-  right: 0.3cm;
+/* Side-by-Side Dual Column Grid */
+.dtr-columns-container {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  height: 100%;
 }
 
-.print-title {
+.dtr-column {
+  width: 48.5%;
+  height: 100%; /* Force column to fill available page height */
+  border: 1.5px solid #000;
+  padding: 0.35cm 0.35cm;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #fff;
+}
+
+/* DTR Header Styles */
+.dtr-header {
   text-align: center;
-  font-size: 0.9rem;
-  font-weight: bold;
-  color: #000;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.2cm;
+}
+
+.dtr-title {
+  font-size: 0.85rem;
+  font-weight: 850;
+  letter-spacing: 0.6px;
+  margin: 0 0 0.15cm 0;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
-/* SUMMARY TABLE STYLES */
-.summary-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0 auto 0.5rem auto;
-  font-size: 0.5rem;
-  table-layout: fixed;
-  min-width: 0 !important;
-  flex-shrink: 0;
+.dtr-employee-name-container {
+  margin: 0.2cm 0 0.25cm 0;
+  text-align: center;
 }
 
-.summary-table td {
-  border: 1px solid #000;
-  padding: 0.1rem 0.15rem;
-  color: #000;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.5rem;
-}
-
-.summary-table .label-cell {
-  background: #e8e8e8;
-  font-weight: 600;
-  width: 6%;
-}
-
-.summary-table .group-header {
-  background: #d0d0d0;
+.dtr-employee-name {
+  font-size: 0.85rem;
   font-weight: 700;
+  border-bottom: 1.5px solid #000;
+  display: inline-block;
+  min-width: 85%;
+  padding-bottom: 2px;
+}
+
+.dtr-label-subtext {
+  font-size: 0.52rem;
+  color: #333;
+  margin-top: 2px;
+  text-transform: capitalize;
   text-align: center;
-  padding: 0.15rem;
-  font-size: 0.45rem;
 }
 
-.summary-table .sub-header {
-  background: #e8e8e8;
-  font-weight: 600;
-  text-align: center;
-  font-size: 0.4rem;
-  padding: 0.1rem;
-}
-
-.summary-table .summary-data td {
-  text-align: center;
-  font-weight: 600;
-  background: #f9f9f9;
-  font-size: 0.45rem;
-}
-
-/* DETAIL TABLE STYLES */
-.detail-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0 auto;
-  font-size: 0.5rem;
-  table-layout: fixed;
-  min-width: 0 !important;
-  flex: 1;
-  overflow: hidden;
-}
-
-.detail-table th,
-.detail-table td {
-  border: 1px solid #000;
-  padding: 0.1rem 0.08rem;
-  text-align: center;
-  color: #000;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.5rem;
-}
-
-.detail-table th {
-  background: #d0d0d0;
-  font-weight: 700;
-  font-size: 0.45rem;
-}
-
-.detail-table .section-title {
-  background: #b0b0b0;
+.dtr-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
   font-size: 0.6rem;
-  font-weight: 700;
-  padding: 0.3rem;
+  margin-bottom: 0.12cm;
+  text-align: left;
 }
 
-.detail-table tbody tr:nth-child(even) {
-  background: #f9f9f9;
+.dtr-header-row.border-last {
+  margin-bottom: 0.25cm;
 }
 
-.missed {
-  color: #dc2626;
+.dtr-header-underline {
+  border-bottom: 1px solid #000;
+  flex: 1;
+  margin-left: 6px;
   font-weight: 600;
-  font-size: 0.45rem;
+  min-height: 12px;
+  display: inline-block;
 }
+
+/* DTR Table Styles */
+.dtr-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.2cm;
+  table-layout: fixed;
+}
+
+.dtr-table th,
+.dtr-table td {
+  border: 1px solid #000;
+  text-align: center;
+  padding: 1px 1px;
+  font-size: 0.56rem;
+  height: 0.52cm; /* Taller row height to fill the A4 page properly */
+  box-sizing: border-box;
+}
+
+.dtr-table th {
+  font-weight: 700;
+  font-size: 0.54rem;
+}
+
+.dtr-table th.sub-th {
+  font-weight: 600;
+  font-size: 0.48rem;
+}
+
+.dtr-table th.day-col {
+  width: 8%;
+}
+
+.dtr-table td.day-cell {
+  font-weight: 700;
+  font-size: 0.56rem;
+}
+
+.dtr-total-row td {
+  font-weight: 700;
+  text-align: center;
+  font-size: 0.58rem;
+  border-top: 2px solid #000;
+}
+
+.dtr-total-row td:first-child {
+  text-align: left;
+  padding-left: 0.2cm;
+}
+
+/* DTR Footer Styles */
+.dtr-footer {
+  margin-top: 0.1cm;
+  font-size: 0.52rem;
+  line-height: 1.25;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1; /* Expand footer to reclaim remaining vertical space */
+}
+
+.dtr-footer-text {
+  font-size: 0.5rem;
+  margin: 0 0 0.25cm 0;
+  text-align: justify;
+}
+
+.dtr-signature-block {
+  position: relative;
+  margin: 0.7cm 0 0.5cm 0;
+  text-align: center;
+}
+
+.dtr-signature-image {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  height: 48px;
+  max-width: 140px;
+  object-fit: contain;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  z-index: 10;
+}
+
+.dtr-name-underlined {
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-bottom: 1.5px solid #000;
+  display: inline-block;
+  width: 80%;
+  padding-bottom: 2px;
+  position: relative;
+  z-index: 5;
+}
+
+.dtr-verification-block {
+  margin-top: 0.5cm;
+  text-align: left;
+}
+
+.dtr-verification-text {
+  font-size: 0.55rem;
+  margin-bottom: 0.2cm;
+  text-align: left;
+}
+
+.dtr-in-charge-line {
+  border-bottom: 1.5px solid #000;
+  width: 80%;
+  margin: 1.2cm auto 0.1cm auto; /* Increased margin-top for writing/signature space */
+}
+
+.dtr-late-minutes-block {
+  font-size: 0.55rem;
+  font-weight: 600;
+  text-align: right;
+  margin-top: 0.2cm;
+  color: #333;
+}
+
+/* Print Specific Rules */
 @media print {
   @page {
     size: A4 portrait;
@@ -225,11 +328,27 @@
     print-color-adjust: exact;
   }
 
-  html, body {
+  #root,
+  body > :not(.dtr-print-overlay-wrapper) {
+    display: none !important;
+  }
+
+  .dtr-print-overlay-wrapper {
+    display: block !important;
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
+  html, body, .print-container {
     margin: 0 !important;
     padding: 0 !important;
     width: 100%;
-    height: auto;
+    height: auto !important; /* Allow natural document height to resolve for multi-page print */
+    overflow: visible !important; /* Ensure content doesn't clip */
+    position: static !important;
     background: white !important;
     background-color: white !important;
   }
@@ -244,13 +363,9 @@
   }
 
   .print-container {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
     background: white !important;
-    padding: 0;
-    margin: 0;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 
   .no-print {
@@ -258,27 +373,19 @@
   }
 
   .print-content {
-    box-shadow: none;
-    padding: 0.6cm 1cm;
-    margin: 0;
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    max-height: none;
-    position: relative;
-    page-break-after: always;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0.4cm 0.4cm !important;
+    width: 21cm !important;
+    height: 29.7cm !important;
+    min-height: 29.7cm !important;
+    position: relative !important;
+    page-break-after: always !important;
     background: white !important;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
   }
 
   .print-content:last-child {
-    page-break-after: auto;
-  }
-
-  .month-section:nth-child(3) {
-    position: absolute;
-    top: 14.85cm;
-    left: 0.3cm;
-    right: 0.3cm;
+    page-break-after: avoid !important;
   }
 }

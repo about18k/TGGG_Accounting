@@ -62,10 +62,14 @@ const formatLongDate = (isoDate) => {
   });
 };
 
-const formatTypeLabel = (eventType) => {
-  const normalized = String(eventType || '').toLowerCase();
+const formatTypeLabel = (eventItem) => {
+  if (!eventItem) return 'Event';
+  const isObj = typeof eventItem === 'object';
+  const typeVal = isObj ? eventItem.event_type : eventItem;
+  const normalized = String(typeVal || '').toLowerCase();
   if (normalized === 'holiday') return 'Holiday';
   if (normalized === 'downtime') return 'No Work Day';
+  if (isObj && (Boolean(eventItem.is_recurring) || Boolean(eventItem.recurrence_group))) return 'Recurring';
   return 'Event';
 };
 
@@ -73,6 +77,44 @@ const eventBlocksAttendance = (eventItem) => {
   if (!eventItem) return false;
   if (eventItem.blocks_attendance === true) return true;
   return Boolean(eventItem.is_holiday) || NO_WORK_TYPES.has(String(eventItem.event_type || '').toLowerCase());
+};
+
+const getEventStyles = (ev) => {
+  if (!ev) return '';
+  const type = String(ev.event_type || '').toLowerCase();
+  const isHoliday = Boolean(ev.is_holiday) || type === 'holiday';
+  const isDowntime = type === 'downtime';
+  const isRecurring = Boolean(ev.is_recurring) || Boolean(ev.recurrence_group);
+
+  if (isHoliday) {
+    return 'bg-rose-500/15 text-rose-300 border-rose-500/20 border-l-[3px] border-l-rose-500 hover:bg-rose-500/25';
+  }
+  if (isDowntime) {
+    return 'bg-amber-500/15 text-amber-300 border-amber-500/20 border-l-[3px] border-l-amber-500 hover:bg-amber-500/25';
+  }
+  if (isRecurring) {
+    return 'bg-violet-500/15 text-violet-300 border-violet-500/20 border-l-[3px] border-l-violet-500 hover:bg-violet-500/25';
+  }
+  return 'bg-cyan-500/15 text-cyan-300 border-cyan-500/20 border-l-[3px] border-l-cyan-500 hover:bg-cyan-500/25';
+};
+
+const getEventTypeBadgeStyles = (ev) => {
+  if (!ev) return '';
+  const type = String(ev.event_type || '').toLowerCase();
+  const isHoliday = Boolean(ev.is_holiday) || type === 'holiday';
+  const isDowntime = type === 'downtime';
+  const isRecurring = Boolean(ev.is_recurring) || Boolean(ev.recurrence_group);
+
+  if (isHoliday) {
+    return 'border-rose-500/30 text-rose-300 bg-rose-500/10 font-semibold';
+  }
+  if (isDowntime) {
+    return 'border-amber-500/30 text-amber-300 bg-amber-500/10 font-semibold';
+  }
+  if (isRecurring) {
+    return 'border-violet-500/30 text-violet-300 bg-violet-500/10 font-semibold';
+  }
+  return 'border-cyan-500/30 text-cyan-300 bg-cyan-500/10 font-semibold';
 };
 
 const buildMonthGrid = (monthDate) => {
@@ -621,8 +663,8 @@ export default function AccountingEventsPanel() {
                         className="w-full text-left p-2.5 rounded-lg border border-white/5 bg-[#021B2C]/40 hover:bg-[#021B2C]/70 hover:border-white/10 transition flex items-center justify-between gap-3 text-xs cursor-pointer"
                       >
                         <span className="text-white font-medium truncate">{ev.title}</span>
-                        <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full border border-white/10 text-white/60 bg-white/5 whitespace-nowrap">
-                          {formatTypeLabel(ev.event_type)}
+                        <span className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full border whitespace-nowrap ${getEventTypeBadgeStyles(ev)}`}>
+                          {formatTypeLabel(ev)}
                         </span>
                       </button>
                     ))}
@@ -730,8 +772,8 @@ export default function AccountingEventsPanel() {
                               )}
                             </div>
                             <div className="flex flex-col items-end gap-1.5 shrink-0">
-                              <span className="text-[9px] uppercase tracking-wide px-2 py-0.5 rounded-full border border-white/10 text-white/60 bg-white/5 whitespace-nowrap">
-                                {formatTypeLabel(ev.event_type)}
+                              <span className={`text-[9px] uppercase tracking-wide px-2 py-0.5 rounded-full border whitespace-nowrap ${getEventTypeBadgeStyles(ev)}`}>
+                                {formatTypeLabel(ev)}
                               </span>
                               {isExpired && (
                                 <span className="text-[9px] text-[#FF7120] uppercase tracking-wide font-medium bg-[#FF7120]/10 border border-[#FF7120]/20 px-1.5 py-0.5 rounded">Past</span>
@@ -746,7 +788,7 @@ export default function AccountingEventsPanel() {
               </div>
             )}
 
-            <div className="grid grid-cols-7 gap-2 mb-2">
+            <div className="grid grid-cols-7 gap-2 mb-2 border-b border-white/10 pb-2">
               {WEEKDAY_LABELS.map((day) => (
                 <div key={day} className="text-center text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-white/45 py-1">
                   {day}
@@ -758,7 +800,7 @@ export default function AccountingEventsPanel() {
               {weeks.map((week, weekIdx) => {
                 const weekEventsWithRows = getWeekEventsWithRows(events, week);
                 return (
-                  <div key={weekIdx} className="relative min-h-[110px] w-full border border-white/5 rounded-lg p-1 bg-[#021B2C]/20">
+                  <div key={weekIdx} className="relative min-h-[110px] w-full border border-white/10 rounded-lg p-1 bg-[#021B2C]/10">
                     {/* Background Day Cells */}
                     <div className="grid grid-cols-7 gap-1 h-full min-h-[100px]">
                       {week.map((day) => {
@@ -770,6 +812,22 @@ export default function AccountingEventsPanel() {
                         const hasBlockedEvent = dayEvents.some((eventItem) => eventBlocksAttendance(eventItem));
                         const isPastDate = dayKey < todayIso;
                         const canOpenDate = !isPastDate || dayEvents.length > 0;
+
+                        const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                        let cellBgClass = '';
+                        if (!inCurrentMonth) {
+                          cellBgClass = 'bg-transparent border-transparent opacity-20';
+                        } else if (isToday) {
+                          cellBgClass = 'bg-[#FF7120]/8 border-[#FF7120]/45 hover:border-[#FF7120]/65';
+                        } else if (isPastDate) {
+                          cellBgClass = isWeekend
+                            ? 'bg-[#011322]/20 border-white/10 opacity-50 hover:opacity-85 hover:border-white/20'
+                            : 'bg-[#021B2C]/20 border-white/10 opacity-60 hover:opacity-90 hover:border-white/20';
+                        } else {
+                          cellBgClass = isWeekend
+                            ? 'bg-[#011322]/50 border-white/10 hover:border-white/25 hover:bg-[#011322]/70'
+                            : 'bg-[#021B2C]/50 border-white/10 hover:border-white/25 hover:bg-[#021B2C]/70';
+                        }
 
                         return (
                           <button
@@ -793,19 +851,15 @@ export default function AccountingEventsPanel() {
                               }
                             }}
                             disabled={!canOpenDate}
-                            className={`h-full min-h-[96px] rounded-md border p-1.5 text-left transition-all focus:outline-none focus:ring-1 focus:ring-[#FF7120]/30 ${
-                              inCurrentMonth
-                                ? 'bg-[#021B2C]/50 border-white/5 hover:border-white/10'
-                                : 'bg-transparent border-transparent opacity-40'
-                            } ${isSelected ? 'border-[#FF7120]/45 ring-1 ring-[#FF7120]/35' : ''} ${
-                              !canOpenDate ? 'cursor-not-allowed opacity-30' : 'cursor-pointer'
+                            className={`h-full min-h-[96px] rounded-md border p-1.5 text-left transition-all focus:outline-none focus:ring-1 focus:ring-[#FF7120]/30 ${cellBgClass} ${isSelected ? 'border-[#FF7120]/60 ring-1 ring-[#FF7120]/45' : ''} ${
+                              !canOpenDate ? 'cursor-not-allowed' : 'cursor-pointer'
                             }`}
                           >
                             <div className="flex items-center justify-between">
                               <span
-                                className={`text-[10px] sm:text-xs font-semibold ${
+                                className={`w-6 h-6 flex items-center justify-center text-[10px] sm:text-xs font-semibold ${
                                   isToday
-                                    ? 'text-[#FF7120]'
+                                    ? 'bg-[#FF7120] text-white rounded-full font-bold shadow-sm shadow-[#FF7120]/30'
                                     : inCurrentMonth
                                       ? 'text-white/80'
                                       : 'text-white/30'
@@ -823,23 +877,23 @@ export default function AccountingEventsPanel() {
                     </div>
 
                     {/* Horizontal Overlap/Events Layer */}
-                    <div className="absolute top-7 left-1 right-1 bottom-1 grid grid-cols-7 gap-y-1 gap-x-1 pointer-events-none auto-rows-max z-10">
+                    <div className="absolute top-[38px] left-1 right-1 bottom-1 grid grid-cols-7 gap-y-1 gap-x-1 pointer-events-none auto-rows-max z-10">
                       {weekEventsWithRows.map(({ event: ev, style }) => {
-                        const blocked = eventBlocksAttendance(ev);
+                        const isStartOfWeekSlice = ev.date >= toIsoDate(week[0]);
+                        const isEndOfWeekSlice = (ev.end_date || ev.date) <= toIsoDate(week[6]);
+                        const roundedClass = `${isStartOfWeekSlice ? 'rounded-l-lg ml-1' : 'rounded-l-none ml-0'} ${isEndOfWeekSlice ? 'rounded-r-lg mr-1' : 'rounded-r-none mr-0'}`;
+
                         return (
                           <button
                             key={ev.id}
                             type="button"
                             onClick={() => startEditingEvent(ev)}
                             style={style}
-                            className={`pointer-events-auto truncate text-[10px] sm:text-[11px] rounded px-2 py-0.5 text-left font-medium select-none shadow border transition-all hover:scale-[1.01] h-[22px] flex items-center ${
-                              blocked
-                                ? 'bg-[#FF7120]/15 text-[#FFB284] border-[#FF7120]/30 hover:bg-[#FF7120]/25'
-                                : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/20'
-                            }`}
-                            title={ev.title}
+                            className={`pointer-events-auto text-[10px] sm:text-[11px] px-2 py-0.5 text-left font-medium select-none shadow border transition-all hover:scale-[1.01] h-[24px] flex items-center min-w-0 ${roundedClass} ${getEventStyles(ev)}`}
                           >
-                            {ev.title}
+                            <span className="truncate block w-full" title={ev.title}>
+                              {ev.title}
+                            </span>
                           </button>
                         );
                       })}
@@ -901,8 +955,8 @@ export default function AccountingEventsPanel() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <span className="font-semibold text-white text-xs truncate">{eventItem.title}</span>
-                          <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full border border-white/10 text-white/60 bg-white/5 whitespace-nowrap">
-                            {formatTypeLabel(eventItem.event_type)}
+                          <span className={`text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full border whitespace-nowrap ${getEventTypeBadgeStyles(eventItem)}`}>
+                            {formatTypeLabel(eventItem)}
                           </span>
                         </div>
                         <p className="text-[10px] text-white/55">{formatLongDate(eventItem.date)}</p>
@@ -972,7 +1026,7 @@ export default function AccountingEventsPanel() {
                           </option>
                           {selectedDayEvents.map((ev) => (
                             <option key={ev.id} value={ev.id}>
-                              {ev.title} ({formatTypeLabel(ev.event_type)})
+                              {ev.title} ({formatTypeLabel(ev)})
                             </option>
                           ))}
                         </select>

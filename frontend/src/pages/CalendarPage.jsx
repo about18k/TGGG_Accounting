@@ -47,10 +47,14 @@ const buildMonthGrid = (monthDate) => {
   });
 };
 
-const formatTypeLabel = (eventType) => {
-  const normalized = String(eventType || '').trim().toLowerCase();
+const formatTypeLabel = (eventItem) => {
+  if (!eventItem) return 'Event';
+  const isObj = typeof eventItem === 'object';
+  const typeVal = isObj ? eventItem.event_type : eventItem;
+  const normalized = String(typeVal || '').trim().toLowerCase();
   if (normalized === 'holiday') return 'Holiday';
   if (normalized === 'downtime') return 'No Work Day';
+  if (isObj && (Boolean(eventItem.is_recurring) || Boolean(eventItem.recurrence_group))) return 'Recurring';
   return 'Event';
 };
 
@@ -58,6 +62,44 @@ const blocksAttendance = (eventItem) => {
   if (!eventItem) return false;
   if (eventItem.blocks_attendance === true) return true;
   return Boolean(eventItem.is_holiday) || NO_WORK_TYPES.has(String(eventItem.event_type || '').toLowerCase());
+};
+
+const getEventStyles = (ev) => {
+  if (!ev) return '';
+  const type = String(ev.event_type || '').toLowerCase();
+  const isHoliday = Boolean(ev.is_holiday) || type === 'holiday';
+  const isDowntime = type === 'downtime';
+  const isRecurring = Boolean(ev.is_recurring) || Boolean(ev.recurrence_group);
+
+  if (isHoliday) {
+    return 'bg-rose-500/15 text-rose-300 border-rose-500/20 border-l-[3px] border-l-rose-500 hover:bg-rose-500/25';
+  }
+  if (isDowntime) {
+    return 'bg-amber-500/15 text-amber-300 border-amber-500/20 border-l-[3px] border-l-amber-500 hover:bg-amber-500/25';
+  }
+  if (isRecurring) {
+    return 'bg-violet-500/15 text-violet-300 border-violet-500/20 border-l-[3px] border-l-violet-500 hover:bg-violet-500/25';
+  }
+  return 'bg-cyan-500/15 text-cyan-300 border-cyan-500/20 border-l-[3px] border-l-cyan-500 hover:bg-cyan-500/25';
+};
+
+const getEventTypeBadgeStyles = (ev) => {
+  if (!ev) return '';
+  const type = String(ev.event_type || '').toLowerCase();
+  const isHoliday = Boolean(ev.is_holiday) || type === 'holiday';
+  const isDowntime = type === 'downtime';
+  const isRecurring = Boolean(ev.is_recurring) || Boolean(ev.recurrence_group);
+
+  if (isHoliday) {
+    return 'border-rose-500/30 text-rose-300 bg-rose-500/10 font-semibold';
+  }
+  if (isDowntime) {
+    return 'border-amber-500/30 text-amber-300 bg-amber-500/10 font-semibold';
+  }
+  if (isRecurring) {
+    return 'border-violet-500/30 text-violet-300 bg-violet-500/10 font-semibold';
+  }
+  return 'border-cyan-500/30 text-cyan-300 bg-cyan-500/10 font-semibold';
 };
 
 const getSortedWeekEvents = (events, weekDays) => {
@@ -358,7 +400,7 @@ export default function CalendarPage({ user }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-2 mb-2">
+              <div className="grid grid-cols-7 gap-2 mb-2 border-b border-white/10 pb-2">
                 {WEEKDAY_LABELS.map((weekday) => (
                   <div
                     key={weekday}
@@ -373,7 +415,7 @@ export default function CalendarPage({ user }) {
               {weeks.map((week, weekIdx) => {
                 const weekEventsWithRows = getWeekEventsWithRows(events, week);
                 return (
-                  <div key={weekIdx} className="relative min-h-[110px] w-full border border-white/5 rounded-lg p-1 bg-[#021B2C]/20">
+                  <div key={weekIdx} className="relative min-h-[110px] w-full border border-white/10 rounded-lg p-1 bg-[#021B2C]/10">
                     {/* Background Day Cells */}
                     <div className="grid grid-cols-7 gap-1 h-full min-h-[100px]">
                       {week.map((day) => {
@@ -384,22 +426,34 @@ export default function CalendarPage({ user }) {
                         const isSelected = dayKey === selectedDate;
                         const hasBlockedEvent = dayEvents.some((eventItem) => blocksAttendance(eventItem));
 
+                        const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                        let cellBgClass = '';
+                        if (!inCurrentMonth) {
+                          cellBgClass = 'bg-transparent border-transparent opacity-20';
+                        } else if (isToday) {
+                          cellBgClass = 'bg-[#FF7120]/8 border-[#FF7120]/45 hover:border-[#FF7120]/65';
+                        } else if (dayKey < todayIso) {
+                          cellBgClass = isWeekend
+                            ? 'bg-[#011322]/20 border-white/10 opacity-50 hover:opacity-85 hover:border-white/20'
+                            : 'bg-[#021B2C]/20 border-white/10 opacity-60 hover:opacity-90 hover:border-white/20';
+                        } else {
+                          cellBgClass = isWeekend
+                            ? 'bg-[#011322]/50 border-white/10 hover:border-white/25 hover:bg-[#011322]/70'
+                            : 'bg-[#021B2C]/50 border-white/10 hover:border-white/25 hover:bg-[#021B2C]/70';
+                        }
+
                         return (
                           <button
                             key={dayKey}
                             type="button"
                             onClick={() => setSelectedDate(dayKey)}
-                            className={`h-full min-h-[96px] rounded-md border p-1.5 text-left transition-all focus:outline-none focus:ring-1 focus:ring-[#FF7120]/30 ${
-                              inCurrentMonth
-                                ? 'bg-[#001f35]/70 border-white/5 hover:border-white/10'
-                                : 'bg-transparent border-transparent opacity-40'
-                            } ${isSelected ? 'border-[#FF7120]/45 ring-1 ring-[#FF7120]/35' : ''}`}
+                            className={`h-full min-h-[96px] rounded-md border p-1.5 text-left transition-all focus:outline-none focus:ring-1 focus:ring-[#FF7120]/30 ${cellBgClass} ${isSelected ? 'border-[#FF7120]/60 ring-1 ring-[#FF7120]/45' : ''}`}
                           >
                             <div className="flex items-center justify-between">
                               <span
-                                className={`text-[10px] sm:text-xs font-semibold ${
+                                className={`w-6 h-6 flex items-center justify-center text-[10px] sm:text-xs font-semibold ${
                                   isToday
-                                    ? 'text-[#FF7120]'
+                                    ? 'bg-[#FF7120] text-white rounded-full font-bold shadow-sm shadow-[#FF7120]/30'
                                     : inCurrentMonth
                                       ? 'text-white/80'
                                       : 'text-white/30'
@@ -417,23 +471,23 @@ export default function CalendarPage({ user }) {
                     </div>
 
                     {/* Horizontal Overlap/Events Layer */}
-                    <div className="absolute top-7 left-1 right-1 bottom-1 grid grid-cols-7 gap-y-1 gap-x-1 pointer-events-none auto-rows-max z-10">
+                    <div className="absolute top-[38px] left-1 right-1 bottom-1 grid grid-cols-7 gap-y-1 gap-x-1 pointer-events-none auto-rows-max z-10">
                       {weekEventsWithRows.map(({ event: ev, style }) => {
-                        const blocked = blocksAttendance(ev);
+                        const isStartOfWeekSlice = ev.date >= toIsoDate(week[0]);
+                        const isEndOfWeekSlice = (ev.end_date || ev.date) <= toIsoDate(week[6]);
+                        const roundedClass = `${isStartOfWeekSlice ? 'rounded-l-lg ml-1' : 'rounded-l-none ml-0'} ${isEndOfWeekSlice ? 'rounded-r-lg mr-1' : 'rounded-r-none mr-0'}`;
+
                         return (
                           <button
                             key={ev.id}
                             type="button"
                             onClick={() => setSelectedDate(ev.date)}
                             style={style}
-                            className={`pointer-events-auto truncate text-[10px] sm:text-[11px] rounded px-2 py-0.5 text-left font-medium select-none shadow border transition-all hover:scale-[1.01] h-[22px] flex items-center ${
-                              blocked
-                                ? 'bg-[#FF7120]/15 text-[#FFB284] border-[#FF7120]/30 hover:bg-[#FF7120]/25'
-                                : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20 hover:bg-emerald-500/20'
-                            }`}
-                            title={ev.title}
+                            className={`pointer-events-auto text-[10px] sm:text-[11px] px-2 py-0.5 text-left font-medium select-none shadow border transition-all hover:scale-[1.01] h-[24px] flex items-center min-w-0 ${roundedClass} ${getEventStyles(ev)}`}
                           >
-                            {ev.title}
+                            <span className="truncate block w-full" title={ev.title}>
+                              {ev.title}
+                            </span>
                           </button>
                         );
                       })}
@@ -468,16 +522,30 @@ export default function CalendarPage({ user }) {
 
                 {selectedDayEvents.map((eventItem) => {
                   const eventBlocks = blocksAttendance(eventItem);
-                  const typeLabel = formatTypeLabel(eventItem.event_type);
+                  const typeLabel = formatTypeLabel(eventItem);
+
+                  const getEventCardStyles = (ev) => {
+                    const type = String(ev.event_type || '').toLowerCase();
+                    const isHoliday = Boolean(ev.is_holiday) || type === 'holiday';
+                    const isDowntime = type === 'downtime';
+                    const isRecurring = Boolean(ev.is_recurring) || Boolean(ev.recurrence_group);
+
+                    if (isHoliday) {
+                      return 'border-rose-500/20 bg-rose-500/5 border-l-rose-500 border-l-[3px]';
+                    }
+                    if (isDowntime) {
+                      return 'border-amber-500/20 bg-amber-500/5 border-l-amber-500 border-l-[3px]';
+                    }
+                    if (isRecurring) {
+                      return 'border-violet-500/20 bg-violet-500/5 border-l-violet-500 border-l-[3px]';
+                    }
+                    return 'border-cyan-500/20 bg-cyan-500/5 border-l-cyan-500 border-l-[3px]';
+                  };
 
                   return (
                     <div
                       key={eventItem.id ?? `${eventItem.title}-${eventItem.date}`}
-                      className={`rounded-lg border p-3 ${
-                        eventBlocks
-                          ? 'border-[#FF7120]/30 bg-[#FF7120]/8'
-                          : 'border-emerald-500/30 bg-emerald-500/8'
-                      }`}
+                      className={`rounded-lg border p-3 ${getEventCardStyles(eventItem)}`}
                     >
                       <p className="text-sm text-white font-semibold truncate">{eventItem.title}</p>
                       <p className="text-[11px] text-white/60 mt-1 flex items-center gap-1.5">
@@ -485,7 +553,7 @@ export default function CalendarPage({ user }) {
                         {formatLongDate(eventItem.date)}
                       </p>
                       <div className="mt-2 flex items-center justify-between gap-2">
-                        <span className="text-[10px] uppercase tracking-wide text-white/70 border border-white/15 bg-white/5 rounded-full px-2 py-1">
+                        <span className={`text-[10px] uppercase tracking-wide rounded-full px-2 py-0.5 border ${getEventTypeBadgeStyles(eventItem)}`}>
                           {typeLabel}
                         </span>
                         <span

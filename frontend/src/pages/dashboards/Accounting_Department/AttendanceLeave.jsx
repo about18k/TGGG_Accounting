@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { toast } from 'sonner';
 import { TableSkeleton } from '../../../components/SkeletonLoader';
 import { getAllAttendance } from '../../../services/attendanceService';
 import PrintAttendance from '../../globalattendancereport/PrintAttendance';
 import {
-  formatTime12,
+  formatTime12 as formatTime12Util,
   calculateTotalHours,
   formatDurationFromHours,
 } from '../../../utils/attendanceFormatters';
@@ -39,7 +40,95 @@ import {
   UserCheck,
   Download,
   ArrowUpDown,
+  Printer,
 } from 'lucide-react';
+
+// DTR helper calculations for the on-screen preview tab
+const parseTimeToMinutes = (timeStr) => {
+  if (!timeStr || timeStr === '-') return null;
+  try {
+    if (timeStr.includes('AM') || timeStr.includes('PM')) {
+      const [time, meridiem] = timeStr.split(' ');
+      let [h, m] = time.split(':').map(Number);
+      if (meridiem === 'PM' && h !== 12) h += 12;
+      if (meridiem === 'AM' && h === 12) h = 0;
+      return h * 60 + m;
+    }
+    const [h, m] = timeStr.split(':').map(Number);
+    return h * 60 + m;
+  } catch (e) {
+    return null;
+  }
+};
+
+const formatTime12 = (timeStr) => {
+  if (!timeStr || timeStr === '-') return '';
+  if (timeStr.includes('AM') || timeStr.includes('PM')) {
+    return timeStr.trim();
+  }
+  try {
+    const [hours, minutes] = timeStr.split(':');
+    const hr = parseInt(hours, 10);
+    const m = minutes.substring(0, 2);
+    const ampm = hr >= 12 ? 'PM' : 'AM';
+    const displayHr = hr === 0 ? 12 : hr > 12 ? hr - 12 : hr;
+    return `${displayHr}:${m} ${ampm}`;
+  } catch (e) {
+    return timeStr;
+  }
+};
+
+const getDailyDetailsHelper = (record, day, year, month) => {
+  const totalDays = new Date(year, month, 0).getDate();
+  if (day > totalDays) {
+    return { amIn: '', amOut: '', pmIn: '', pmOut: '', hours: '', mins: '', lateMins: 0, isBlank: true };
+  }
+
+  if (!record) {
+    return { amIn: '', amOut: '', pmIn: '', pmOut: '', hours: '', mins: '', lateMins: 0, isBlank: false };
+  }
+
+  const amInMin = parseTimeToMinutes(record.morning_time_in);
+  const amOutMin = parseTimeToMinutes(record.morning_time_out);
+  const pmInMin = parseTimeToMinutes(record.afternoon_time_in);
+  const pmOutMin = parseTimeToMinutes(record.afternoon_time_out);
+
+  let amMinutesWorked = 0;
+  if (amInMin !== null && amOutMin !== null && amOutMin > amInMin) {
+    const effIn = Math.max(amInMin, 8 * 60); // 8:00 AM
+    const effOut = Math.min(amOutMin, 12 * 60); // 12:00 PM
+    amMinutesWorked = Math.max(0, effOut - effIn);
+  }
+
+  let pmMinutesWorked = 0;
+  if (pmInMin !== null && pmOutMin !== null && pmOutMin > pmInMin) {
+    const effIn = Math.max(pmInMin, 13 * 60); // 1:00 PM
+    const effOut = Math.min(pmOutMin, 17 * 60); // 5:00 PM
+    pmMinutesWorked = Math.max(0, effOut - effIn);
+  }
+
+  const totalMinutes = amMinutesWorked + pmMinutesWorked;
+
+  let dailyLateMins = 0;
+  if (amInMin !== null && amInMin > 8 * 60) {
+    dailyLateMins += (amInMin - 8 * 60);
+  }
+  if (pmInMin !== null && pmInMin > 13 * 60) {
+    dailyLateMins += (pmInMin - 13 * 60);
+  }
+
+  return {
+    amIn: record.morning_time_in ? formatTime12(record.morning_time_in) : '',
+    amOut: record.morning_time_out ? formatTime12(record.morning_time_out) : '',
+    pmIn: record.afternoon_time_in ? formatTime12(record.afternoon_time_in) : '',
+    pmOut: record.afternoon_time_out ? formatTime12(record.afternoon_time_out) : '',
+    hours: totalMinutes > 0 ? Math.floor(totalMinutes / 60) : '',
+    mins: totalMinutes > 0 ? totalMinutes % 60 : '',
+    rawMinutes: totalMinutes,
+    lateMins: dailyLateMins,
+    isBlank: false
+  };
+};
 
 const timeToMinutes = (timeValue) => {
   if (!timeValue || typeof timeValue !== 'string' || !timeValue.includes(':')) return null;
@@ -106,7 +195,6 @@ const getSortLabel = (key) => {
   }
 };
 
-
 export function AttendanceLeave() {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
@@ -120,6 +208,10 @@ export function AttendanceLeave() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [activeSubmenu, setActiveSubmenu] = useState(null);
 
+  // Tab State
+  const [activeTab, setActiveTab] = useState('daily');
+  const [selectedPreviewEmployee, setSelectedPreviewEmployee] = useState('');
+  const [selectedPreviewMonth, setSelectedPreviewMonth] = useState('');
 
   const fetchAttendanceRecords = async () => {
     setIsAttendanceLoading(true);
@@ -259,7 +351,6 @@ export function AttendanceLeave() {
     const inLoc = record.clock_in_address || record.location || '-';
     const outLoc = record.clock_out_address || record.location || '-';
 
-    // Simple cleaner for coordinate strings if and only if addresses are missing
     const formatLoc = (loc) => {
       if (loc && loc.includes('lat=') && loc.includes('lng=')) {
         const lat = loc.match(/lat=([\d.-]+)/)?.[1];
@@ -293,30 +384,50 @@ export function AttendanceLeave() {
     return ['all', ...Array.from(new Set(names))];
   }, [attendanceRecords]);
 
-  // Unique employees with their IDs for the DTR overlay
+  // Unique employees with their IDs - restricted to Interns only for DTR Preview/Print
   const uniqueEmployees = useMemo(() => {
     const seen = new Set();
     const result = [];
     for (const record of attendanceRecords) {
       const empId = record.employee_id ?? record.user_id;
       if (empId != null && !seen.has(empId)) {
-        seen.add(empId);
-        result.push({ id: empId, name: record.employee_name || String(empId) });
+        const isIntern = String(record.employee_role || '').toLowerCase() === 'intern';
+        if (isIntern) {
+          seen.add(empId);
+          result.push({ 
+            id: empId, 
+            name: record.employee_name || String(empId),
+            signature: record.employee_signature || null,
+            role: record.employee_role || null
+          });
+        }
       }
     }
     return result;
   }, [attendanceRecords]);
+
+  // Automatically initialize preview selectors
+  useEffect(() => {
+    if (uniqueEmployees.length > 0 && !selectedPreviewEmployee) {
+      setSelectedPreviewEmployee(String(uniqueEmployees[0].id));
+    }
+  }, [uniqueEmployees, selectedPreviewEmployee]);
+
+  useEffect(() => {
+    if (!selectedPreviewMonth) {
+      const now = new Date();
+      setSelectedPreviewMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`);
+    }
+  }, [selectedPreviewMonth]);
 
   const sortedAttendanceDates = useMemo(
     () => attendanceRecords.map((record) => record.date).filter(Boolean).sort(),
     [attendanceRecords]
   );
 
-  // Default date range: first and last attendance entry in the system
   const defaultExportStartDate = sortedAttendanceDates[0] || '';
   const defaultExportEndDate = sortedAttendanceDates[sortedAttendanceDates.length - 1] || '';
 
-  // Set default date range once records are loaded
   useEffect(() => {
     if (defaultExportStartDate && !exportStartDate) setExportStartDate(defaultExportStartDate);
     if (defaultExportEndDate && !exportEndDate) setExportEndDate(defaultExportEndDate);
@@ -341,6 +452,17 @@ export function AttendanceLeave() {
     setShowDTROverlay(true);
   };
 
+  const handlePrintPreviewDTR = () => {
+    if (!selectedPreviewEmployee || !selectedPreviewMonth) return;
+    const empName = uniqueEmployees.find((e) => String(e.id) === String(selectedPreviewEmployee))?.name || '';
+    setExportEmployee(empName);
+    const [y, m] = selectedPreviewMonth.split('-').map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    setExportStartDate(`${selectedPreviewMonth}-01`);
+    setExportEndDate(`${selectedPreviewMonth}-${String(lastDay).padStart(2, '0')}`);
+    setShowDTROverlay(true);
+  };
+
   const stats = useMemo(() => {
     const total = groupedRecords.length;
     let present = 0;
@@ -356,6 +478,127 @@ export function AttendanceLeave() {
 
     return { total, present, late, leave };
   }, [attendanceRecords, groupedRecords]);
+
+  // Consolidate data for the currently previewed employee and month
+  const previewData = useMemo(() => {
+    if (!selectedPreviewEmployee || !selectedPreviewMonth) return {};
+    
+    const filtered = attendanceRecords.filter((a) => {
+      const empId = a.employee_id ?? a.user_id;
+      if (String(empId) !== String(selectedPreviewEmployee)) return false;
+      if (!a.date) return false;
+      const rMonth = a.date.slice(0, 7);
+      return rMonth === selectedPreviewMonth;
+    });
+
+    const map = {};
+    filtered.forEach((entry) => {
+      if (!map[entry.date]) {
+        map[entry.date] = {
+          date: entry.date,
+          morning_time_in: null,
+          morning_time_out: null,
+          afternoon_time_in: null,
+          afternoon_time_out: null,
+          ot_time_in: null,
+          ot_time_out: null,
+          employee_signature: entry.employee_signature || null,
+        };
+      }
+      
+      const session = entry.session_type?.toLowerCase();
+      if (session === 'morning') {
+        map[entry.date].morning_time_in = entry.time_in;
+        map[entry.date].morning_time_out = entry.time_out;
+      } else if (session === 'afternoon') {
+        map[entry.date].afternoon_time_in = entry.time_in;
+        map[entry.date].afternoon_time_out = entry.time_out;
+      } else if (session === 'overtime') {
+        map[entry.date].ot_time_in = entry.time_in;
+        map[entry.date].ot_time_out = entry.time_out;
+      } else {
+        const hour = entry.time_in ? parseInt(entry.time_in.split(':')[0], 10) : null;
+        if (hour !== null) {
+          if (hour < 12) {
+            map[entry.date].morning_time_in = entry.time_in;
+            map[entry.date].morning_time_out = entry.time_out;
+          } else if (hour >= 12 && hour < 18) {
+            map[entry.date].afternoon_time_in = entry.time_in;
+            map[entry.date].afternoon_time_out = entry.time_out;
+          } else {
+            map[entry.date].ot_time_in = entry.time_in;
+            map[entry.date].ot_time_out = entry.time_out;
+          }
+        }
+      }
+    });
+
+    return map;
+  }, [attendanceRecords, selectedPreviewEmployee, selectedPreviewMonth]);
+
+  // Preview Month Summary Calculations
+  const previewMonthSummary = useMemo(() => {
+    if (!selectedPreviewMonth) return { hours: 0, mins: 0, lateMinutes: 0 };
+    const [year, month] = selectedPreviewMonth.split('-').map(Number);
+    let totalWorkedMinutes = 0;
+    let totalLateMinutes = 0;
+
+    const totalDays = new Date(year, month, 0).getDate();
+    for (let d = 1; d <= totalDays; d++) {
+      const dayStr = String(d).padStart(2, '0');
+      const dateKey = `${year}-${String(month).padStart(2, '0')}-${dayStr}`;
+      const record = previewData[dateKey];
+      if (record) {
+        const details = getDailyDetailsHelper(record, d, year, month);
+        if (!details.isBlank) {
+          totalWorkedMinutes += (details.rawMinutes || 0);
+          totalLateMinutes += (details.lateMins || 0);
+        }
+      }
+    }
+
+    return {
+      hours: totalWorkedMinutes > 0 ? Math.floor(totalWorkedMinutes / 60) : 0,
+      mins: totalWorkedMinutes > 0 ? totalWorkedMinutes % 60 : 0,
+      lateMinutes: totalLateMinutes
+    };
+  }, [previewData, selectedPreviewMonth]);
+
+  const previewDayRows = useMemo(() => {
+    if (!selectedPreviewMonth) return [];
+    const [year, month] = selectedPreviewMonth.split('-').map(Number);
+    const totalDays = new Date(year, month, 0).getDate();
+    const rows = [];
+    
+    for (let d = 1; d <= 31; d++) {
+      const dayStr = String(d).padStart(2, '0');
+      const dateKey = `${year}-${String(month).padStart(2, '0')}-${dayStr}`;
+      const record = previewData[dateKey];
+      rows.push({
+        dayNum: d,
+        details: getDailyDetailsHelper(record, d, year, month)
+      });
+    }
+    return rows;
+  }, [previewData, selectedPreviewMonth]);
+
+  const empSignatureUrl = useMemo(() => {
+    const list = Object.values(previewData);
+    const found = list.find((r) => r.employee_signature);
+    if (found) return found.employee_signature;
+    return uniqueEmployees.find((e) => String(e.id) === String(selectedPreviewEmployee))?.signature || null;
+  }, [previewData, selectedPreviewEmployee, uniqueEmployees]);
+
+  const selectedEmployeeName = useMemo(() => {
+    return uniqueEmployees.find((e) => String(e.id) === String(selectedPreviewEmployee))?.name || 'Employee';
+  }, [selectedPreviewEmployee, uniqueEmployees]);
+
+  const getMonthName = (monthStr) => {
+    if (!monthStr) return '';
+    const [year, month] = monthStr.split('-');
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${monthNames[parseInt(month, 10) - 1]} ${year}`;
+  };
 
   return (
     <div className="space-y-6">
@@ -428,278 +671,454 @@ export function AttendanceLeave() {
         </div>
       </div>
 
-      {/* Main Table Card */}
-      <Card className="border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.22)] bg-[#001f35]/70 backdrop-blur-md rounded-2xl">
-        <CardHeader>
-          <div className="flex items-center gap-3">
-            <ArrowUpDown className="w-5 h-5 text-[#FF7120]" />
-            <div 
-              className="relative text-left"
-              onMouseEnter={() => setIsDropdownOpen(true)}
-              onMouseLeave={() => {
-                setIsDropdownOpen(false);
-                setActiveSubmenu(null);
-              }}
-            >
-              <button 
-                type="button"
-                className="flex items-center justify-between gap-2 px-4 py-2 bg-[#00273C]/60 hover:bg-[#00273C]/90 text-white rounded-xl border border-white/10 text-sm font-semibold transition w-[240px] h-10"
+      {/* Tabs Selector */}
+      <div className="flex border-b border-white/10 gap-6 mt-4">
+        <button
+          onClick={() => setActiveTab('daily')}
+          className={`pb-4 text-sm font-semibold tracking-wide transition border-b-2 ${
+            activeTab === 'daily'
+              ? 'border-[#FF7120] text-white'
+              : 'border-transparent text-white/50 hover:text-white/80'
+          }`}
+        >
+          Daily Log List
+        </button>
+        <button
+          onClick={() => setActiveTab('preview')}
+          className={`pb-4 text-sm font-semibold tracking-wide transition border-b-2 ${
+            activeTab === 'preview'
+              ? 'border-[#FF7120] text-white'
+              : 'border-transparent text-white/50 hover:text-white/80'
+          }`}
+        >
+          Monthly DTR Preview
+        </button>
+      </div>
+
+      {/* Main Table/Preview Card */}
+      {activeTab === 'daily' ? (
+        <Card className="border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.22)] bg-[#001f35]/70 backdrop-blur-md rounded-2xl">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <ArrowUpDown className="w-5 h-5 text-[#FF7120]" />
+              <div 
+                className="relative text-left"
+                onMouseEnter={() => setIsDropdownOpen(true)}
+                onMouseLeave={() => {
+                  setIsDropdownOpen(false);
+                  setActiveSubmenu(null);
+                }}
               >
-                <span className="truncate">Sort By: {getSortLabel(sortBy)}</span>
-                <span className="text-white/40 text-xs">▼</span>
-              </button>
+                <button 
+                  type="button"
+                  className="flex items-center justify-between gap-2 px-4 py-2 bg-[#00273C]/60 hover:bg-[#00273C]/90 text-white rounded-xl border border-white/10 text-sm font-semibold transition w-[240px] h-10"
+                >
+                  <span className="truncate">Sort By: {getSortLabel(sortBy)}</span>
+                  <span className="text-white/40 text-xs">▼</span>
+                </button>
 
-              {isDropdownOpen && (
-                <div className="absolute left-0 mt-1 w-56 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl z-50 py-1">
-                  
-                  {/* Date category */}
-                  <div 
-                    className="relative"
-                    onMouseEnter={() => setActiveSubmenu('date')}
-                  >
-                    <div className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-lg mx-1 transition-colors ${activeSubmenu === 'date' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                      <span>Date</span>
-                      <span className="text-[10px] text-white/40">▶</span>
-                    </div>
-                    {activeSubmenu === 'date' && (
-                      <div 
-                        className="absolute left-full top-0 ml-1 w-48 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl py-1 z-50"
-                        onMouseLeave={() => setActiveSubmenu(null)}
-                      >
-                        <div 
-                          onClick={() => { setSortBy('date-desc'); setIsDropdownOpen(false); }}
-                          className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'date-desc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
-                        >
-                          Newest First
-                        </div>
-                        <div 
-                          onClick={() => { setSortBy('date-asc'); setIsDropdownOpen(false); }}
-                          className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'date-asc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
-                        >
-                          Oldest First
-                        </div>
+                {isDropdownOpen && (
+                  <div className="absolute left-0 mt-1 w-56 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl z-50 py-1">
+                    
+                    {/* Date category */}
+                    <div 
+                      className="relative"
+                      onMouseEnter={() => setActiveSubmenu('date')}
+                    >
+                      <div className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-lg mx-1 transition-colors ${activeSubmenu === 'date' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                        <span>Date</span>
+                        <span className="text-[10px] text-white/40">▶</span>
                       </div>
-                    )}
-                  </div>
-
-                  {/* Employee Name category */}
-                  <div 
-                    className="relative"
-                    onMouseEnter={() => setActiveSubmenu('name')}
-                  >
-                    <div className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-lg mx-1 transition-colors ${activeSubmenu === 'name' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                      <span>Employee Name</span>
-                      <span className="text-[10px] text-white/40">▶</span>
+                      {activeSubmenu === 'date' && (
+                        <div 
+                          className="absolute left-full top-0 ml-1 w-48 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl py-1 z-50"
+                          onMouseLeave={() => setActiveSubmenu(null)}
+                        >
+                          <div 
+                            onClick={() => { setSortBy('date-desc'); setIsDropdownOpen(false); }}
+                            className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'date-desc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
+                          >
+                            Newest First
+                          </div>
+                          <div 
+                            onClick={() => { setSortBy('date-asc'); setIsDropdownOpen(false); }}
+                            className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'date-asc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
+                          >
+                            Oldest First
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {activeSubmenu === 'name' && (
-                      <div 
-                        className="absolute left-full top-0 ml-1 w-48 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl py-1 z-50"
-                        onMouseLeave={() => setActiveSubmenu(null)}
-                      >
-                        <div 
-                          onClick={() => { setSortBy('name-asc'); setIsDropdownOpen(false); }}
-                          className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'name-asc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
-                        >
-                          A to Z
-                        </div>
-                        <div 
-                          onClick={() => { setSortBy('name-desc'); setIsDropdownOpen(false); }}
-                          className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'name-desc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
-                        >
-                          Z to A
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Total Hours category */}
-                  <div 
-                    className="relative"
-                    onMouseEnter={() => setActiveSubmenu('hours')}
-                  >
-                    <div className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-lg mx-1 transition-colors ${activeSubmenu === 'hours' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                      <span>Total Hours</span>
-                      <span className="text-[10px] text-white/40">▶</span>
+                    {/* Employee Name category */}
+                    <div 
+                      className="relative"
+                      onMouseEnter={() => setActiveSubmenu('name')}
+                    >
+                      <div className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-lg mx-1 transition-colors ${activeSubmenu === 'name' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                        <span>Employee Name</span>
+                        <span className="text-[10px] text-white/40">▶</span>
+                      </div>
+                      {activeSubmenu === 'name' && (
+                        <div 
+                          className="absolute left-full top-0 ml-1 w-48 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl py-1 z-50"
+                          onMouseLeave={() => setActiveSubmenu(null)}
+                        >
+                          <div 
+                            onClick={() => { setSortBy('name-asc'); setIsDropdownOpen(false); }}
+                            className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'name-asc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
+                          >
+                            A to Z
+                          </div>
+                          <div 
+                            onClick={() => { setSortBy('name-desc'); setIsDropdownOpen(false); }}
+                            className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'name-desc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
+                          >
+                            Z to A
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {activeSubmenu === 'hours' && (
-                      <div 
-                        className="absolute left-full top-0 ml-1 w-48 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl py-1 z-50"
-                        onMouseLeave={() => setActiveSubmenu(null)}
-                      >
-                        <div 
-                          onClick={() => { setSortBy('hours-desc'); setIsDropdownOpen(false); }}
-                          className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'hours-desc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
-                        >
-                          Highest First
-                        </div>
-                        <div 
-                          onClick={() => { setSortBy('hours-asc'); setIsDropdownOpen(false); }}
-                          className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'hours-asc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
-                        >
-                          Lowest First
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Week category */}
-                  <div 
-                    className="relative"
-                    onMouseEnter={() => setActiveSubmenu('week')}
-                  >
-                    <div className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-lg mx-1 transition-colors ${activeSubmenu === 'week' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                      <span>Week</span>
-                      <span className="text-[10px] text-white/40">▶</span>
+                    {/* Total Hours category */}
+                    <div 
+                      className="relative"
+                      onMouseEnter={() => setActiveSubmenu('hours')}
+                    >
+                      <div className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-lg mx-1 transition-colors ${activeSubmenu === 'hours' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                        <span>Total Hours</span>
+                        <span className="text-[10px] text-white/40">▶</span>
+                      </div>
+                      {activeSubmenu === 'hours' && (
+                        <div 
+                          className="absolute left-full top-0 ml-1 w-48 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl py-1 z-50"
+                          onMouseLeave={() => setActiveSubmenu(null)}
+                        >
+                          <div 
+                            onClick={() => { setSortBy('hours-desc'); setIsDropdownOpen(false); }}
+                            className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'hours-desc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
+                          >
+                            Highest First
+                          </div>
+                          <div 
+                            onClick={() => { setSortBy('hours-asc'); setIsDropdownOpen(false); }}
+                            className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'hours-asc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
+                          >
+                            Lowest First
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {activeSubmenu === 'week' && (
-                      <div 
-                        className="absolute left-full top-0 ml-1 w-48 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl py-1 z-50"
-                        onMouseLeave={() => setActiveSubmenu(null)}
-                      >
-                        <div 
-                          onClick={() => { setSortBy('week-desc'); setIsDropdownOpen(false); }}
-                          className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'week-desc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
-                        >
-                          Newest First
-                        </div>
-                        <div 
-                          onClick={() => { setSortBy('week-asc'); setIsDropdownOpen(false); }}
-                          className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'week-asc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
-                        >
-                          Oldest First
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                  {/* Month category */}
-                  <div 
-                    className="relative"
-                    onMouseEnter={() => setActiveSubmenu('month')}
-                  >
-                    <div className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-lg mx-1 transition-colors ${activeSubmenu === 'month' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
-                      <span>Month</span>
-                      <span className="text-[10px] text-white/40">▶</span>
+                    {/* Week category */}
+                    <div 
+                      className="relative"
+                      onMouseEnter={() => setActiveSubmenu('week')}
+                    >
+                      <div className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-lg mx-1 transition-colors ${activeSubmenu === 'week' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                        <span>Week</span>
+                        <span className="text-[10px] text-white/40">▶</span>
+                      </div>
+                      {activeSubmenu === 'week' && (
+                        <div 
+                          className="absolute left-full top-0 ml-1 w-48 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl py-1 z-50"
+                          onMouseLeave={() => setActiveSubmenu(null)}
+                        >
+                          <div 
+                            onClick={() => { setSortBy('week-desc'); setIsDropdownOpen(false); }}
+                            className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'week-desc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
+                          >
+                            Newest First
+                          </div>
+                          <div 
+                            onClick={() => { setSortBy('week-asc'); setIsDropdownOpen(false); }}
+                            className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'week-asc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
+                          >
+                            Oldest First
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    {activeSubmenu === 'month' && (
-                      <div 
-                        className="absolute left-full top-0 ml-1 w-48 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl py-1 z-50"
-                        onMouseLeave={() => setActiveSubmenu(null)}
-                      >
-                        <div 
-                          onClick={() => { setSortBy('month-desc'); setIsDropdownOpen(false); }}
-                          className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'month-desc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
-                        >
-                          Newest First
-                        </div>
-                        <div 
-                          onClick={() => { setSortBy('month-asc'); setIsDropdownOpen(false); }}
-                          className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'month-asc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
-                        >
-                          Oldest First
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                </div>
-              )}
+                    {/* Month category */}
+                    <div 
+                      className="relative"
+                      onMouseEnter={() => setActiveSubmenu('month')}
+                    >
+                      <div className={`flex items-center justify-between px-4 py-2.5 text-sm cursor-pointer rounded-lg mx-1 transition-colors ${activeSubmenu === 'month' ? 'bg-white/10 text-white' : 'text-white/80 hover:bg-white/10 hover:text-white'}`}>
+                        <span>Month</span>
+                        <span className="text-[10px] text-white/40">▶</span>
+                      </div>
+                      {activeSubmenu === 'month' && (
+                        <div 
+                          className="absolute left-full top-0 ml-1 w-48 bg-[#001f35]/95 backdrop-blur-md border border-white/10 rounded-xl shadow-xl py-1 z-50"
+                          onMouseLeave={() => setActiveSubmenu(null)}
+                        >
+                          <div 
+                            onClick={() => { setSortBy('month-desc'); setIsDropdownOpen(false); }}
+                            className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'month-desc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
+                          >
+                            Newest First
+                          </div>
+                          <div 
+                            onClick={() => { setSortBy('month-asc'); setIsDropdownOpen(false); }}
+                            className={`px-4 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white cursor-pointer rounded-lg mx-1 transition-colors ${sortBy === 'month-asc' ? 'bg-[#FF7120]/20 text-[#FF7120] font-semibold' : ''}`}
+                          >
+                            Oldest First
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-          <CardAction>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => setIsExportOpen(true)}
-            >
-              <Download className="w-4 h-4" />
-              Export Report
-            </Button>
-          </CardAction>
-        </CardHeader>
-        <CardContent>
+            <CardAction>
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => setIsExportOpen(true)}
+              >
+                <Download className="w-4 h-4" />
+                Export Report
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
             {isAttendanceLoading ? (
-                <TableSkeleton />
-              ) : attendanceError ? (
-                <p className="text-sm text-red-600">{attendanceError}</p>
-              ) : groupedRecords.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No attendance records found.</p>
-              ) : (
-                <div className="space-y-4">
-                  {groupedRecords.map((group) => {
-                    const dateObj = new Date(group.date);
-                    const dayLabel = Number.isNaN(dateObj.getTime())
-                      ? '-'
-                      : dateObj.toLocaleDateString('en-US', { weekday: 'long' });
-                    const dayNumber = Number.isNaN(dateObj.getTime()) ? '-' : dateObj.getDate();
-                    const monthLabel = Number.isNaN(dateObj.getTime())
-                      ? '-'
-                      : dateObj.toLocaleDateString('en-US', { month: 'short' });
+              <TableSkeleton />
+            ) : attendanceError ? (
+              <p className="text-sm text-red-600">{attendanceError}</p>
+            ) : groupedRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No attendance records found.</p>
+            ) : (
+              <div className="space-y-4">
+                {groupedRecords.map((group) => {
+                  const dateObj = new Date(group.date);
+                  const dayNumber = Number.isNaN(dateObj.getTime()) ? '-' : dateObj.getDate();
+                  const monthLabel = Number.isNaN(dateObj.getTime())
+                    ? '-'
+                    : dateObj.toLocaleDateString('en-US', { month: 'short' });
 
-                    const totalMinsFromApi = [group.morning, group.afternoon, group.overtime]
-                      .reduce((acc, r) => acc + (r ? parseFloat(r.total_minutes_worked || 0) : 0), 0);
-                    const totalHoursFromTimes = [group.morning, group.afternoon, group.overtime]
-                      .reduce((acc, r) => acc + (r ? getWorkedHours(r) : 0), 0);
-                    const totalHoursLabel = calculateTotalHours(group.morning, group.afternoon, group.overtime);
-                    const fallbackHoursLabel = formatDurationFromHours(totalMinsFromApi > 0 ? totalMinsFromApi / 60 : totalHoursFromTimes);
+                  const totalMinsFromApi = [group.morning, group.afternoon, group.overtime]
+                    .reduce((acc, r) => acc + (r ? parseFloat(r.total_minutes_worked || 0) : 0), 0);
+                  const totalHoursFromTimes = [group.morning, group.afternoon, group.overtime]
+                    .reduce((acc, r) => acc + (r ? getWorkedHours(r) : 0), 0);
+                  const totalHoursLabel = calculateTotalHours(group.morning, group.afternoon, group.overtime);
+                  const fallbackHoursLabel = formatDurationFromHours(totalMinsFromApi > 0 ? totalMinsFromApi / 60 : totalHoursFromTimes);
 
-                    return (
-                      <div key={group.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border border-border/50 transition-colors gap-4">
-                        <div className="flex items-start gap-4 flex-1">
-                          <div className="text-center shrink-0 min-w-[40px]">
-                            <p className="text-sm font-medium">{dayNumber}</p>
-                            <p className="text-xs text-muted-foreground">{monthLabel}</p>
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-bold text-white mb-1">{group.employee_name || 'Unknown Employee'}</p>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
-                              {group.morning && (
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold text-primary transition-colors">
-                                    AM: {formatTime12(group.morning.time_in)} - {formatTime12(group.morning.time_out)}
-                                  </p>
-                                  <LocationDisplay record={group.morning} label="Morning" />
-                                </div>
-                              )}
-                              {group.afternoon && (
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold text-primary">
-                                    PM: {formatTime12(group.afternoon.time_in)} - {formatTime12(group.afternoon.time_out)}
-                                  </p>
-                                  <LocationDisplay record={group.afternoon} label="Afternoon" />
-                                </div>
-                              )}
-                              {group.overtime && (
-                                <div className="space-y-1">
-                                  <p className="text-xs font-semibold text-primary">
-                                    OT: {formatTime12(group.overtime.time_in)} - {formatTime12(group.overtime.time_out)}
-                                  </p>
-                                  <LocationDisplay record={group.overtime} label="Overtime" />
-                                </div>
-                              )}
-                            </div>
-                          </div>
+                  return (
+                    <div key={group.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-lg border border-border/50 transition-colors gap-4">
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="text-center shrink-0 min-w-[40px]">
+                          <p className="text-sm font-medium">{dayNumber}</p>
+                          <p className="text-xs text-muted-foreground">{monthLabel}</p>
                         </div>
-                        <div className="flex items-center gap-4 shrink-0 justify-end mt-2 md:mt-0">
-                          <div className="text-right">
-                            <p className="text-sm font-medium">{totalHoursLabel !== '-' ? totalHoursLabel : fallbackHoursLabel}</p>
-                            <p className="text-xs text-muted-foreground">Total Hours</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-bold text-white mb-1">{group.employee_name || 'Unknown Employee'}</p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-2">
+                            {group.morning && (
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold text-primary transition-colors">
+                                  AM: {formatTime12(group.morning.time_in)} - {formatTime12(group.morning.time_out)}
+                                </p>
+                                <LocationDisplay record={group.morning} label="Morning" />
+                              </div>
+                            )}
+                            {group.afternoon && (
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold text-primary">
+                                  PM: {formatTime12(group.afternoon.time_in)} - {formatTime12(group.afternoon.time_out)}
+                                </p>
+                                <LocationDisplay record={group.afternoon} label="Afternoon" />
+                              </div>
+                            )}
+                            {group.overtime && (
+                              <div className="space-y-1">
+                                <p className="text-xs font-semibold text-primary">
+                                  OT: {formatTime12(group.overtime.time_in)} - {formatTime12(group.overtime.time_out)}
+                                </p>
+                                <LocationDisplay record={group.overtime} label="Overtime" />
+                              </div>
+                            )}
                           </div>
-                          {getStatusBadge(
-                            group.morning?.status_label || 
-                            group.afternoon?.status_label || 
-                            group.overtime?.status_label || 
-                            'Unknown'
-                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      <div className="flex items-center gap-4 shrink-0 justify-end mt-2 md:mt-0">
+                        <div className="text-right">
+                          <p className="text-sm font-medium">{totalHoursLabel !== '-' ? totalHoursLabel : fallbackHoursLabel}</p>
+                          <p className="text-xs text-muted-foreground">Total Hours</p>
+                        </div>
+                        {getStatusBadge(
+                          group.morning?.status_label || 
+                          group.afternoon?.status_label || 
+                          group.overtime?.status_label || 
+                          'Unknown'
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        /* Monthly DTR Preview Tab */
+        <Card className="border border-white/10 shadow-[0_10px_30px_rgba(0,0,0,0.22)] bg-[#001f35]/70 backdrop-blur-md rounded-2xl">
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="previewEmp" className="text-white/60 text-xs font-semibold uppercase">Employee:</Label>
+                <Select value={selectedPreviewEmployee} onValueChange={setSelectedPreviewEmployee}>
+                  <SelectTrigger id="previewEmp" className="w-[200px] h-10 bg-[#00273C]/60 border-white/10 text-white rounded-xl">
+                    <SelectValue placeholder="Select employee" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#001f35] border-white/10 text-white">
+                    {uniqueEmployees.map((emp) => (
+                      <SelectItem key={emp.id} value={String(emp.id)}>
+                        {emp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
+              <div className="flex items-center gap-2">
+                <Label htmlFor="previewMonth" className="text-white/60 text-xs font-semibold uppercase">Month:</Label>
+                <Input
+                  id="previewMonth"
+                  type="month"
+                  value={selectedPreviewMonth}
+                  onChange={(e) => setSelectedPreviewMonth(e.target.value)}
+                  className="w-[180px] h-10 bg-[#00273C]/60 border-white/10 text-white rounded-xl"
+                />
+              </div>
+            </div>
+
+            <CardAction>
+              <Button
+                onClick={handlePrintPreviewDTR}
+                className="gap-2 h-10 bg-[#FF7120] hover:bg-[#e5641c] text-white rounded-xl font-semibold shadow-lg shadow-[#FF7120]/10"
+                disabled={!selectedPreviewEmployee || !selectedPreviewMonth}
+              >
+                <Printer className="w-4 h-4" />
+                Print DTR
+              </Button>
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            {isAttendanceLoading ? (
+              <TableSkeleton />
+            ) : !selectedPreviewEmployee || !selectedPreviewMonth ? (
+              <p className="text-sm text-muted-foreground text-center py-10">Select an employee and a month to preview the DTR.</p>
+            ) : (
+              <div className="mt-4 flex justify-center">
+                <div className="w-full max-w-xl border border-white/10 bg-[#00273C]/40 p-6 rounded-2xl text-white shadow-xl relative overflow-hidden">
+                  
+                  {/* Form Title */}
+                  <h3 className="text-center font-extrabold text-xl tracking-widest text-[#FF7120] mb-6">DAILY TIME RECORD</h3>
+                  
+                  {/* Employee & Month Metadata Header */}
+                  <div className="space-y-3 mb-6 text-sm text-white/80 max-w-md mx-auto">
+                    <div className="flex justify-between border-b border-white/5 pb-1">
+                      <span className="font-semibold text-white/40 uppercase text-[10px] tracking-wider">Employee Name:</span>
+                      <span className="font-bold text-white tracking-wide text-right">{selectedEmployeeName.toUpperCase()}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-white/5 pb-1">
+                      <span className="font-semibold text-white/40 uppercase text-[10px] tracking-wider">Month:</span>
+                      <span className="font-bold text-white tracking-wide text-right">{getMonthName(selectedPreviewMonth)}</span>
+                    </div>
+                    <div className="flex justify-between border-b border-white/5 pb-1">
+                      <span className="font-semibold text-white/40 uppercase text-[10px] tracking-wider">Office Hours:</span>
+                      <span className="text-white/95 text-right font-medium">8:00 AM - 12:00 PM / 1:00 PM - 5:00 PM</span>
+                    </div>
+                  </div>
+
+                  {/* 31-Day Time Grid */}
+                  <div className="overflow-x-auto border border-white/10 rounded-xl bg-[#001f35]/50">
+                    <table className="w-full text-xs text-center border-collapse">
+                      <thead>
+                        <tr className="bg-[#00273c] text-[#FF7120] border-b border-white/10 font-bold">
+                          <th rowSpan="2" className="py-3 px-1.5 border-r border-white/10 w-[10%] text-center uppercase tracking-wider text-[10px]">Day</th>
+                          <th colSpan="2" className="py-2 px-1.5 border-r border-white/10 text-center uppercase tracking-wider text-[10px]">A.M.</th>
+                          <th colSpan="2" className="py-2 px-1.5 border-r border-white/10 text-center uppercase tracking-wider text-[10px]">P.M.</th>
+                          <th rowSpan="2" className="py-3 px-1.5 border-r border-white/10 text-center uppercase tracking-wider text-[10px]">Hours</th>
+                          <th rowSpan="2" className="py-3 px-1.5 text-center uppercase tracking-wider text-[10px]">Min.</th>
+                        </tr>
+                        <tr className="bg-[#00273c]/50 text-white/70 border-b border-white/10">
+                          <th className="py-2 px-1.5 border-r border-white/10 font-semibold text-[9px]">Arrival</th>
+                          <th className="py-2 px-1.5 border-r border-white/10 font-semibold text-[9px]">Departure</th>
+                          <th className="py-2 px-1.5 border-r border-white/10 font-semibold text-[9px]">Arrival</th>
+                          <th className="py-2 px-1.5 border-r border-white/10 font-semibold text-[9px]">Departure</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {previewDayRows.map(({ dayNum, details }) => (
+                          <tr key={dayNum} className="border-b border-white/5 hover:bg-white/5 transition-colors font-medium">
+                            <td className="py-2.5 px-1.5 border-r border-white/5 font-extrabold text-white/60 bg-[#00273c]/40">{dayNum}</td>
+                            <td className="py-2.5 px-1.5 border-r border-white/5 text-white/80">{details.amIn || '-'}</td>
+                            <td className="py-2.5 px-1.5 border-r border-white/5 text-white/80">{details.amOut || '-'}</td>
+                            <td className="py-2.5 px-1.5 border-r border-white/5 text-white/80">{details.pmIn || '-'}</td>
+                            <td className="py-2.5 px-1.5 border-r border-white/5 text-white/80">{details.pmOut || '-'}</td>
+                            <td className="py-2.5 px-1.5 border-r border-white/5 text-[#FF7120] font-bold">{details.hours}</td>
+                            <td className="py-2.5 px-1.5 text-[#FF7120] font-bold">{details.mins}</td>
+                          </tr>
+                        ))}
+                        <tr className="font-extrabold bg-[#00273c] text-white">
+                          <td colSpan="5" className="p-3 text-left pl-4 border-r border-white/10 text-[11px] uppercase tracking-wider text-white/70">Total Time Worked</td>
+                          <td className="p-3 border-r border-white/10 text-[#FF7120] text-sm">{previewMonthSummary.hours || ''}</td>
+                          <td className="p-3 text-[#FF7120] text-sm">{previewMonthSummary.mins || ''}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Certified Footnote Statement */}
+                  <div className="mt-4 flex flex-col items-center w-full">
+                    <p className="text-[10px] text-white/50 text-center italic max-w-sm leading-relaxed mb-4">
+                      I certify on my honor that the above is true and correct record of the hours of work performed, 
+                      record of which was made daily at the time of arrival and departure from office.
+                    </p>
+
+                    {/* Signature Space overlay */}
+                    <div className="relative w-full flex flex-col items-center my-10 pt-4">
+                      {empSignatureUrl && (
+                        <img 
+                          src={empSignatureUrl} 
+                          alt="Signature" 
+                          className="absolute -top-4 h-12 object-contain pointer-events-none opacity-90 filter invert" 
+                        />
+                      )}
+                      <div className="text-sm font-bold border-b border-white/20 w-[60%] text-center pb-1 uppercase tracking-wide">
+                        {selectedEmployeeName}
+                      </div>
+                      <div className="text-[9px] text-white/40 mt-1.5 uppercase tracking-widest font-semibold">(Signature of Employee)</div>
+                    </div>
+
+                    {/* Verification Lines and Late Minutes total */}
+                    <div className="w-full flex flex-col sm:flex-row sm:justify-between sm:items-end gap-6 text-xs text-white/70">
+                      <div className="space-y-1">
+                        <div className="text-[10px] text-white/40 font-semibold uppercase tracking-wider">Verification:</div>
+                        <div className="text-white/80">Verified as to the prescribed office hours:</div>
+                        <div className="border-b border-white/20 w-32 pt-10"></div>
+                        <div className="text-[9px] text-white/40 mt-1 uppercase tracking-widest font-semibold text-center w-32">(In-charge)</div>
+                      </div>
+                      <div className="text-right text-[#FF7120] font-bold text-sm bg-[#FF7120]/10 border border-[#FF7120]/20 rounded-xl px-4 py-2 mt-2 sm:mt-0 shadow-inner">
+                        Late Minutes: {previewMonthSummary.lateMinutes}
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Export Dialog */}
       <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -757,9 +1176,9 @@ export function AttendanceLeave() {
         </DialogContent>
       </Dialog>
 
-      {/* DTR print overlay – covers full screen using the existing PrintAttendance template */}
-      {showDTROverlay && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
+      {/* DTR print overlay – covers full screen using the PrintAttendance template */}
+      {showDTROverlay && createPortal(
+        <div className="dtr-print-overlay-wrapper" style={{ position: 'fixed', inset: 0, zIndex: 9999, overflowY: 'auto', background: '#f5f5f5' }}>
           <PrintAttendance
             employees={
               exportEmployee === 'all'
@@ -770,7 +1189,8 @@ export function AttendanceLeave() {
             initialEndMonth={exportEndDate ? exportEndDate.slice(0, 7) : ''}
             onClose={() => setShowDTROverlay(false)}
           />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
