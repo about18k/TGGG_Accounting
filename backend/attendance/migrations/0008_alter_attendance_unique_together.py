@@ -12,13 +12,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.SeparateDatabaseAndState(
-            state_operations=[
-                migrations.AlterUniqueTogether(
-                    name='attendance',
-                    unique_together={('employee', 'date', 'session_type')},
-                ),
-            ],
-            database_operations=[],
+        migrations.AlterUniqueTogether(
+            name='attendance',
+            unique_together={('employee', 'date', 'session_type')},
         ),
     ]

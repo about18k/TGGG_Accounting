@@ -95,14 +95,26 @@ const getDailyDetailsHelper = (record, day, year, month) => {
 
   let amMinutesWorked = 0;
   if (amInMin !== null && amOutMin !== null && amOutMin > amInMin) {
-    const effIn = Math.max(amInMin, 8 * 60); // 8:00 AM
+    const baselineStart = 8 * 60;
+    let effIn = amInMin;
+    if (amInMin <= baselineStart + 5) {
+      effIn = baselineStart;
+    } else {
+      effIn = baselineStart + (amInMin - (baselineStart + 5));
+    }
     const effOut = Math.min(amOutMin, 12 * 60); // 12:00 PM
     amMinutesWorked = Math.max(0, effOut - effIn);
   }
 
   let pmMinutesWorked = 0;
   if (pmInMin !== null && pmOutMin !== null && pmOutMin > pmInMin) {
-    const effIn = Math.max(pmInMin, 13 * 60); // 1:00 PM
+    const baselineStart = 13 * 60;
+    let effIn = pmInMin;
+    if (pmInMin <= baselineStart + 5) {
+      effIn = baselineStart;
+    } else {
+      effIn = baselineStart + (pmInMin - (baselineStart + 5));
+    }
     const effOut = Math.min(pmOutMin, 17 * 60); // 5:00 PM
     pmMinutesWorked = Math.max(0, effOut - effIn);
   }
@@ -110,11 +122,14 @@ const getDailyDetailsHelper = (record, day, year, month) => {
   const totalMinutes = amMinutesWorked + pmMinutesWorked;
 
   let dailyLateMins = 0;
-  if (amInMin !== null && amInMin > 8 * 60) {
-    dailyLateMins += (amInMin - 8 * 60);
+  const morningCutoff = 8 * 60 + 5; // 8:05 AM
+  const afternoonCutoff = 13 * 60 + 5; // 1:05 PM
+
+  if (amInMin !== null && amInMin > morningCutoff) {
+    dailyLateMins += (amInMin - morningCutoff);
   }
-  if (pmInMin !== null && pmInMin > 13 * 60) {
-    dailyLateMins += (pmInMin - 13 * 60);
+  if (pmInMin !== null && pmInMin > afternoonCutoff) {
+    dailyLateMins += (pmInMin - afternoonCutoff);
   }
 
   return {
@@ -144,6 +159,22 @@ const getWorkedHours = (record) => {
   const outMinutes = timeToMinutes(record?.time_out);
   if (inMinutes === null || outMinutes === null || outMinutes < inMinutes) return 0;
   return Number(((outMinutes - inMinutes) / 60).toFixed(2));
+};
+
+const formatLateMinutes = (totalMins) => {
+  if (!totalMins || totalMins <= 0) return '0 mins';
+  const hrs = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  const hrLabel = hrs === 1 ? 'hr' : 'hrs';
+  const minLabel = mins === 1 ? 'min' : 'mins';
+  
+  if (hrs > 0 && mins > 0) {
+    return `${hrs} ${hrLabel} ${mins} ${minLabel}`;
+  }
+  if (hrs > 0) {
+    return `${hrs} ${hrLabel}`;
+  }
+  return `${mins} ${minLabel}`;
 };
 
 const getSafeErrorMessage = (error, fallbackMessage) => {
@@ -196,6 +227,34 @@ const getSortLabel = (key) => {
 };
 
 export function AttendanceLeave() {
+  const currentUser = useMemo(() => {
+    try {
+      const raw = localStorage.getItem('user');
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.error('Error parsing user from localStorage:', e);
+      return null;
+    }
+  }, []);
+
+  const isAccountingUser = useMemo(() => {
+    if (!currentUser) return false;
+    const role = String(currentUser.role || '').toLowerCase();
+    const dept = String(currentUser.department_name || '').toLowerCase();
+    return role === 'accounting' || dept === 'accounting department' || dept === 'accounting';
+  }, [currentUser]);
+
+  const inChargeName = useMemo(() => {
+    if (!isAccountingUser || !currentUser) return '';
+    const fullName = `${currentUser.first_name || ''} ${currentUser.last_name || ''}`.trim();
+    return fullName || currentUser.name || currentUser.username || '';
+  }, [isAccountingUser, currentUser]);
+
+  const inChargeSignature = useMemo(() => {
+    if (!isAccountingUser || !currentUser) return null;
+    return currentUser.signature_image || currentUser.signature || null;
+  }, [isAccountingUser, currentUser]);
+
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [isAttendanceLoading, setIsAttendanceLoading] = useState(true);
   const [attendanceError, setAttendanceError] = useState('');
@@ -1102,11 +1161,22 @@ export function AttendanceLeave() {
                       <div className="space-y-1">
                         <div className="text-[10px] text-white/40 font-semibold uppercase tracking-wider">Verification:</div>
                         <div className="text-white/80">Verified as to the prescribed office hours:</div>
-                        <div className="border-b border-white/20 w-32 pt-10"></div>
-                        <div className="text-[9px] text-white/40 mt-1 uppercase tracking-widest font-semibold text-center w-32">(In-charge)</div>
+                        <div className="relative flex flex-col items-center w-32 mt-4">
+                          {inChargeSignature && (
+                            <img 
+                              src={inChargeSignature} 
+                              alt="In-Charge Signature" 
+                              className="absolute -top-6 h-10 object-contain pointer-events-none opacity-90 filter invert" 
+                            />
+                          )}
+                          <div className="text-xs font-bold border-b border-white/20 w-full text-center pb-1 uppercase tracking-wide">
+                            {inChargeName || '\u00A0'}
+                          </div>
+                          <div className="text-[9px] text-white/40 mt-1 uppercase tracking-widest font-semibold text-center w-full">(In-charge)</div>
+                        </div>
                       </div>
                       <div className="text-right text-[#FF7120] font-bold text-sm bg-[#FF7120]/10 border border-[#FF7120]/20 rounded-xl px-4 py-2 mt-2 sm:mt-0 shadow-inner">
-                        Late Minutes: {previewMonthSummary.lateMinutes}
+                        Late: {formatLateMinutes(previewMonthSummary.lateMinutes)}
                       </div>
                     </div>
                   </div>

@@ -120,7 +120,12 @@ export const calcSessionMinutes = (record) => {
   if (outMinutes <= baselineStart) return 0;
 
   // Cap checkin at session start and checkout at session end
-  const effectiveStart = Math.max(inMinutes, baselineStart);
+  let effectiveStart = inMinutes;
+  if (inMinutes <= baselineStart + 5) {
+    effectiveStart = baselineStart;
+  } else {
+    effectiveStart = baselineStart + (inMinutes - (baselineStart + 5));
+  }
   const effectiveEnd = Math.min(outMinutes, baselineEnd);
 
   // Calculate actual gross minutes worked in the session

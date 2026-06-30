@@ -840,3 +840,41 @@ class CalendarEventMultipleAndTargetedVisibilityTests(TestCase):
 		self.assertEqual(clock_in_response.status_code, 400)
 		self.assertIn('cannot make your attendance', clock_in_response.data['error'].lower())
 
+
+class SessionLateCalculationTests(TestCase):
+	def test_late_deduction_grace_period(self):
+		from datetime import time
+		from decimal import Decimal
+		from attendance.session_service import calculate_late_deduction, is_late_for_session
+
+		# Test morning (baseline 8:00 AM, cutoff 8:05 AM)
+		# 8:03 AM -> not late -> 0
+		self.assertFalse(is_late_for_session('morning', time(8, 3)))
+		self.assertEqual(calculate_late_deduction('morning', time(8, 3)), Decimal('0'))
+
+		# 8:05 AM -> not late -> 0
+		self.assertFalse(is_late_for_session('morning', time(8, 5)))
+		self.assertEqual(calculate_late_deduction('morning', time(8, 5)), Decimal('0'))
+
+		# 8:06 AM -> late (1 min counted) -> 0.02 hours
+		self.assertTrue(is_late_for_session('morning', time(8, 6)))
+		self.assertEqual(calculate_late_deduction('morning', time(8, 6)), Decimal('0.02'))
+
+		# 8:07 AM -> late (2 mins counted) -> 0.03 hours (round(2/60, 2) = 0.03)
+		self.assertTrue(is_late_for_session('morning', time(8, 7)))
+		self.assertEqual(calculate_late_deduction('morning', time(8, 7)), Decimal('0.03'))
+
+		# Test afternoon (baseline 1:00 PM / 13:00, cutoff 1:05 PM / 13:05)
+		# 1:03 PM -> not late -> 0
+		self.assertFalse(is_late_for_session('afternoon', time(13, 3)))
+		self.assertEqual(calculate_late_deduction('afternoon', time(13, 3)), Decimal('0'))
+
+		# 1:05 PM -> not late -> 0
+		self.assertFalse(is_late_for_session('afternoon', time(13, 5)))
+		self.assertEqual(calculate_late_deduction('afternoon', time(13, 5)), Decimal('0'))
+
+		# 1:07 PM -> late (2 mins counted) -> 0.03 hours
+		self.assertTrue(is_late_for_session('afternoon', time(13, 7)))
+		self.assertEqual(calculate_late_deduction('afternoon', time(13, 7)), Decimal('0.03'))
+
+
