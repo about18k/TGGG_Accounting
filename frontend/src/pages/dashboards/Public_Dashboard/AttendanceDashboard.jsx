@@ -245,15 +245,17 @@ const AttendanceDashboard = ({
 
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDTROverlay(true)}
-                  className="px-3 py-2 rounded-xl border border-[#FF7120]/40 bg-[#FF7120]/10 text-[#FF7120] hover:bg-[#FF7120]/20 hover:text-white transition text-sm font-semibold"
-                >
-                  Print DTR
-                </button>
-              </div>
+              {user?.role === 'intern' && (
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowDTROverlay(true)}
+                    className="px-3 py-2 rounded-xl border border-[#FF7120]/40 bg-[#FF7120]/10 text-[#FF7120] hover:bg-[#FF7120]/20 hover:text-white transition text-sm font-semibold"
+                  >
+                    Print DTR
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 

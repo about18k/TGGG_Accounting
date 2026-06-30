@@ -135,7 +135,7 @@ function OvertimeRequests({ token }) {
           <title>OT Request Form</title>
           <style>
             @page {
-              size: A4;
+              size: A4 portrait;
               margin: 0;
             }
             * {
@@ -152,6 +152,7 @@ function OvertimeRequests({ token }) {
               line-height: 1.3;
             }
             .form-container {
+              width: 100%;
               max-width: 800px;
               margin: 0 auto;
               border: 2px solid #000;
@@ -353,10 +354,36 @@ function OvertimeRequests({ token }) {
             }
             @media print {
               body {
-                padding: 0;
+                padding: 0.5in !important;
+                margin: 0 !important;
+                height: 100vh !important;
               }
               .form-container {
-                border: 2px solid #000;
+                width: 100% !important;
+                max-width: 100% !important;
+                height: calc(100vh - 1in) !important;
+                margin: 0 !important;
+                border: 2px solid #000 !important;
+                display: flex !important;
+                flex-direction: column !important;
+              }
+              .section {
+                flex: 1 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+              }
+              .field-row {
+                margin-bottom: 8px !important;
+              }
+              .periods-table th, .periods-table td.period-cell {
+                padding: 6px 4px !important;
+              }
+              .explanation-box {
+                min-height: 70px !important;
+              }
+              .signature-section {
+                margin-top: 35px !important;
               }
             }
           </style>

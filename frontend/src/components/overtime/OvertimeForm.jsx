@@ -26,8 +26,13 @@ const TIME_SLOTS = [
   { value: '19:00', label: '7:00 PM' },
   { value: '20:00', label: '8:00 PM' },
   { value: '21:00', label: '9:00 PM' },
-  { value: '22:00', label: '10:00 PM' }
+  { value: '22:00', label: '10:00 PM' },
+  { value: '23:00', label: '11:00 PM' },
+  { value: '00:00', label: '12:00 AM' },
+  { value: '01:00', label: '1:00 AM' }
 ];
+
+// TIME_SLOTS definition with 11:00 PM, 12:00 AM, 1:00 AM slots included
 
 const mapRoleToDepartment = (roleStr) => {
   if (!roleStr) return '';
@@ -128,33 +133,12 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
     setForm(prev => ({ ...prev, [field]: value }));
   };
 
-  const syncSameDateFields = (period, field, value, index) => {
-    if (field !== 'start_date' && field !== 'end_date') {
-      return { ...period, [field]: value };
-    }
-
-    const nextPeriod = { ...period, [field]: value };
-    const otherField = field === 'start_date' ? 'end_date' : 'start_date';
-
-    if (value === '') {
-      nextPeriod[otherField] = '';
-      return nextPeriod;
-    }
-
-    if (nextPeriod[otherField] && nextPeriod[otherField] !== value) {
-      toast.error('Date Mismatch', {
-        description: `Period ${index + 1} must start and end on the same date.`
-      });
-    }
-
-    nextPeriod[otherField] = value;
-    return nextPeriod;
-  };
-
   const updatePeriod = (index, field, value) => {
     setPeriods(prev => {
       const next = [...prev];
-      next[index] = syncSameDateFields(next[index], field, value, index);
+      const period = { ...next[index], [field]: value };
+      next[index] = period;
+      
       const duplicateIndex = getDuplicatePeriodIndex(next, index);
       if (duplicateIndex !== -1) {
         toast.error('Duplicate Period', {
@@ -162,18 +146,19 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
         });
         return prev;
       }
-      if (isInvalidPeriodRange(next[index])) {
-        toast.error('Invalid Time Range', {
-          description: `Period ${index + 1} must end after it starts.`
-        });
-        return prev;
-      }
+      
       const overlapIndex = getOverlappingPeriodIndex(next, index);
       if (overlapIndex !== -1) {
         toast.error('Overlapping Period', {
           description: `Period ${index + 1} overlaps Period ${overlapIndex + 1}. Adjust the time range.`
         });
         return prev;
+      }
+
+      if (isInvalidPeriodRange(next[index])) {
+        toast.error('Invalid Time Range', {
+          description: `Period ${index + 1} must end after it starts. If this period spans midnight, please set the End Date to the next day.`
+        });
       }
       return next;
     });
@@ -298,9 +283,7 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
       if (!hasEntry) {
         continue;
       }
-      if (period.start_date && period.end_date && period.start_date !== period.end_date) {
-        return `Period ${index + 1} must have the same start and end date.`;
-      }
+      // Invalidate if date fields are missing
       if (!period.start_date || !period.end_date || !period.start_time || !period.end_time) {
         return `Period ${index + 1} is incomplete. Please fill all date and time fields.`;
       }
@@ -311,7 +294,7 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
         return `Period ${index + 1} has an invalid date or time.`;
       }
       if (end <= start) {
-        return `Period ${index + 1} must end after it starts.`;
+        return `Period ${index + 1} must end after it starts. If this period spans midnight, please set the End Date to the next day.`;
       }
     }
     const totalHours = calculateTotalHoursFromPeriods(periods);
@@ -328,8 +311,26 @@ function OvertimeForm({ token, activeTab, onTabChange, extraTabs = [] }) {
   };
 
   const addRow = () => {
+    const invalidIdx = periods.findIndex(p => isInvalidPeriodRange(p));
+    if (invalidIdx !== -1) {
+      toast.error('Cannot Add Period', {
+        description: `Please correct the invalid time range in Period ${invalidIdx + 1} first.`
+      });
+      return;
+    }
+
+    const incompleteIdx = periods.findIndex(p => !p.start_date || !p.end_date || !p.start_time || !p.end_time);
+    if (incompleteIdx !== -1) {
+      toast.error('Cannot Add Period', {
+        description: `Please fill all date and time fields in Period ${incompleteIdx + 1} first.`
+      });
+      return;
+    }
+
     setPeriods(prev => {
-      const next = [...prev, { start_date: '', end_date: '', start_time: '', end_time: '' }];
+      const lastPeriod = prev[prev.length - 1];
+      const defaultDate = lastPeriod ? lastPeriod.start_date : '';
+      const next = [...prev, { start_date: defaultDate, end_date: defaultDate, start_time: '', end_time: '' }];
       const duplicateIndex = getDuplicatePeriodIndex(next, next.length - 1);
       if (duplicateIndex !== -1) {
         toast.error('Duplicate Period', {

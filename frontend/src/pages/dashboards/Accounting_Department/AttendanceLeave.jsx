@@ -384,19 +384,23 @@ export function AttendanceLeave() {
     return ['all', ...Array.from(new Set(names))];
   }, [attendanceRecords]);
 
-  // Unique employees with their IDs
+  // Unique employees with their IDs - restricted to Interns only for DTR Preview/Print
   const uniqueEmployees = useMemo(() => {
     const seen = new Set();
     const result = [];
     for (const record of attendanceRecords) {
       const empId = record.employee_id ?? record.user_id;
       if (empId != null && !seen.has(empId)) {
-        seen.add(empId);
-        result.push({ 
-          id: empId, 
-          name: record.employee_name || String(empId),
-          signature: record.employee_signature || null
-        });
+        const isIntern = String(record.employee_role || '').toLowerCase() === 'intern';
+        if (isIntern) {
+          seen.add(empId);
+          result.push({ 
+            id: empId, 
+            name: record.employee_name || String(empId),
+            signature: record.employee_signature || null,
+            role: record.employee_role || null
+          });
+        }
       }
     }
     return result;

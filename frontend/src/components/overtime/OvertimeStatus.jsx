@@ -104,10 +104,10 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
         <head>
           <title>OT Request Form</title>
           <style>
-            @page { size: A4; margin: 0; }
+            @page { size: A4 portrait; margin: 0; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body { font-family: Arial, sans-serif; background: #fff; color: #000; padding: 0.5in; font-size: 10pt; line-height: 1.3; }
-            .form-container { max-width: 800px; margin: 0 auto; border: 2px solid #000; padding: 0; }
+            .form-container { width: 100%; max-width: 800px; margin: 0 auto; border: 2px solid #000; padding: 0; }
             .header { display: flex; flex-direction: column; align-items: center; border-bottom: 2px solid #000; padding: 25px 20px; text-align: center; }
             .logo { max-width: 380px; height: auto; margin-bottom: 15px; display: block; }
             .header-text { width: 100%; }
@@ -136,7 +136,40 @@ function OvertimeStatus({ token, activeTab, onTabChange, extraTabs = [] }) {
             .approval-block { width: 40%; text-align: center; }
             .approval-note { font-weight: bold; margin-bottom: 5px; font-size: 9pt; }
             .total-hours { font-weight: bold; background: #f5f5f5; padding: 5px 10px; display: inline-block; border: 1px solid #000; margin-top: 5px; }
-            @media print { body { padding: 0; } .form-container { border: 2px solid #000; } }
+            @media print {
+              body {
+                padding: 0.5in !important;
+                margin: 0 !important;
+                height: 100vh !important;
+              }
+              .form-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                height: calc(100vh - 1in) !important;
+                margin: 0 !important;
+                border: 2px solid #000 !important;
+                display: flex !important;
+                flex-direction: column !important;
+              }
+              .section {
+                flex: 1 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+              }
+              .field-row {
+                margin-bottom: 8px !important;
+              }
+              .periods-table th, .periods-table td.period-cell {
+                padding: 6px 4px !important;
+              }
+              .explanation-box {
+                min-height: 70px !important;
+              }
+              .signature-section {
+                margin-top: 35px !important;
+              }
+            }
           </style>
         </head>
         <body>
